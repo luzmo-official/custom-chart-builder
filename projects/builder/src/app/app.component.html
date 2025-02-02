@@ -1,0 +1,104 @@
+<!-- Left column: Dataset selection and columns listing -->
+<div class="custom-chart-editor">
+  <div class="column left-column">
+    <div class="column-header">
+      <p class="column-header-label">Dataset</p>
+    </div>
+    <div class="column-content">
+      <luzmo-picker class="dataset-picker"
+        id="picker-1"
+        label="Select a dataset..."
+        size="m"
+        variant="highlight"
+        [pending]="status.loadingAllDatasets"
+        [readonly]="status.loadingAllDatasets"
+        (change)="onDatasetSelected($any($event))">
+        @for (dataset of datasets; track dataset.id) {
+        <luzmo-menu-item [value]="dataset.id">
+          <div class="dataset-info">
+            <span>{{ dataset.name['en'] }}</span>
+          </div>
+        </luzmo-menu-item>
+        }
+      </luzmo-picker>
+
+      @if (status.loadingDatasetDetail) {
+      <div class="loading-container">
+        <luzmo-progress-circle indeterminate=""
+          static-color="var(--primary)"
+          size="m"></luzmo-progress-circle>
+      </div>
+      }
+      @else {
+      <div class="column-list">
+        @for (column of columns; track column.columnId) {
+        <luzmo-draggable-data-item variant="highlight"
+          size="m"
+          [data]="column"
+          [disabled]="false">
+        </luzmo-draggable-data-item>
+        }
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Middle column: Droppable slots -->
+  <div class="column middle-column">
+    <div class="column-header">
+      <p class="column-header-label">Chart slots</p>
+    </div>
+    <div class="column-content">
+      <div class="slot-editor">
+        @for (slotConfig of slotConfigs; track slotConfig.name) {
+        <luzmo-droppable-slot data-drop-target-for-element="true"
+          [label]="slotConfig.label"
+          [type]="slotConfig.type"
+          [hideConfiguration]="true"
+          variant="highlight"
+          size="m"
+          (slot-contents-changed)="onColumnDropped(slotConfig.name, $any($event))">
+        </luzmo-droppable-slot>
+        }
+      </div>
+
+      <!-- Query result section -->
+      <div class="query-result">
+        @if (status.queryingData) {
+        <div class="loading-state">
+          <luzmo-progress-circle indeterminate=""
+            static-color="var(--primary)"
+            size="m">
+          </luzmo-progress-circle>
+          <p>Querying data...</p>
+        </div>
+        }
+        @if (!status.queryingData && chartData && chartData.length > 0) {
+        <p class="result-header">
+          Query result ({{chartData.length}} rows):
+        </p>
+        <ngx-json-viewer [json]="displayedChartData"
+          [expanded]="false">
+        </ngx-json-viewer>
+        @if (chartData.length > 25) {
+        <p class="remaining-rows">... and {{chartData.length - 25}} more rows</p>
+        }
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Right column: Chart visualization -->
+  <div class="column right-column">
+    <div class="column-header">
+      <p class="column-header-label">Chart visualization</p>
+    </div>
+    <div class="column-content">
+      <div class="visualization-container">
+        <div class="chart-container">
+          <div id="chartContainer" #chartContainer></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

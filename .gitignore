@@ -8,6 +8,8 @@
 
 # Node
 /node_modules
+/projects/builder/node_modules
+/projects/custom-chart/node_modules
 npm-debug.log
 yarn-error.log
 

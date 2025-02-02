@@ -3,37 +3,36 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "luzmo-custom-chart-builder": {
+    "builder": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
           "style": "scss"
         }
       },
-      "root": "",
-      "sourceRoot": "src",
+      "root": "projects/builder",
+      "sourceRoot": "projects/builder/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/luzmo-custom-chart-builder",
-            "index": "src/index.html",
-            "browser": "src/main.ts",
-            "polyfills": [
-              "zone.js"
-            ],
-            "tsConfig": "tsconfig.app.json",
+            "outputPath": "dist/builder",
+            "index": "projects/builder/src/index.html",
+            "browser": "projects/builder/src/main.ts",
+            "polyfills": ["zone.js"],
+            "tsConfig": "projects/builder/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
+              "projects/builder/src/favicon.ico",
+              "projects/builder/src/assets",
               {
                 "glob": "**/*",
-                "input": "public"
+                "input": "projects/custom-chart/dist",
+                "output": "/assets/custom-chart"
               }
             ],
-            "styles": [
-              "src/styles.scss"
-            ],
+            "styles": ["projects/builder/src/styles.scss"],
             "scripts": []
           },
           "configurations": {
@@ -64,35 +63,25 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "luzmo-custom-chart-builder:build:production"
+              "buildTarget": "builder:build:production"
             },
             "development": {
-              "buildTarget": "luzmo-custom-chart-builder:build:development"
+              "buildTarget": "builder:build:development"
             }
           },
           "defaultConfiguration": "development"
         },
-        "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n"
-        },
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "polyfills": [
-              "zone.js",
-              "zone.js/testing"
-            ],
-            "tsConfig": "tsconfig.spec.json",
+            "polyfills": ["zone.js", "zone.js/testing"],
+            "tsConfig": "projects/builder/tsconfig.spec.json",
             "inlineStyleLanguage": "scss",
             "assets": [
-              {
-                "glob": "**/*",
-                "input": "public"
-              }
+              "projects/builder/src/favicon.ico",
+              "projects/builder/src/assets"
             ],
-            "styles": [
-              "src/styles.scss"
-            ],
+            "styles": ["projects/builder/src/styles.scss"],
             "scripts": []
           }
         }
