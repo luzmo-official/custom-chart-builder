@@ -123,3 +123,96 @@ export type ItemQuery = {
   options: any;
   context?: any;
 };
+
+export interface User {
+  email: string;
+  emailConfirmed: boolean;
+  name: string;
+  city?: string;
+  theme: 'dark' | 'light';
+  country_id?: string;
+  locale_id: string;
+  app_locale_id: string;
+  created_at: string;
+  onboarding_editor_active: boolean;
+  onboarding_editor_progress: number;
+  onboarding_embedded_editor_progress: number;
+  onboarding_menu_visible: boolean;
+  id: string;
+  organizations: Organization[];
+  organizationRole: OrganizationRole;
+  userBackground: string;
+  locale: UserLocale;
+  flags: string[];
+  thumbnail: Record<string, string>;
+  country: unknown;
+  userGroups: string[];
+  plan: string;
+  whitelabelingActive: boolean;
+  authorization: { id: string; integration_id: string; type: 'sso' | 'temporary' | 'login' | 'api' | 'technical' };
+}
+
+export interface OrganizationRole {
+  flagMember: boolean;
+  flagEditor: boolean;
+  flagOwn: boolean;
+  flagSuborganizationOwn: boolean;
+  sso: boolean;
+  suborganization: string;
+  created_at: Date;
+  updated_at: Date;
+  organization_id: string;
+  user_id: string;
+}
+
+export interface Organization {
+  id: string;
+  name: Record<string, string>;
+  created_at: Date;
+  locale_id: string;
+  app_locale_id: string;
+  flag_publish: boolean;
+  flag_whitelabeling: boolean;
+  invitecode?: string;
+  organizationBackground: unknown;
+  locales: {id: string }[];
+  organizationRole: OrganizationRole;
+  thumbnail: Record<string, string>;
+}
+
+export interface UserLocale {
+  id: string;
+}
+
+export type AuthResponse = {
+  user: {
+    id: string;
+    token: {
+      cookieExpiry: string;
+      id: string;
+      token: string;
+      tokenExpiry: string;
+      uid: string;
+    };
+    twoFactorAuthentication?: boolean;
+  };
+  error?: string;
+};
+
+export type SideValues = {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+export type Dimensions = {
+  padding?: SideValues,
+  margin?: SideValues,
+  width?: number,  // Final width of the chart
+  height?: number, // Final height of the chart
+  outerWidth?: number, // Outer width of the SVG (After substracting margin from the width)
+  outerHeight?: number,  // Outer height of the SVG
+  innerWidth?: number, // Inner width of the SVG (after substracting padding from the outerWidth)
+  innerHeight?: number // Inner height of the SVG
+}

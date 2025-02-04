@@ -12,7 +12,7 @@ export const defaultSlotConfigs: SlotConfig[] = [
   {
     name: 'y' as any,
     rotate: true,
-    label: 'Y axis',
+    label: 'Y coordinate',
     type: 'mixed',
     options: { isAggregationDisabled: true, isBinningDisabled: true, areDatetimeOptionsEnabled: true },
     isRequired: true

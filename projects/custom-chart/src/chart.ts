@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import * as d3Hexbin from 'd3-hexbin';
+import { Dimensions } from './helpers/types';
 
 // Extend the hexbin bin interface to store our animation state.
 interface HexBinExtended extends d3Hexbin.HexbinBin<[number, number]> {
@@ -28,16 +29,15 @@ interface CanvasState {
 /**
  * Render the hexbin map using canvas.
  */
-export const render = (rootElement: HTMLElement, data: [number, number][]): void => {
+export const render = (container: HTMLElement, data: [number, number][], dimensions: Dimensions): void => {
   const margin = { top: 20, right: 20, bottom: 30, left: 40 };
-  const containerRect = rootElement.getBoundingClientRect();
-  const defaultWidth = containerRect.width;
-  const defaultHeight = containerRect.height;
+  const defaultWidth = dimensions.width ?? 0;
+  const defaultHeight = dimensions.height ?? 0;
 
   // Either select an existing canvas or create one.
-  let canvasSelection = d3.select(rootElement).select<HTMLCanvasElement>('canvas');
+  let canvasSelection = d3.select(container).select<HTMLCanvasElement>('canvas');
   if (canvasSelection.empty()) {
-    canvasSelection = d3.select(rootElement)
+    canvasSelection = d3.select(container)
       .append('canvas')
       .attr('width', defaultWidth)
       .attr('height', defaultHeight)
@@ -72,7 +72,7 @@ export const render = (rootElement: HTMLElement, data: [number, number][]): void
   const hexbin = d3Hexbin.hexbin()
     .x((d) => xScale(d[0]))
     .y((d) => yScale(d[1]))
-    .radius(9)
+    .radius(6)
     .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]]);
 
   // Compute the bins.
@@ -81,7 +81,7 @@ export const render = (rootElement: HTMLElement, data: [number, number][]): void
   const totalClicks = data.length;
 
   // Create a color scale mapping bin count to color.
-  const colorScale = d3.scaleSequential(d3.interpolateViridis).domain([0, maxCount]);
+  const colorScale = d3.scaleSequential(d3.interpolateMagma).domain([0, maxCount]);
   // Precompute the basic hexagon path from the hexbin generator.
   const hexPathString = hexbin.hexagon();
   const hexagonPath = new Path2D(hexPathString);
@@ -181,9 +181,9 @@ export const render = (rootElement: HTMLElement, data: [number, number][]): void
   let currentHovered: HexBinExtended | null = null;
 
   // --- TOOLTIP SETUP ---
-  let tooltip = d3.select(rootElement).select<HTMLDivElement>('.tooltip');
+  let tooltip = d3.select(container).select<HTMLDivElement>('.tooltip');
   if (tooltip.empty()) {
-    tooltip = d3.select(rootElement)
+    tooltip = d3.select(container)
       .append('div')
       .attr('class', 'tooltip')
       .style('position', 'absolute')
@@ -199,9 +199,9 @@ export const render = (rootElement: HTMLElement, data: [number, number][]): void
   }
 
   // --- CLEAR SELECTION BUTTON ---
-  let clearSelectionBtn = d3.select(rootElement).select<HTMLDivElement>('.clear-selection-btn');
+  let clearSelectionBtn = d3.select(container).select<HTMLDivElement>('.clear-selection-btn');
   if (clearSelectionBtn.empty()) {
-    clearSelectionBtn = d3.select(rootElement)
+    clearSelectionBtn = d3.select(container)
       .append('div')
       .attr('class', 'clear-selection-btn')
       .style('position', 'absolute')
@@ -330,22 +330,18 @@ export const render = (rootElement: HTMLElement, data: [number, number][]): void
  * Resize the chart by updating dimensions, scales, and re-computing bins.
  * It re-uses the data and state stored on the canvas element.
  */
-export const resize = (
-  rootElement: HTMLElement,
-  resizedWidth: number,
-  resizedHeight: number
-): void => {
+export const resize = (container: HTMLElement, dimensions: Dimensions): void => {
   // Select the existing canvas.
-  const canvasSelection = d3.select(rootElement).select<HTMLCanvasElement>('canvas');
+  const canvasSelection = d3.select(container).select<HTMLCanvasElement>('canvas');
   if (canvasSelection.empty()) return;
   const canvas = canvasSelection.node() as HTMLCanvasElement;
   const ctx = canvas.getContext('2d')!;
 
   // Update canvas dimensions.
-  canvas.width = resizedWidth;
-  canvas.height = resizedHeight;
-  const width = resizedWidth;
-  const height = resizedHeight;
+  canvas.width = dimensions.width ?? 0;
+  canvas.height = dimensions.height ?? 0;
+  const width = dimensions.width ?? 0;
+  const height = dimensions.height ?? 0;
 
   // Retrieve the previously stored state.
   const state: CanvasState | undefined = (canvas as any)._state;
@@ -376,7 +372,7 @@ export const resize = (
   const hexbin = d3Hexbin.hexbin()
     .x((d) => xScale(d[0]))
     .y((d) => yScale(d[1]))
-    .radius(9)
+    .radius(6)
     .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]]);
 
   // Recompute bins based on the new hexbin generator.
@@ -388,7 +384,7 @@ export const resize = (
     startOpacity?: number;
   }>;
   const maxCount = d3.max(bins, (d) => d.length) || 1;
-  const colorScale = d3.scaleSequential(d3.interpolateViridis).domain([0, maxCount]);
+  const colorScale = d3.scaleSequential(d3.interpolateMagma).domain([0, maxCount]);
   const hexPathString = hexbin.hexagon();
   const hexagonPath = new Path2D(hexPathString);
 
@@ -436,7 +432,7 @@ export const resize = (
   });
 
   // Update the clear-selection button's position.
-  const clearSelectionBtn = d3.select(rootElement).select('.clear-selection-btn');
+  const clearSelectionBtn = d3.select(container).select('.clear-selection-btn');
   if (!clearSelectionBtn.empty()) {
     const { left, top } = canvas.getBoundingClientRect();
     clearSelectionBtn
