@@ -1,0 +1,35 @@
+<div class="login-container">
+  <div class="login-content">
+    <h4 class="title">Please log in to your Luzmo account.</h4>
+    <form class="form-log-in"
+      [formGroup]="logInForm"
+      (ngSubmit)="attemptLogin(logInForm.get('email')?.value ?? '', logInForm.get('password')?.value ?? '')">
+      <div class="alert alert-danger"
+        *ngIf="logInForm.get('errorMsg')?.value">
+        {{logInForm.get('errorMsg')?.value}}
+      </div>
+      <div class="form-group">
+        <label for="login-email">E-mail</label>
+        <input type="email"
+          formControlName="email"
+          id="login-email"
+          autocomplete="off"
+          [placeholder]="'name@company.com'">
+      </div>
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input type="password"
+          formControlName="password"
+          id="login-password"
+          [placeholder]="'Password'">
+      </div>
+      <div class="button-container">
+        <button type="submit"
+          value="submit"
+          [disabled]="logInForm.invalid || logInForm.get('busy')?.value">
+          <span class="btn-inner-text">Log in</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
