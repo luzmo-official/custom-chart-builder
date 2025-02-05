@@ -78,7 +78,7 @@
 
         <!-- Query result section -->
         <div class="query-result">
-          @if (status.queryingData) {
+          @if (queryingData$ | async) {
           <div class="loading-state">
             <luzmo-progress-circle indeterminate
               static-color="var(--primary)"

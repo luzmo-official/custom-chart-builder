@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { AuthService } from '@builder/services/auth.service';
-import { ItemData, ItemQuery, RowsData, Securable } from '../../../../custom-chart/src/helpers/types';
+import { ItemData, ItemQuery, RowsData, Securable } from '../helpers/types';
 
 @Injectable({
   providedIn: 'root'

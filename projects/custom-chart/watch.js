@@ -3,11 +3,9 @@ const { exec } = require('child_process');
 const { join } = require('path');
 const WebSocket = require('ws');
 
-// Setup WebSocket server
 const wss = new WebSocket.Server({ port: 8080 });
 let currentBuild = null;
 
-// Watch src files
 chokidar.watch([
   join(__dirname, '../../projects/custom-chart/src/chart.ts'),
   join(__dirname, '../../projects/custom-chart/src/slots.config.ts')

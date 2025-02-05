@@ -1,10 +1,8 @@
-// server.js
 const express = require('express');
 const path = require('path');
 const app = express();
-const port = 3000;  // You can choose any free port
+const port = 3000;
 
-// Serve static files from the custom-chart-output folder
 const bundleFolder = path.join(__dirname, 'custom-chart-build-output');
 app.use(express.static(bundleFolder));
 

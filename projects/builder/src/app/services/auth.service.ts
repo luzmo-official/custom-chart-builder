@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { CookieService } from 'ngx-cookie-service';
 import { BehaviorSubject, Observable, take } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { AuthResponse, RowsData, User } from '../../../../custom-chart/src/helpers/types';
+import { AuthResponse, RowsData, User } from '../helpers/types';
 import { isBoolean, isEmpty } from '@builder/helpers/types.utils';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { of } from 'rxjs/internal/observable/of';

@@ -1,5 +1,5 @@
 import { GenericSlotContent, Slot, ItemQueryDimension } from "@luzmo/dashboard-contents-types";
-import { ItemQuery, ItemQueryMeasure, ItemQuerySort } from "../../../../custom-chart/src/helpers/types";
+import { ItemQuery, ItemQueryMeasure, ItemQuerySort } from "./types";
 
 function generateMetadataFromSlot(slots: Slot[], slotName: string, name: string) {
   const slot = slots.find((s) => s.name === slotName) || { content: [] };

@@ -11,7 +11,7 @@ import { isEmpty, isObject, isString } from '@builder/helpers/types.utils';
 import { AuthService } from '@builder/services/auth.service';
 import { EMPTY } from 'rxjs';
 import { switchMap, take } from 'rxjs/operators';
-import { AuthResponse, User } from '../../../../../custom-chart/src/helpers/types';
+import { AuthResponse, User } from '../../helpers/types';
 import { CommonModule } from '@angular/common';
 
 interface LogInForm {

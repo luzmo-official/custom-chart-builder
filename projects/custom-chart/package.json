@@ -5,16 +5,15 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "esbuild src/index.ts --bundle --minify --outfile=../../custom-chart-build-output/bundle.js --format=esm",
+    "build:prod": "esbuild src/index.ts --bundle --minify --outfile=dist/bundle.js --format=esm",
     "watch": "node watch.js"
   },
   "dependencies": {
     "@luzmo/dashboard-contents-types": "^1.0.10",
-    "d3": "^7.8.5",
-    "d3-hexbin": "^0.2.2"
+    "d3": "^7.8.5"
   },
   "devDependencies": {
     "@types/d3": "^7.4.3",
-    "@types/d3-hexbin": "^0.2.5",
     "esbuild": "^0.24.2",
     "typescript": "~5.3.2"
   }
