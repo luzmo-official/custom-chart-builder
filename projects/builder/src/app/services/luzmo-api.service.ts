@@ -12,7 +12,7 @@ export class LuzmoApiService {
 
   loadAllDatasets() {
     return this.httpClient.post<RowsData<Pick<Securable, 'id' | 'name' | 'created_at' | 'subtype'>>>(
-      'https://api.luzmo.com/0.1.0/securable',
+      `${this.authService.getApiUrl()}/0.1.0/securable`,
       {
         action: 'get',
         version: '0.1.0',
@@ -32,7 +32,7 @@ export class LuzmoApiService {
   // TODO: fix columns type
   loadDatasetWithColumns(datasetId: string) {
     return this.httpClient.post<RowsData<Pick<Securable, 'id' | 'name' | 'created_at' | 'subtype'> & { columns: any[] }>>(
-      'https://api.luzmo.com/0.1.0/securable',
+      `${this.authService.getApiUrl()}/0.1.0/securable`,
       {
         action: 'get',
         version: '0.1.0',
@@ -67,7 +67,7 @@ export class LuzmoApiService {
 
   queryLuzmoDataset(queries: ItemQuery[]) {
     return this.httpClient.post<ItemData>(
-      'https://api.luzmo.com/0.1.0/data',
+      `${this.authService.getApiUrl()}/0.1.0/data`,
       {
         action: 'get',
         version: '0.1.0',

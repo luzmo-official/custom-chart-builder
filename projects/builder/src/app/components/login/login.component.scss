@@ -16,7 +16,8 @@
     font-size: 1.25rem;
     font-weight: 500;
   }
-  .form-log-in {
+  .form-log-in,
+  .form-2fa {
     .form-group {
       margin-bottom: 1rem;
       label {
@@ -53,15 +54,13 @@
     .button-container {
       margin: 2.5rem 0;
       display: flex;
+      gap: 1rem;
       justify-content: flex-end;
     }
     button {
-      background-color: var(--primary);
-      border-color: var(--primary);
       border-radius: 0.25rem;
       border: 0.0625rem solid transparent;
       box-shadow: 0 0 0 var(--box-shadow-color), 0 0 0 var(--box-shadow-color);
-      color: var(--m500-inv);
       cursor: pointer;
       display: inline-block;
       font-size: .875rem;
@@ -72,20 +71,61 @@
       transition: all .3s ease;
       user-select: none;
       vertical-align: middle;
-      &:hover {
-        background-color: var(--m400);
-        border-color: var(--m400);
-        color: var(--m500-inv);
-      }
       &:disabled {
-        background-color: var(--primary);
-        border-color: var(--primary);
         box-shadow: none;
-        color: var(--m500-inv);
         cursor: not-allowed;
         opacity: .65;
         transform: translateY(0);
       }
+      &.btn-primary {
+        background-color: var(--primary);
+        border-color: var(--primary);
+        color: var(--m500-inv);
+        &:hover {
+          background-color: var(--m400);
+          border-color: var(--m400);
+          color: var(--m500-inv);
+        }
+        &:disabled {
+          background-color: var(--primary);
+          border-color: var(--primary);
+          color: var(--m500-inv);
+        }
+      }
+      &.btn-transparent {
+        transform: translateY(0);
+        color: var(--font-color);
+        box-shadow: none;
+        background: none;
+        &:hover {
+          color: var(--font-color-active);
+        }
+      }
+    }
+    .alert {
+      position: relative;
+      padding: 0.75rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 0.0625rem solid transparent;
+      border-radius: .25rem;
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+      margin-bottom: 1rem;
     }
   }
+}
+
+.region-picker {
+  display: block;
+}
+
+.region-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.region-icon {
+  width: 1.5rem;
+  height: 1.5rem;
 }

@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, inject, OnInit } from '@angular/core';
 import {
   FormBuilder,
   FormControl,
@@ -9,10 +9,11 @@ import {
 } from '@angular/forms';
 import { isEmpty, isObject, isString } from '@builder/helpers/types.utils';
 import { AuthService } from '@builder/services/auth.service';
-import { EMPTY } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { switchMap, take } from 'rxjs/operators';
 import { AuthResponse, User } from '../../helpers/types';
 import { CommonModule } from '@angular/common';
+import '@luzmo/analytics-components-kit/picker';
 
 interface LogInForm {
   email: FormControl<string>;
@@ -32,13 +33,16 @@ interface TwoFAForm {
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule]
+  imports: [ReactiveFormsModule, CommonModule],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class LoginComponent implements OnInit {
   private authService = inject(AuthService);
   private httpClient = inject(HttpClient);
   private formBuilder = inject(FormBuilder);
 
+  region: 'europe' | 'us' | 'custom' = 'europe';
+  mode: 'login' | '2FA' = 'login';
   logInForm!: FormGroup<LogInForm>;
   twoFAForm!: FormGroup<TwoFAForm>;
 
@@ -61,19 +65,25 @@ export class LoginComponent implements OnInit {
     this.logInForm.controls.busy.setValue(true);
     this.httpClient
       .post<AuthResponse>(
-        'https://app.luzmo.com/auth/vi',
+        `${this.authService.getAppUrl()}/auth/vi`,
         { email, password },
         { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
       )
       .pipe(
         take(1),
-        switchMap(response => {
+        switchMap((response: AuthResponse) => {
           if (isEmpty(response)) {
             return EMPTY;
           }
           else {
-            this.authService.setAuthenticated(true, response.user);
-            return this.authService.loadUser(response.user.id);
+            if (response.user.twoFactorAuthentication) {
+              this.mode = '2FA';
+              return of('2FA');
+            }
+            else {
+              this.authService.setAuthenticated(true, response.user);
+              return this.authService.loadUser(response.user.id);
+            }
           }
         })
       )
@@ -92,6 +102,69 @@ export class LoginComponent implements OnInit {
           this.authService.setAuthenticated(false);
         }
       });
+  }
+
+  submit2FA(email: string, password: string, token: string): void {
+    this.twoFAForm.controls.busy.setValue(true);
+    this.twoFAForm.controls.errorMsg.setValue('');
+
+    this.httpClient
+      .post<AuthResponse>(
+        `${this.authService.getAppUrl()}/auth/vi`,
+        { email, password, token, useRecoveryCode: false },
+        { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
+      )
+      .pipe(
+        take(1),
+        switchMap((response: AuthResponse) => {
+          if (isEmpty(response)) {
+            return EMPTY;
+          }
+
+          this.authService.setAuthenticated(true, response.user);
+          return this.authService.loadUser(response.user.id);
+        })
+      )
+      .subscribe({
+        next: (user) => {
+          this.twoFAForm.controls.busy.setValue(false);
+
+          if (user && !isString(user)) {
+            this.loginUser(user);
+          }
+        },
+        error: (error: HttpErrorResponse) => {
+          this.twoFAForm.controls.totp.setValue('');
+          this.twoFAForm.controls.busy.setValue(false);
+          this.logInForm.controls.errorMsg.setValue(this.getErrorMessage(error.error, 'login'));
+          this.mode = 'login';
+        }
+      });
+  }
+
+  cancel2FA(): void {
+    this.mode = 'login';
+    this.logInForm.controls.password.setValue('');
+    this.logInForm.controls.busy.setValue(false);
+  }
+
+  onRegionChanged(event: CustomEvent<typeof this.region>): void {
+    const region = event.detail;
+
+    if (region === 'us') {
+      this.region = 'us';
+      this.authService.setAppUrl('https://app.us.luzmo.com');
+      this.authService.setApiUrl('https://api.us.luzmo.com');
+    }
+    else if (region === 'europe') {
+      this.region = 'europe';
+      this.authService.setAppUrl('https://app.luzmo.com');
+      this.authService.setApiUrl('https://api.luzmo.com');
+    }
+    else if (region === 'custom') {
+      this.region = 'custom';
+      // TODO: set custom app and api urls
+    }
   }
 
   private loginUser(user: User): void {

@@ -126,7 +126,7 @@ export class AppComponent implements OnInit {
 
   @HostListener('window:resize')
   onResize(): void {
-    if (this.resize) {
+    if (this.authService.isAuthenticated$.getValue() === true && this.resize) {
       this.resize(
         this.container.nativeElement,
         { width: this.container.nativeElement.clientWidth, height: this.container.nativeElement.clientHeight }
@@ -176,7 +176,12 @@ export class AppComponent implements OnInit {
     this.render(
       this.container.nativeElement,
       data,
-      { width: this.container.nativeElement.clientWidth, height: this.container.nativeElement.clientHeight }
+      { 
+        width: this.container.nativeElement.clientWidth, 
+        height: this.container.nativeElement.clientHeight,
+        margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        padding: { top: 20, right: 20, bottom: 20, left: 20 }
+      }
     );
   }
 

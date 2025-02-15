@@ -1,3 +1,4 @@
+import { Slot } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
 
 type SideValues = {
@@ -8,8 +9,8 @@ type SideValues = {
 }
 
 type Dimensions = {
-  padding?: SideValues,
-  margin?: SideValues,
+  padding: SideValues,
+  margin: SideValues,
   width?: number,  // Final width of the chart
   height?: number, // Final height of the chart
   outerWidth?: number, // Outer width of the SVG (After substracting margin from the width)
@@ -173,3 +174,13 @@ export const render = (
 export const resize = (container: HTMLElement, dimensions: Dimensions): void => {
   render(container, [], dimensions);
 };
+
+export const buildQuery = (slots: Slot[]): ItemQuery => {
+  const query: ItemQuery = {
+    dimensions: [],
+    measures: [],
+    limit: { by: 10000 }
+  };
+
+  return query;
+}

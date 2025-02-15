@@ -15,6 +15,8 @@ export class AuthService {
   private httpClient = inject(HttpClient);
   private cookieService = inject(CookieService);
   private cookies: Record<string, string> = this.cookieService.getAll();
+  private appUrl = 'https://app.luzmo.com';
+  private apiUrl = 'https://api.luzmo.com';
   private authenticated =
     !isEmpty(this.cookies['k']) &&
     !isEmpty(this.cookies['t']) &&
@@ -67,7 +69,7 @@ export class AuthService {
     console.log('-- loading user')
     return this.httpClient
       .post<RowsData<User>>(
-        'https://api.luzmo.com/0.1.0/user',
+        `${this.apiUrl}/0.1.0/user`,
         {
           action: 'get',
           version: '0.1.0',
@@ -99,6 +101,22 @@ export class AuthService {
 
   setUser(value: User): User {
     return this.user = { ...value };
+  }
+
+  getAppUrl(): string {
+    return this.appUrl;
+  }
+
+  getApiUrl(): string {
+    return this.apiUrl;
+  }
+
+  setAppUrl(value: string): void {
+    this.appUrl = value;
+  }
+
+  setApiUrl(value: string): void {
+    this.apiUrl = value;
   }
 
   private onLoadUser(result: RowsData<User>): User {
