@@ -1,23 +1,5 @@
-import { Slot } from '@luzmo/dashboard-contents-types';
+import { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
-
-type SideValues = {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}
-
-type Dimensions = {
-  padding: SideValues,
-  margin: SideValues,
-  width?: number,  // Final width of the chart
-  height?: number, // Final height of the chart
-  outerWidth?: number, // Outer width of the SVG (After substracting margin from the width)
-  outerHeight?: number,  // Outer height of the SVG
-  innerWidth?: number, // Inner width of the SVG (after substracting padding from the outerWidth)
-  innerHeight?: number // Inner height of the SVG
-}
 
 /**
  * Renders a custom chart inside the specified container element.
@@ -30,7 +12,11 @@ type Dimensions = {
 export const render = (
   container: HTMLElement,
   data: any[][],
-  dimensions: Dimensions
+  slots: Slot[],
+  slotConfigurations: SlotConfig[],
+  options: Record<string, any>,
+  language: string,
+  dimensions: { width: number; height: number }
 ): void => {
   const width = dimensions.width ?? 800;
   const height = dimensions.height ?? 400;
@@ -171,8 +157,15 @@ export const render = (
  * @param dimensions - An object containing the width, height, margin and padding of the chart.
  *
  */
-export const resize = (container: HTMLElement, dimensions: Dimensions): void => {
-  render(container, [], dimensions);
+export const resize = (
+  container: HTMLElement,
+  slots: Slot[],
+  slotConfigurations: SlotConfig[],
+  options: Record<string, any>,
+  language: string,
+  dimensions: { width: number; height: number }
+): void => {
+  render(container, [], slots, slotConfigurations, options, 'en', dimensions);
 };
 
 export const buildQuery = (slots: Slot[]): ItemQuery => {

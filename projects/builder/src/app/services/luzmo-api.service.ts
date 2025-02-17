@@ -22,7 +22,7 @@ export class LuzmoApiService {
           attributes: ['id', 'updated_at', 'created_at', 'name', 'subtype'],
           where: { type: 'dataset', is_variant: false },
           order: [['created_at', 'desc']],
-          options: { public: false, owned: true }
+          options: { public: false }
         }
       },
       { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }

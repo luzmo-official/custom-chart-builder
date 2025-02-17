@@ -1,4 +1,4 @@
-import { SlotConfig } from '@luzmo/dashboard-contents-types';
+import { SlotConfig, SlotName } from '@luzmo/dashboard-contents-types';
 
 export const defaultSlotConfigs: SlotConfig[] = [
   {

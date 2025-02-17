@@ -198,21 +198,3 @@ export type AuthResponse = {
   };
   error?: string;
 };
-
-export type SideValues = {
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-}
-
-export type Dimensions = {
-  padding?: SideValues,
-  margin?: SideValues,
-  width?: number,  // Final width of the chart
-  height?: number, // Final height of the chart
-  outerWidth?: number, // Outer width of the SVG (After substracting margin from the width)
-  outerHeight?: number,  // Outer height of the SVG
-  innerWidth?: number, // Inner width of the SVG (after substracting padding from the outerWidth)
-  innerHeight?: number // Inner height of the SVG
-}

@@ -68,7 +68,7 @@
           <luzmo-droppable-slot data-drop-target-for-element="true"
             [label]="slotConfig.label"
             [type]="slotConfig.type"
-            [hideConfiguration]="true"
+            [slotConfiguration]="slotConfig"
             variant="highlight"
             size="m"
             (slot-contents-changed)="onColumnDropped(slotConfig.name, $any($event))">

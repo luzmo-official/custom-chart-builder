@@ -14,7 +14,6 @@ import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/draggable-data-item';
 import '@luzmo/analytics-components-kit/droppable-slot';
-import '@luzmo/analytics-components-kit/edit-option-radio-button-group';
 import '@luzmo/analytics-components-kit/picker';
 import '@luzmo/analytics-components-kit/progress-circle';
 import { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
@@ -23,7 +22,7 @@ import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import { filter, map, shareReplay, switchMap, take, tap } from 'rxjs/operators';
 import { defaultSlotConfigs } from '../../../custom-chart/src/slots.config';
-import { Dimensions, ItemData } from './helpers/types';
+import { ItemData, ItemQuery } from './helpers/types';
 
 @UntilDestroy()
 @Component({
@@ -38,8 +37,24 @@ export class AppComponent implements OnInit {
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
   private ws = new WebSocket('ws://localhost:8080');
-  private render?: (element: HTMLElement, data: ItemData['data'], dimensions: Dimensions) => void;
-  private resize?: (element: HTMLElement, dimensions: Dimensions) => void;
+  private render?: (
+    container: HTMLElement,
+    data: ItemData['data'],
+    slots: Slot[],
+    slotConfigurations: SlotConfig[],
+    options: any,
+    language: string,
+    dimensions: { width: number; height: number }
+  ) => void;
+  private resize?: (
+    container: HTMLElement,
+    slots: Slot[],
+    slotConfigurations: SlotConfig[],
+    options: any,
+    language: string,
+    dimensions: { width: number; height: number }
+  ) => void;
+  private buildQuery?: (slots: Slot[]) => ItemQuery;
 
   currentUser$ = this.authService.isAuthenticated$
     .pipe(
@@ -104,7 +119,16 @@ export class AppComponent implements OnInit {
           .every(s => s && s.content.length > 0);
 
         if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
-          const query = buildLuzmoQuery(slots);
+          let query: ItemQuery;
+
+          console.log(this.buildQuery)
+
+          if (this.buildQuery) {
+            query = this.buildQuery(slots);
+          }
+          else {
+            query = buildLuzmoQuery(slots);
+          }
           this.queryingData$.next(true);
 
           return this.luzmoAPIService.queryLuzmoDataset([query])
@@ -129,6 +153,10 @@ export class AppComponent implements OnInit {
     if (this.authService.isAuthenticated$.getValue() === true && this.resize) {
       this.resize(
         this.container.nativeElement,
+        this.slotsSubject.getValue(),
+        this.slotConfigs,
+        {},
+        'en',
         { width: this.container.nativeElement.clientWidth, height: this.container.nativeElement.clientHeight }
       );
     }
@@ -158,6 +186,7 @@ export class AppComponent implements OnInit {
   }
 
   private async loadBundle() {
+    // Load and execute the JavaScript bundle
     const response = await fetch('/custom-chart/bundle.js?t=' + Date.now());
     const blob = new Blob([await response.text()], { type: 'text/javascript' });
     const url = URL.createObjectURL(blob);
@@ -166,6 +195,16 @@ export class AppComponent implements OnInit {
 
     this.render = module.render;
     this.resize = module.resize;
+
+    if (module.buildQuery) {
+      this.buildQuery = module.buildQuery;
+    }
+
+    // Load and apply the CSS file dynamically
+    const cssLink = document.createElement('link');
+    cssLink.rel = 'stylesheet';
+    cssLink.href = '/custom-chart/styles.css?t=' + Date.now();
+    document.head.appendChild(cssLink);
   }
 
   private async renderChart(data: ItemData['data'] = []) {
@@ -176,12 +215,11 @@ export class AppComponent implements OnInit {
     this.render(
       this.container.nativeElement,
       data,
-      { 
-        width: this.container.nativeElement.clientWidth, 
-        height: this.container.nativeElement.clientHeight,
-        margin: { top: 20, right: 20, bottom: 20, left: 20 },
-        padding: { top: 20, right: 20, bottom: 20, left: 20 }
-      }
+      this.slotsSubject.getValue(),
+      this.slotConfigs,
+      {},
+      'en',
+      { width: this.container.nativeElement.clientWidth, height: this.container.nativeElement.clientHeight }
     );
   }
 
@@ -190,21 +228,21 @@ export class AppComponent implements OnInit {
     const updatedSlots = currentSlots.map((slot) => {
       if (slot.name === slotName) {
         const droppedColumn = event.detail.slotContents[0];
+        const content = event.detail.slotContents.map((column) => ({
+          columnId: droppedColumn.columnId,
+          currency: droppedColumn.currency,
+          datasetId: droppedColumn.datasetId,
+          format: droppedColumn.format,
+          label: droppedColumn.label,
+          level: droppedColumn.level,
+          lowestLevel: droppedColumn.lowestLevel,
+          subtype: droppedColumn.subtype,
+          type: droppedColumn.type
+        }));
+
         return {
           ...slot,
-          content: droppedColumn
-            ? [{
-              columnId: droppedColumn.columnId,
-              currency: droppedColumn.currency,
-              datasetId: droppedColumn.datasetId,
-              format: droppedColumn.format,
-              label: droppedColumn.label,
-              level: droppedColumn.level,
-              lowestLevel: droppedColumn.lowestLevel,
-              subtype: droppedColumn.subtype,
-              type: droppedColumn.type
-            }]
-            : []
+          content
         };
       }
       return slot;

@@ -1,16 +1,6 @@
 import { GenericSlotContent, Slot, ItemQueryDimension } from "@luzmo/dashboard-contents-types";
 import { ItemQuery, ItemQueryMeasure, ItemQuerySort } from "./types";
 
-function generateMetadataFromSlot(slots: Slot[], slotName: string, name: string) {
-  const slot = slots.find((s) => s.name === slotName) || { content: [] };
-  const content = slot.content || [];
-
-  return {
-    [`content${name}`]: content,
-    [`has${name}`]: content.length > 0
-  };
-}
-
 function addToMeasures(measures: ItemQueryMeasure[], content: GenericSlotContent): void {
   if (content.type === 'numeric') {
     if (content.formula) {
@@ -169,41 +159,80 @@ function getAdHocExpression(content: GenericSlotContent): string {
   return `format(${content.columnId}, '${content.datetimeDisplayMode}')`;
 }
 
-export function buildLuzmoQuery(slots: Slot[], options: {
-  chartId?: string;
-  dashboardId?: string;
-  dashboardShareId?: string;
-  locale?: string;
-  timezoneId?: string;
-} = {}): ItemQuery {
-  const { locale = 'en', timezoneId = 'UTC' } = options;
+function generateMetadataFromSlot(
+  slots: Slot[],
+  slotName: string,
+  name: string
+) {
+  const slot = slots.find((s) => s.name === slotName) || { content: [] };
+  const content = slot.content || [];
 
+  return {
+    [`content${name}`]: content,
+    [`has${name}`]: content.length > 0,
+  };
+}
+
+export function buildLuzmoQuery(slots: Slot[]): ItemQuery {
   // Generate metadata from slots
-  const xData = generateMetadataFromSlot(slots, 'x', 'X');
-  const yData = generateMetadataFromSlot(slots, 'y', 'Y');
+  const dateDef = generateMetadataFromSlot(slots, 'date', 'Date');
+  const orderDef = generateMetadataFromSlot(slots, 'order', 'Order');
+  const categoryDef = generateMetadataFromSlot(slots, 'category', 'Category');
+  const measureDef = generateMetadataFromSlot(slots, 'measure', 'Measure');
   const dimensions: ItemQueryDimension[] = [];
+  const measures: ItemQueryMeasure[] = [];
+
+  console.log(dateDef, categoryDef, measureDef);
 
   // Add dimensions and measures
-  if (xData['hasX']) {
-    dimensions.push({ dataset_id: (xData as any)['contentX'][0].datasetId, column_id: (xData as any)['contentX'][0].columnId });
+  if (dateDef['hasDate']) {
+    for (const date of (dateDef as any)['contentDate']) {
+      dimensions.push({
+        dataset_id: date.datasetId,
+        column_id: date.columnId,
+      });
+    }
   }
-  if (yData['hasY']) {
-    dimensions.push({ dataset_id: (yData as any)['contentY'][0].datasetId, column_id: (yData as any)['contentY'][0].columnId });
+  if (orderDef['hasOrder']) {
+    for (const order of (orderDef as any)['contentOrder']) {
+      dimensions.push({
+        dataset_id: order.datasetId,
+        column_id: order.columnId,
+      });
+    }
   }
+  if (categoryDef['hasCategory']) {
+    for (const category of (categoryDef as any)['contentCategory']) {
+      dimensions.push({
+        dataset_id: category.datasetId,
+        column_id: category.columnId,
+      });
+    }
+  }
+  if (measureDef['hasMeasure']) {
+    for (const measure of (measureDef as any)['contentMeasure']) {
+      measures.push({
+        dataset_id: measure.datasetId,
+        column_id: measure.columnId,
+      });
+    }
+  }
+
+  console.log('QQ', dimensions, measures);
 
   // Build query object
   const query: ItemQuery = {
     dimensions,
-    measures: [],
+    measures,
     limit: { by: 60000 },
     options: {
-      locale_id: locale,
-      timezone_id: timezoneId,
-      rollup_data: false
-    }
+      locale_id: 'en',
+      timezone_id: 'UTC',
+      rollup_data: false,
+    },
   };
 
-  console.log(query)
+  console.log(query);
 
   return query;
 }
