@@ -13,10 +13,6 @@ const localize = (
   return value?.[language] ?? value?.[Object.keys(value ?? {})[0]] ?? '';
 };
 
-export const render2 = ({
-
-})
-
 /**
  * Renders a custom chart inside the specified container element.
  *
