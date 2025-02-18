@@ -2,20 +2,37 @@ import { SlotConfig, SlotName } from '@luzmo/dashboard-contents-types';
 
 export const defaultSlotConfigs: SlotConfig[] = [
   {
+    name: 'date' as SlotName,
+    label: 'Date',
+    rotate: false,
+    type: 'categorical',
+    options: {
+      areDatetimeOptionsEnabled: true,
+    },
+    isRequired: true,
+    canAcceptMultipleColumns: false,
+    acceptableColumnTypes: ['datetime'],
+  },
+  {
+    name: 'order',
+    label: 'Order',
+    rotate: false,
+    type: 'categorical',
+    isRequired: true,
+    canAcceptMultipleColumns: false,
+    acceptableColumnTypes: ['hierarchy', 'numeric', 'datetime'],
+  },
+  {
     name: 'category',
     label: 'Category',
     rotate: false,
     type: 'categorical',
     options: {
-      areDatetimeOptionsEnabled: true
+      areDatetimeOptionsEnabled: true,
     },
-    isRequired: false,
-    canAcceptMultipleColumns: false,
-    acceptableColumnTypes: [
-      'hierarchy',
-      'numeric',
-      'datetime'
-    ]
+    isRequired: true,
+    canAcceptMultipleColumns: true,
+    acceptableColumnTypes: ['hierarchy', 'numeric', 'datetime'],
   },
   {
     name: 'measure',
@@ -23,13 +40,9 @@ export const defaultSlotConfigs: SlotConfig[] = [
     rotate: false,
     type: 'numeric',
     options: {},
-    isRequired: false,
+    isRequired: true,
     canAcceptMultipleColumns: true,
-    acceptableColumnTypes: [
-      'hierarchy',
-      'numeric',
-      'datetime'
-    ],
-    canAcceptFormula: true
-  }
-]
+    acceptableColumnTypes: ['hierarchy', 'numeric', 'datetime'],
+    canAcceptFormula: true,
+  },
+];

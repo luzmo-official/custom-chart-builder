@@ -3,7 +3,7 @@ const { exec } = require('child_process');
 const { join } = require('path');
 const WebSocket = require('ws');
 
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocket.Server({ port: 8081 });
 let currentBuild = null;
 
 chokidar.watch([
