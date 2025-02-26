@@ -116,8 +116,16 @@
       <div class="column-content">
         <div class="visualization-container">
           <div class="chart-container">
-            <div id="chartContainer"
-              #chartContainer></div>
+            @if (!moduleLoaded) {
+              <div class="chart-loading">
+                <luzmo-progress-circle indeterminate
+                  static-color="var(--primary)"
+                  size="m">
+                </luzmo-progress-circle>
+                <p>Loading chart...</p>
+              </div>
+            }
+            <div id="chartContainer" #chartContainer></div>
           </div>
         </div>
       </div>

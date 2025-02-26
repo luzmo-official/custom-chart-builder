@@ -9,17 +9,18 @@ import * as d3 from 'd3';
  * @param dimensions - An object containing the width, height, margin and padding of the chart.
  *
  */
-export const render = (
-  container: HTMLElement,
-  data: any[][],
-  slots: Slot[],
-  slotConfigurations: SlotConfig[],
-  options: Record<string, any>,
-  language: string,
-  dimensions: { width: number; height: number }
+export const render = (data: {
+    container: HTMLElement,
+    data: any[][],
+    slots: Slot[],
+    slotConfigurations: SlotConfig[],
+    options: Record<string, any>,
+    language: string,
+    dimensions: { width: number; height: number }
+  }
 ): void => {
-  const width = dimensions.width ?? 800;
-  const height = dimensions.height ?? 400;
+  const width = data.dimensions.width ?? 800;
+  const height = data.dimensions.height ?? 400;
 
   // Base design values
   const baseDotSize = 10;
@@ -67,11 +68,11 @@ export const render = (
   const offsetY = (height - 5 * gridSize) / 2;
 
   // Remove any existing canvas in the container.
-  d3.select(container).selectAll('canvas').remove();
+  d3.select(data.container).selectAll('canvas').remove();
 
   // Create and configure a new canvas.
   const canvas = d3
-    .select(container)
+    .select(data.container)
     .append('canvas')
     .attr('width', width)
     .attr('height', height)
@@ -157,15 +158,16 @@ export const render = (
  * @param dimensions - An object containing the width, height, margin and padding of the chart.
  *
  */
-export const resize = (
-  container: HTMLElement,
-  slots: Slot[],
-  slotConfigurations: SlotConfig[],
-  options: Record<string, any>,
-  language: string,
-  dimensions: { width: number; height: number }
+export const resize = ( data: {
+    container: HTMLElement,
+    slots: Slot[],
+    slotConfigurations: SlotConfig[],
+    options: Record<string, any>,
+    language: string,
+    dimensions: { width: number; height: number }
+  }
 ): void => {
-  render(container, [], slots, slotConfigurations, options, 'en', dimensions);
+  render({...data, data: []});
 };
 
 export const buildQuery = (slots: Slot[]): ItemQuery => {
