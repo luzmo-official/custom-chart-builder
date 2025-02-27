@@ -160,7 +160,7 @@ export class AppComponent implements OnInit, OnDestroy {
         }
       }),
       tap(data => {
-        if (this.moduleLoaded && data.length > 0) {
+        if (this.moduleLoaded) {
           this.performRender(data);
         }
       }),
@@ -257,7 +257,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   private performRender(data: ItemData['data'] = []): void {
-    if (this.renderPending || !this.iframe || !data.length) {
+    if (this.renderPending || !this.iframe) {
       return;
     }
 
