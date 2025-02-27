@@ -5,9 +5,7 @@ import { addToDimensions, addToMeasures, getSlotCategoryBySlotDefinition, getSlo
 /**
  * Renders a custom chart inside the specified container element.
  *
- * @param container - The HTML element where the chart will be rendered.
- * @param data - An array of arrays, representing the data points to be plotted.
- * @param dimensions - An object containing the width, height, margin and padding of the chart.
+ * @param data - An object containing the container element, data, slots, slotConfigurations, options, language, and dimensions
  *
  */
 export const render = (data: {
@@ -155,9 +153,7 @@ export const render = (data: {
 /**
  * Resizes the custom chart inside the specified container element.
  *
- * @param container - The HTML element where the chart will be rendered.
- * @param dimensions - An object containing the width, height, margin and padding of the chart.
- *
+ * @param data - An object containing the container element, slots, slotConfigurations, options, language, and dimensions.
  */
 export const resize = ( data: {
     container: HTMLElement,
