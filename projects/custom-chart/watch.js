@@ -8,6 +8,7 @@ let currentBuild = null;
 
 chokidar.watch([
   join(__dirname, '../../projects/custom-chart/src/chart.ts'),
+  join(__dirname, '../../projects/custom-chart/src/build-query.utils.ts'),
   join(__dirname, '../../projects/custom-chart/src/slots.config.ts')
 ], {
   ignoreInitial: true,

@@ -1,5 +1,6 @@
-import { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
+import { Slot, SlotConfig, ItemQueryDimension, ItemQueryMeasure, ItemQuery } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
+import { addToDimensions, addToMeasures, getSlotCategoryBySlotDefinition, getSlotMeasureBySlotDefinition } from './build-query.utils';
 
 /**
  * Renders a custom chart inside the specified container element.
@@ -170,12 +171,49 @@ export const resize = ( data: {
   render({...data, data: []});
 };
 
-export const buildQuery = (slots: Slot[]): ItemQuery => {
-  const query: ItemQuery = {
-    dimensions: [],
-    measures: [],
-    limit: { by: 10000 }
-  };
+export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery => {
+  const measures: ItemQueryMeasure[] = [];
+  const dimensions: ItemQueryDimension[] = [];
+
+  const slotMeasuresByDefinition = getSlotMeasureBySlotDefinition(slotsConfig);
+  const allMeasureSlots = slots.filter(
+    s => slotMeasuresByDefinition.find(sd => sd.name === s.name)
+  );
+
+  let hasMeasures = false;
+
+  for (const measureSlot of allMeasureSlots) {
+    for (const measureSlotContent of measureSlot.content) {
+      hasMeasures = true;
+      addToMeasures(measures, measureSlotContent);
+    }
+  }
+
+  // From slotDefenitions we extract slots, whose type are categorical and sort them by order. These are our dimensions (categories and legends)
+  const slotCategorySortedByOrder = getSlotCategoryBySlotDefinition(slotsConfig)
+    .sort((a, b) => a.order! - b.order!);
+
+  if (slotCategorySortedByOrder?.length > 0) {
+    // Get the actual slot
+    const categorySlots = slots.filter(
+      s => slotCategorySortedByOrder.find(sd => sd.name === s.name)
+    );
+
+    // Check if the slot is filled
+    for (const categorySlot of categorySlots) {
+      if (categorySlot.content.length > 0) {
+        addToDimensions(dimensions, categorySlot.content[0]);
+      }
+    }
+
+    if (!hasMeasures && categorySlots.length > 0 && categorySlots[0].content.length > 0) {
+      measures.push({ dataset_id: categorySlots[0].content[0].set, column_id: '*' });
+    }
+  }
+
+  const query = { dimensions, measures, limit: { by: 10000 } };
+
+  console.log('Query', query);
 
   return query;
 }

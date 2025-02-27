@@ -39,7 +39,7 @@ export class AppComponent implements OnInit, OnDestroy {
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
   private ws = new WebSocket('ws://localhost:8080');
-  
+
   private iframe: HTMLIFrameElement | null = null;
   private blobUrl: string | null = null;
   moduleLoaded = false;
@@ -47,7 +47,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private renderPending = false;
   private scriptContent = '';
   private styleContent = '';
-  private buildQuery?: (slots: Slot[]) => ItemQuery;
+  private buildQuery?: (slots: Slot[], slotsConfig: SlotConfig[]) => ItemQuery;
 
   currentUser$ = this.authService.isAuthenticated$
     .pipe(
@@ -80,8 +80,10 @@ export class AppComponent implements OnInit, OnDestroy {
       map(dataset =>
         dataset.columns.map(column => ({
           columnId: column.id,
+          column: column.id,
           currency: column.currency?.symbol,
           datasetId: dataset.id,
+          set: dataset.id,
           description: column.description,
           format: column.format,
           hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
@@ -111,7 +113,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (event.data.type === 'moduleLoaded') {
       this.moduleLoaded = true;
       console.log('Module loaded successfully');
-      
+
       // If we have data, render the chart
       this.chartData$.pipe(take(1)).subscribe(data => {
         this.performRender(data);
@@ -142,7 +144,7 @@ export class AppComponent implements OnInit, OnDestroy {
           console.log(this.buildQuery)
 
           if (this.buildQuery) {
-            query = this.buildQuery(slots);
+            query = this.buildQuery(slots, defaultSlotConfigs);
           }
           else {
             query = buildLuzmoQuery(slots);
@@ -180,7 +182,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     window.addEventListener('message', this.handleMessage);
-    
+
     this.authService.isAuthenticated$
       .pipe(
         filter(isAuthenticated => isAuthenticated),
@@ -199,16 +201,16 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     window.removeEventListener('message', this.handleMessage);
-    
+
     if (this.resizeAnimationFrame !== null) {
       cancelAnimationFrame(this.resizeAnimationFrame);
     }
-    
+
     if (this.iframe) {
       this.iframe.remove();
       this.iframe = null;
     }
-    
+
     if (this.blobUrl) {
       URL.revokeObjectURL(this.blobUrl);
       this.blobUrl = null;
@@ -225,7 +227,7 @@ export class AppComponent implements OnInit, OnDestroy {
         .replaceAll('$', String.raw`\$`)      // Escape dollar signs
         .replaceAll('\'', String.raw`\'`)      // Escape single quotes
         .replaceAll('"', String.raw`\"`);
-      
+
       // Load style content
       try {
         const styleResponse = await fetch('/custom-chart/styles.css?t=' + Date.now());
@@ -234,18 +236,18 @@ export class AppComponent implements OnInit, OnDestroy {
         console.warn('No styles found, continuing without styles');
         this.styleContent = '';
       }
-      
+
       // Setup iframe
       const chartContainer = this.container.nativeElement;
 
       chartContainer.innerHTML = '';
-      
+
       // Create the iframe
       setUpSecureIframe(chartContainer, this.scriptContent, this.styleContent)
         .then(({ iframe, blobUrl }) => {
           this.iframe = iframe;
           this.blobUrl = blobUrl;
-          
+
           // We'll wait for the moduleLoaded message to handle rendering
         })
         .catch(error => {
@@ -323,8 +325,10 @@ export class AppComponent implements OnInit, OnDestroy {
         const droppedColumn = event.detail.slotContents[0];
         const content = event.detail.slotContents.map((column) => ({
           columnId: droppedColumn.columnId,
+          column: droppedColumn.column,
           currency: droppedColumn.currency,
           datasetId: droppedColumn.datasetId,
+          set: droppedColumn.datasetId,
           format: droppedColumn.format,
           label: droppedColumn.label,
           level: droppedColumn.level,
