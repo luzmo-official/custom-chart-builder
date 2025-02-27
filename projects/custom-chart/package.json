@@ -8,7 +8,7 @@
     "watch": "node watch.js"
   },
   "dependencies": {
-    "@luzmo/dashboard-contents-types": "^1.0.10",
+    "@luzmo/dashboard-contents-types": "^1.0.14",
     "d3": "^7.8.5"
   },
   "devDependencies": {

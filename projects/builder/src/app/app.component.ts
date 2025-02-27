@@ -54,7 +54,7 @@ export class AppComponent implements OnInit {
     language: string,
     dimensions: { width: number; height: number }
   ) => void;
-  private buildQuery?: (slots: Slot[]) => ItemQuery;
+  private buildQuery?: (slots: Slot[], slotsConfig: SlotConfig[]) => ItemQuery;
 
   currentUser$ = this.authService.isAuthenticated$
     .pipe(
@@ -87,8 +87,10 @@ export class AppComponent implements OnInit {
       map(dataset =>
         dataset.columns.map(column => ({
           columnId: column.id,
+          column: column.id,
           currency: column.currency?.symbol,
           datasetId: dataset.id,
+          set: dataset.id,
           description: column.description,
           format: column.format,
           hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
@@ -124,7 +126,7 @@ export class AppComponent implements OnInit {
           console.log(this.buildQuery)
 
           if (this.buildQuery) {
-            query = this.buildQuery(slots);
+            query = this.buildQuery(slots, defaultSlotConfigs);
           }
           else {
             query = buildLuzmoQuery(slots);
@@ -230,8 +232,10 @@ export class AppComponent implements OnInit {
         const droppedColumn = event.detail.slotContents[0];
         const content = event.detail.slotContents.map((column) => ({
           columnId: droppedColumn.columnId,
+          column: droppedColumn.column,
           currency: droppedColumn.currency,
           datasetId: droppedColumn.datasetId,
+          set: droppedColumn.datasetId,
           format: droppedColumn.format,
           label: droppedColumn.label,
           level: droppedColumn.level,
