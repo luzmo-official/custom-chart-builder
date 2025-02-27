@@ -1,4 +1,4 @@
-import { Slot, SlotConfig, ItemQueryDimension } from '@luzmo/dashboard-contents-types';
+import { Slot, SlotConfig, ItemQueryDimension, ItemQueryMeasure, ItemQuery } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
 import { addToDimensions, addToMeasures, getSlotCategoryBySlotDefinition, getSlotMeasureBySlotDefinition } from './build-query.utils';
 
@@ -169,8 +169,8 @@ export const resize = (
   render(container, [], slots, slotConfigurations, options, 'en', dimensions);
 };
 
-export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): any => {
-  const measures: any[] = []; // TODO: Set to ItemQueryMeasure when exported from dashboard-contents-types
+export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery => {
+  const measures: ItemQueryMeasure[] = [];
   const dimensions: ItemQueryDimension[] = [];
 
   const slotMeasuresByDefinition = getSlotMeasureBySlotDefinition(slotsConfig);

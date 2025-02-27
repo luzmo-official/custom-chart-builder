@@ -1,4 +1,4 @@
-import { DatetimeDisplayMode, GenericSlotContent, ItemQueryAggregation, ItemQueryDimension, Slot, SlotConfig } from "@luzmo/dashboard-contents-types";
+import { DatetimeDisplayMode, GenericSlotContent, ItemQueryAggregation, ItemQueryDimension, ItemQueryMeasure, Slot, SlotConfig } from "@luzmo/dashboard-contents-types";
 
 export enum AdHocExpression {
   default = 'DEFAULT',
@@ -37,7 +37,7 @@ export enum AdHocExpression {
     return value === null || value === undefined;
   }
 
-  export function addToMeasures(measures: any[], content: GenericSlotContent, cumulativeSumAggregation?: any): void {
+  export function addToMeasures(measures: ItemQueryMeasure[], content: GenericSlotContent, cumulativeSumAggregation?: any): void {
     measures = measures || [];
   
     if (content.type === 'numeric') {
