@@ -1,4 +1,11 @@
-import { DatetimeDisplayMode, GenericSlotContent, ItemQueryAggregation, ItemQueryDimension, ItemQueryMeasure, Slot, SlotConfig } from "@luzmo/dashboard-contents-types";
+import {
+  DatetimeDisplayMode,
+  GenericSlotContent,
+  ItemQueryAggregation,
+  ItemQueryDimension,
+  ItemQueryMeasure,
+  SlotConfig
+} from '@luzmo/dashboard-contents-types';
 
 export enum AdHocExpression {
   default = 'DEFAULT',
