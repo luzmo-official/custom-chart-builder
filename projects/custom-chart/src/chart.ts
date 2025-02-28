@@ -1,6 +1,12 @@
 import { Slot, SlotConfig, ItemQueryDimension, ItemQueryMeasure, ItemQuery } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
 import * as d3Hexbin from 'd3-hexbin';
+import {
+  addToDimensions,
+  addToMeasures,
+  getSlotCategoryBySlotDefinition,
+  getSlotMeasureBySlotDefinition
+} from './build-query.utils';
 
 type SideValues = {
   top: number;
@@ -57,13 +63,14 @@ export const render = ({
   dimensions: { width, height } = { width: 0, height: 0 },
 }: {
   container: HTMLElement;
-  data: any[][];
+  data: [number, number][];
   slots: Slot[];
   slotConfigurations: SlotConfig[];
   options: Record<string, any>;
   language: string;
   dimensions: { width: number; height: number };
 }): void => {
+  console.log('Rendering', slots, slotConfigurations);
   const margin = { top: 20, right: 20, bottom: 30, left: 40 };
 
   // Either select an existing canvas or create one.
@@ -487,6 +494,8 @@ export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery 
   const measures: ItemQueryMeasure[] = [];
   const dimensions: ItemQueryDimension[] = [];
 
+  console.log('Slots query', slots, slotsConfig);
+
   const slotMeasuresByDefinition = getSlotMeasureBySlotDefinition(slotsConfig);
   const allMeasureSlots = slots.filter(
     s => slotMeasuresByDefinition.find(sd => sd.name === s.name)
@@ -513,8 +522,9 @@ export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery 
 
     // Check if the slot is filled
     for (const categorySlot of categorySlots) {
+      const categorySlotConfig = slotsConfig.find(sc => sc.name === categorySlot.name);
       if (categorySlot.content.length > 0) {
-        addToDimensions(dimensions, categorySlot.content[0]);
+        addToDimensions(dimensions, categorySlot.content[0], categorySlotConfig?.options?.isBinningDisabled);
       }
     }
 
@@ -523,7 +533,12 @@ export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery 
     }
   }
 
-  const query = { dimensions, measures, limit: { by: 10000 } };
+  const query = {
+    dimensions,
+    measures,
+    limit: { by: 60000 },
+    options: { rollup_data: false }
+  };
 
   console.log('Query', query);
 

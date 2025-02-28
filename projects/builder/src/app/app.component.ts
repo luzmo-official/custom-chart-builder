@@ -9,6 +9,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { LoginComponent } from '@builder/components/login/login.component';
+import { buildLuzmoQuery } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/draggable-data-item';
@@ -36,22 +37,25 @@ export class AppComponent implements OnInit {
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
   private ws = new WebSocket('ws://localhost:8080');
-  private render?: (
-    container: HTMLElement,
-    data: ItemData['data'],
-    slots: Slot[],
-    slotConfigurations: SlotConfig[],
-    options: any,
-    language: string,
-    dimensions: { width: number; height: number }
+  private render?: ( args:
+    {
+      container: HTMLElement,
+      data: ItemData['data'],
+      slots: Slot[],
+      slotConfigurations: SlotConfig[],
+      options: any,
+      language: string,
+      dimensions: { width: number; height: number }
+    }
   ) => void;
-  private resize?: (
-    container: HTMLElement,
-    slots: Slot[],
-    slotConfigurations: SlotConfig[],
-    options: any,
-    language: string,
-    dimensions: { width: number; height: number }
+  private resize?: ( args: {
+       container: HTMLElement,
+       slots: Slot[],
+       slotConfigurations: SlotConfig[],
+       options: any,
+       language: string,
+       dimensions: { width: number; height: number }
+     }
   ) => void;
   private buildQuery?: (slots: Slot[], slotsConfig: SlotConfig[]) => ItemQuery;
 
@@ -125,6 +129,7 @@ export class AppComponent implements OnInit {
         let query: ItemQuery = { dimensions: [], measures: [], options: {} };
 
           if (this.buildQuery) {
+            console.log('Building query with custom function');
             query = this.buildQuery(slots, defaultSlotConfigs);
           }
           else {
@@ -149,7 +154,7 @@ export class AppComponent implements OnInit {
 
   @HostListener('window:resize')
   onResize(): void {
-    if (this.authService.isAuthenticated$.getValue() === true && this.resize) {
+    if (this.authService.isAuthenticated$.getValue() && this.resize) {
       this.resize({
         container: this.container.nativeElement,
         slots: this.slotsSubject.getValue(),
@@ -232,19 +237,18 @@ export class AppComponent implements OnInit {
     const currentSlots = this.slotsSubject.getValue();
     const updatedSlots = currentSlots.map((slot) => {
       if (slot.name === slotName) {
-        const droppedColumn = event.detail.slotContents[0];
         const content = event.detail.slotContents.map((column) => ({
-          columnId: droppedColumn.columnId,
-          column: droppedColumn.column,
-          currency: droppedColumn.currency,
-          datasetId: droppedColumn.datasetId,
-          set: droppedColumn.datasetId,
-          format: droppedColumn.format,
-          label: droppedColumn.label,
-          level: droppedColumn.level,
-          lowestLevel: droppedColumn.lowestLevel,
-          subtype: droppedColumn.subtype,
-          type: droppedColumn.type
+          columnId: column.columnId,
+          column: column.column,
+          currency: column.currency,
+          datasetId: column.datasetId,
+          set: column.datasetId,
+          format: column.format,
+          label: column.label,
+          level: column.level,
+          lowestLevel: column.lowestLevel,
+          subtype: column.subtype,
+          type: column.type
         }));
 
         return {

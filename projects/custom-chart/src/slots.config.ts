@@ -5,7 +5,8 @@ export const defaultSlotConfigs: SlotConfig[] = [
     name: 'x' as any,
     rotate: false,
     label: 'X coordinate',
-    type: 'mixed',
+    type: 'numeric',
+    order: 1,
     options: { isAggregationDisabled: true, isBinningDisabled: true, areDatetimeOptionsEnabled: true },
     isRequired: true
   },
@@ -13,7 +14,8 @@ export const defaultSlotConfigs: SlotConfig[] = [
     name: 'y' as any,
     rotate: true,
     label: 'Y coordinate',
-    type: 'mixed',
+    type: 'numeric',
+    order: 2,
     options: { isAggregationDisabled: true, isBinningDisabled: true, areDatetimeOptionsEnabled: true },
     isRequired: true
   }
