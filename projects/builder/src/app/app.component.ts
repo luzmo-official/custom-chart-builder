@@ -33,7 +33,7 @@ import { ItemData, ItemQuery } from './helpers/types';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class AppComponent implements OnInit, OnDestroy {
   protected authService = inject(AuthService);
@@ -82,28 +82,26 @@ export class AppComponent implements OnInit, OnDestroy {
     .pipe(
       untilDestroyed(this),
       // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(true), 0)),
-      switchMap((datasetId) =>
-        this.luzmoAPIService.loadDatasetWithColumns(datasetId)
-      ),
+      switchMap((datasetId) => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
       map((result) => result.rows[0]),
       map((dataset) =>
         dataset.columns.map((column) => ({
           columnId: column.id,
           column: column.id,currency: column.currency?.symbol,
           datasetId: dataset.id,
-            set:dataset.id,
+          set:dataset.id,
           description: column.description,
           format: column.format,
           hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
             id: level.id,
             level: level.level,
-            label: level.name,
+            label: level.name
           })),
           label: column.name,
           level: column.level,
           lowestLevel: column.lowestLevel,
           subtype: column.subtype,
-          type: column.type,
+          type: column.type
         }))
       )
       // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(false), 0))
