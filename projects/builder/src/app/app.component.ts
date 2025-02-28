@@ -89,7 +89,7 @@ export class AppComponent implements OnInit, OnDestroy {
           columnId: column.id,
           column: column.id,currency: column.currency?.symbol,
           datasetId: dataset.id,
-          set:dataset.id,
+          set: dataset.id,
           description: column.description,
           format: column.format,
           hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
