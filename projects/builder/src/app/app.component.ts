@@ -5,8 +5,8 @@ import {
   ElementRef,
   HostListener,
   inject,
-  OnInit,
   OnDestroy,
+  OnInit,
   ViewChild
 } from '@angular/core';
 import { LoginComponent } from '@builder/components/login/login.component';
@@ -23,8 +23,8 @@ import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import { filter, map, shareReplay, switchMap, take, tap } from 'rxjs/operators';
 import { defaultSlotConfigs } from '../../../custom-chart/src/slots.config';
-import { ItemData, ItemQuery } from './helpers/types';
 import { isValidMessageSource, setUpSecureIframe } from './helpers/iframe.utils';
+import { ItemData, ItemQuery } from './helpers/types';
 
 @UntilDestroy()
 @Component({
@@ -47,26 +47,33 @@ export class AppComponent implements OnInit, OnDestroy {
   private renderPending = false;
   private scriptContent = '';
   private styleContent = '';
-  private buildQuery?: (slots: Slot[], slotsConfig: SlotConfig[]) => ItemQuery;
 
-  currentUser$ = this.authService.isAuthenticated$
-    .pipe(
-      filter(isAuthenticated => isAuthenticated),
-      switchMap(() => this.authService.getOrLoadUser())
-    );
+
+  private queryInProgress = false;
+  private lastQueryTime = 0;
+  private queryThrottleTime = 500; // ms
+
+  private querySubject = new BehaviorSubject<ItemQuery | null>(null);
+  private queryReady$ = this.querySubject.asObservable();
 
   loadingAllDatasets$ = new BehaviorSubject<boolean>(false);
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
   queryingData$ = new BehaviorSubject<boolean>(false);
 
+  currentUser$ = this.authService.isAuthenticated$
+    .pipe(
+      filter((isAuthenticated) => isAuthenticated),
+      switchMap(() => this.authService.getOrLoadUser())
+    );
+
   datasets$ = this.authService.isAuthenticated$
     .pipe(
       untilDestroyed(this),
-      filter(isAuthenticated => isAuthenticated),
+      filter((isAuthenticated) => isAuthenticated),
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
       filter(() => !this.loadingAllDatasets$.value),
       switchMap(() => this.luzmoAPIService.loadAllDatasets()),
-      map(result => result.rows),
+      map((result) => result.rows),
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
     );
 
@@ -75,13 +82,12 @@ export class AppComponent implements OnInit, OnDestroy {
     .pipe(
       untilDestroyed(this),
       // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(true), 0)),
-      switchMap(datasetId => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
-      map(result => result.rows[0]),
-      map(dataset =>
-        dataset.columns.map(column => ({
+      switchMap((datasetId) => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
+      map((result) => result.rows[0]),
+      map((dataset) =>
+        dataset.columns.map((column) => ({
           columnId: column.id,
-          column: column.id,
-          currency: column.currency?.symbol,
+          column: column.id,currency: column.currency?.symbol,
           datasetId: dataset.id,
           set: dataset.id,
           description: column.description,
@@ -97,12 +103,52 @@ export class AppComponent implements OnInit, OnDestroy {
           subtype: column.subtype,
           type: column.type
         }))
-      ),
+      )
       // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(false), 0))
     );
 
   slotConfigs: SlotConfig[] = defaultSlotConfigs;
   private slotsSubject = new BehaviorSubject<Slot[]>(this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] })));
+
+  private fetchQuery(): void {
+    const now = Date.now();
+
+    // Don't fetch if a query is already in progress or if we've recently fetched
+    if (this.queryInProgress || (now - this.lastQueryTime < this.queryThrottleTime)) {
+      return;
+    }
+
+    if (!this.iframe || !this.moduleLoaded) {
+      console.log('Cannot fetch query: iframe not ready or module not loaded');
+      return;
+    }
+
+    const slots = this.slotsSubject.getValue();
+
+    // Skip if all slots are empty
+    if (!slots.some(slot => slot.content.length > 0)) {
+      console.log('Skipping query fetch: all slots are empty');
+      return;
+    }
+
+    console.log('Requesting query build with slots:', slots);
+    this.queryInProgress = true;
+    this.lastQueryTime = now;
+
+    this.iframe.contentWindow?.postMessage({
+      type: 'buildQuery',
+      slots: slots,
+      slotConfigurations: this.slotConfigs
+    }, '*');
+
+    // Set a safety timeout to reset queryInProgress flag if no response received
+    setTimeout(() => {
+      if (this.queryInProgress) {
+        console.log('Query request timed out, resetting status');
+        this.queryInProgress = false;
+      }
+    }, 5000); // 5-second timeout
+  }
 
   // Message handler for iframe
   private handleMessage = (event: MessageEvent) => {
@@ -120,62 +166,68 @@ export class AppComponent implements OnInit, OnDestroy {
       });
     }
     else if (event.data.type === 'queryLoaded') {
-      if (event.data.query) {
-        this.buildQuery = () => event.data.query;
-      }
+      this.queryInProgress = false;
+
+      // Update the query subject with the new query
+      this.querySubject.next(event.data.query);
     }
     else if (event.data.type === 'moduleError') {
       console.error('Module error:', event.data.error);
     }
   };
+  
+  chartData$ = this.slotsSubject.pipe(
+    untilDestroyed(this),
+    switchMap((slots) => {
+      const allRequiredSlotsFilled = this.slotConfigs
+        .filter((s) => s.isRequired)
+        .map((s) => slots.find((slot) => slot.name === s.name))
+        .every((s) => s && s.content.length > 0);
 
-  chartData$ = this.slotsSubject
-    .pipe(
-      untilDestroyed(this),
-      switchMap(slots => {
-        const allRequiredSlotsFilled = defaultSlotConfigs
-          .filter(s => s.isRequired)
-          .map(s => slots.find(slot => slot.name === s.name))
-          .every(s => s && s.content.length > 0);
+      if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
+        // Only fetch the query if we're not already doing so and module is loaded
+        if (this.moduleLoaded && !this.queryInProgress) {
+          console.log('Fetching query due to slot changes');
+          this.fetchQuery();
+        }
 
-        if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
-          let query: ItemQuery;
+        // Wait for query to be available
+        return this.queryReady$.pipe(
+          // Take the first valid query
+          take(1),
+          // Then use it to fetch data
+          switchMap(query => {
+            // If no custom query is available yet, use the default
+            const finalQuery = query || buildLuzmoQuery(slots);
 
-          console.log(this.buildQuery)
+            console.log('Using query for data fetch:', finalQuery);
+            this.queryingData$.next(true);
 
-          if (this.buildQuery) {
-            query = this.buildQuery(slots, defaultSlotConfigs);
-          }
-          else {
-            query = buildLuzmoQuery(slots);
-          }
-          this.queryingData$.next(true);
-
-          return this.luzmoAPIService.queryLuzmoDataset([query])
-            .pipe(
+            return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
               tap(() => this.queryingData$.next(false)),
-              map(result => result.data)
+              map((result) => result.data)
             );
-        }
-        else {
-          return of([]);
-        }
-      }),
-      tap(data => {
-        if (this.moduleLoaded) {
-          this.performRender(data);
-        }
-      }),
-      shareReplay(1)
-    );
+          })
+        );
+      } else {
+        return of([]);
+      }
+    }),
+    tap(data => {
+      if (this.moduleLoaded) {
+        this.performRender(data);
+      }
+    }),
+    shareReplay(1)
+  );
 
-  displayedChartData$ = this.chartData$.pipe(map(data => data.slice(0, 25)));
+  displayedChartData$ = this.chartData$.pipe(map((data) => data.slice(0, 25)));
 
   @ViewChild('chartContainer') container!: ElementRef;
 
   @HostListener('window:resize')
   onResize(): void {
-    if (this.authService.isAuthenticated$.getValue() === true && this.moduleLoaded && this.iframe) {
+    if (this.authService.isAuthenticated$.getValue() && this.moduleLoaded && this.iframe) {
       this.performResize();
     }
   }
@@ -185,7 +237,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.authService.isAuthenticated$
       .pipe(
-        filter(isAuthenticated => isAuthenticated),
+        filter((isAuthenticated) => isAuthenticated),
         take(1)
       )
       .subscribe(async () => {
@@ -239,7 +291,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
       // Setup iframe
       const chartContainer = this.container.nativeElement;
-
       chartContainer.innerHTML = '';
 
       // Create the iframe
@@ -247,8 +298,6 @@ export class AppComponent implements OnInit, OnDestroy {
         .then(({ iframe, blobUrl }) => {
           this.iframe = iframe;
           this.blobUrl = blobUrl;
-
-          // We'll wait for the moduleLoaded message to handle rendering
         })
         .catch(error => {
           console.error('Failed to setup iframe:', error);
@@ -318,23 +367,25 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  onColumnDropped(slotName: string, event: CustomEvent<{ slotContents: any[] }>): void {
+  onColumnDropped(
+    slotName: string,
+    event: CustomEvent<{ slotContents: any[] }>
+  ): void {
     const currentSlots = this.slotsSubject.getValue();
     const updatedSlots = currentSlots.map((slot) => {
       if (slot.name === slotName) {
-        const droppedColumn = event.detail.slotContents[0];
         const content = event.detail.slotContents.map((column) => ({
-          columnId: droppedColumn.columnId,
-          column: droppedColumn.column,
-          currency: droppedColumn.currency,
-          datasetId: droppedColumn.datasetId,
-          set: droppedColumn.datasetId,
-          format: droppedColumn.format,
-          label: droppedColumn.label,
-          level: droppedColumn.level,
-          lowestLevel: droppedColumn.lowestLevel,
-          subtype: droppedColumn.subtype,
-          type: droppedColumn.type
+          columnId: column.columnId,
+          column: column.column,
+          currency: column.currency,
+          datasetId: column.datasetId,
+          set: column.datasetId,
+          format: column.format,
+          label: column.label,
+          level: column.level,
+          lowestLevel: column.lowestLevel,
+          subtype: column.subtype,
+          type: column.type
         }));
 
         return {

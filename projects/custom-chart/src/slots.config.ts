@@ -2,34 +2,21 @@ import { SlotConfig } from '@luzmo/dashboard-contents-types';
 
 export const defaultSlotConfigs: SlotConfig[] = [
   {
-    name: 'category',
-    label: 'Category',
+    name: 'x' as any,
     rotate: false,
-    type: 'categorical',
-    options: {
-      areDatetimeOptionsEnabled: true
-    },
-    isRequired: false,
-    canAcceptMultipleColumns: false,
-    acceptableColumnTypes: [
-      'hierarchy',
-      'numeric',
-      'datetime'
-    ]
+    label: 'X coordinate',
+    type: 'numeric',
+    order: 1,
+    options: { isAggregationDisabled: true, isBinningDisabled: true, areDatetimeOptionsEnabled: true },
+    isRequired: true
   },
   {
-    name: 'measure',
-    label: 'Measure',
-    rotate: false,
+    name: 'y' as any,
+    rotate: true,
+    label: 'Y coordinate',
     type: 'numeric',
-    options: {},
-    isRequired: false,
-    canAcceptMultipleColumns: true,
-    acceptableColumnTypes: [
-      'hierarchy',
-      'numeric',
-      'datetime'
-    ],
-    canAcceptFormula: true
+    order: 2,
+    options: { isAggregationDisabled: true, isBinningDisabled: true, areDatetimeOptionsEnabled: true },
+    isRequired: true
   }
 ]

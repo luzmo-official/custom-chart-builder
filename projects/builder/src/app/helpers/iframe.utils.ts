@@ -75,7 +75,8 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
           try {
             const module = await import(url);
             URL.revokeObjectURL(url);
-            window.parent.postMessage({ type: 'moduleLoaded' }, '*');
+            const hasBuildQuery = typeof module.buildQuery === 'function';
+            window.parent.postMessage({ type: 'moduleLoaded', hasBuildQuery }, '*');
 
             window.addEventListener('message', async (event) => {
               console.log('Message received from parent:', event.data);
@@ -85,7 +86,7 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
               if (type === 'buildQuery') {
                 let query = null;
                 if (module?.buildQuery) {
-                  query = await module.buildQuery(event.data.slots);
+                  query = await module.buildQuery({ slots: event.data.slots, slotConfigurations: event.data.slotConfigurations });
                 }
                 window.parent.postMessage({ type: 'queryLoaded', query }, '*');
               }

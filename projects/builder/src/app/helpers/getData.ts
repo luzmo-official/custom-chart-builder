@@ -218,6 +218,17 @@ export function buildLuzmoQuery(slots: Slot[]): ItemQuery {
     }
   }
 
+  if (dimensions.length === 0 && measures.length === 0) {
+    const xSlot = slots.find((slot) => (slot.name as any) === 'x');
+    const ySlot = slots.find((slot) => (slot.name as any) === 'y');
+
+    // Add dimensions and measures
+    if (xSlot && xSlot?.content?.length > 0 && ySlot && ySlot?.content?.length > 0) {
+      dimensions.push({ dataset_id: xSlot.content[0].datasetId, column_id: xSlot.content[0].columnId });
+      dimensions.push({ dataset_id: ySlot.content[0].datasetId, column_id: ySlot.content[0].columnId });
+    }
+  }
+
   console.log('QQ', dimensions, measures);
 
   // Build query object
