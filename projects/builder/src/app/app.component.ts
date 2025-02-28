@@ -56,63 +56,61 @@ export class AppComponent implements OnInit, OnDestroy {
   private querySubject = new BehaviorSubject<ItemQuery | null>(null);
   private queryReady$ = this.querySubject.asObservable();
 
-  currentUser$ = this.authService.isAuthenticated$.pipe(
-    filter((isAuthenticated) => isAuthenticated),
-    switchMap(() => this.authService.getOrLoadUser())
-  );
-
   loadingAllDatasets$ = new BehaviorSubject<boolean>(false);
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
   queryingData$ = new BehaviorSubject<boolean>(false);
 
-  datasets$ = this.authService.isAuthenticated$.pipe(
-    untilDestroyed(this),
-    filter((isAuthenticated) => isAuthenticated),
-    tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
-    filter(() => !this.loadingAllDatasets$.value),
-    switchMap(() => this.luzmoAPIService.loadAllDatasets()),
-    map((result) => result.rows),
-    tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
-  );
+  currentUser$ = this.authService.isAuthenticated$
+    .pipe(
+      filter((isAuthenticated) => isAuthenticated),
+      switchMap(() => this.authService.getOrLoadUser())
+    );
+
+  datasets$ = this.authService.isAuthenticated$
+    .pipe(
+      untilDestroyed(this),
+      filter((isAuthenticated) => isAuthenticated),
+      tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
+      filter(() => !this.loadingAllDatasets$.value),
+      switchMap(() => this.luzmoAPIService.loadAllDatasets()),
+      map((result) => result.rows),
+      tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
+    );
 
   private selectedDatasetIdSubject = new Subject<string>();
-  columns$ = this.selectedDatasetIdSubject.pipe(
-    untilDestroyed(this),
-    // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(true), 0)),
-    switchMap((datasetId) =>
-      this.luzmoAPIService.loadDatasetWithColumns(datasetId)
-    ),
-    map((result) => result.rows[0]),
-    map((dataset) =>
-      dataset.columns.map((column) => ({
-        columnId: column.id,
-        column: column.id,currency: column.currency?.symbol,
-        datasetId: dataset.id,
-          set:dataset.id,
-        description: column.description,
-        format: column.format,
-        hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
-          id: level.id,
-          level: level.level,
-          label: level.name,
-        })),
-        label: column.name,
-        level: column.level,
-        lowestLevel: column.lowestLevel,
-        subtype: column.subtype,
-        type: column.type,
-      }))
-    )
-    // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(false), 0))
-  );
+  columns$ = this.selectedDatasetIdSubject
+    .pipe(
+      untilDestroyed(this),
+      // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(true), 0)),
+      switchMap((datasetId) =>
+        this.luzmoAPIService.loadDatasetWithColumns(datasetId)
+      ),
+      map((result) => result.rows[0]),
+      map((dataset) =>
+        dataset.columns.map((column) => ({
+          columnId: column.id,
+          column: column.id,currency: column.currency?.symbol,
+          datasetId: dataset.id,
+            set:dataset.id,
+          description: column.description,
+          format: column.format,
+          hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
+            id: level.id,
+            level: level.level,
+            label: level.name,
+          })),
+          label: column.name,
+          level: column.level,
+          lowestLevel: column.lowestLevel,
+          subtype: column.subtype,
+          type: column.type,
+        }))
+      )
+      // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(false), 0))
+    );
 
   slotConfigs: SlotConfig[] = defaultSlotConfigs;
-  private slotsSubject = new BehaviorSubject<Slot[]>(
-    this.slotConfigs.map((slotConfig) => ({
-      name: slotConfig.name,
-      content: [],
-    }))
-  );
+  private slotsSubject = new BehaviorSubject<Slot[]>(this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] })));
 
   private fetchQuery(): void {
     const now = Date.now();
@@ -179,9 +177,7 @@ export class AppComponent implements OnInit, OnDestroy {
       console.error('Module error:', event.data.error);
     }
   };
-
-
-// 3. Update your chartData$ to use the queryReady$ observable
+  
   chartData$ = this.slotsSubject.pipe(
     untilDestroyed(this),
     switchMap((slots) => {

@@ -48,10 +48,188 @@ interface CanvasState {
   totalClicks: number;
   colorScale: d3.ScaleSequential<string>;
   hexagonPath: Path2D;
+  isEmptyData?: boolean;
+}
+
+// Define the LUZMO letters
+const LUZMO_LETTERS = {
+  L: [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4], [3, 4]],
+  U: [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [1, 4], [2, 4], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4]],
+  Z: [[0, 0], [1, 0], [2, 0], [3, 0], [3, 1], [2, 2], [1, 3], [0, 4], [1, 4], [2, 4], [3, 4]],
+  M: [[0, 4], [0, 3], [0, 2], [0, 1], [0, 0], [1, 1], [2, 2], [3, 1], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4]],
+  O: [[0, 0], [1, 0], [2, 0], [3, 0], [4, 1], [4, 2], [4, 3], [3, 4], [2, 4], [1, 4], [0, 3], [0, 2], [0, 1]]
+};
+
+// Debounce function
+function debounce(func: Function, wait: number): (...args: any[]) => void {
+  let timeout: number | null = null;
+
+  return function(...args: any[]) {
+    const later = () => {
+      timeout = null;
+      func(...args);
+    };
+
+    if (timeout !== null) {
+      window.clearTimeout(timeout);
+    }
+    timeout = window.setTimeout(later, wait);
+  };
 }
 
 /**
- * Render the hexbin map using canvas.
+ * Render the LUZMO logo using animated dots
+ */
+function renderLuzmoLogo(
+  container: HTMLElement,
+  width: number,
+  height: number
+): { canvas: HTMLCanvasElement, dots: any[], animate: () => void } {
+  // Base design values
+  const baseDotSize = 10;
+  const baseGridSize = 20;
+  const baseLetterSpacing = 50;
+  const animationDuration = 200;
+
+  // Calculate the total width and height of the design using the base values.
+  const baseLetterWidths = Object.values(LUZMO_LETTERS).map(
+    l => Math.max(...l.map(([x]) => x)) * baseGridSize + baseGridSize
+  );
+  const baseTotalLetterWidth =
+    baseLetterWidths.reduce((a, b) => a + b, 0) +
+    baseLetterSpacing * (Object.keys(LUZMO_LETTERS).length - 1);
+  const baseTotalLetterHeight = 5 * baseGridSize;
+
+  // Compute a scale factor such that the letters will fit in the canvas.
+  // We use Math.min to only scale down (never scale up beyond our base design).
+  const scale = Math.min(1, width / baseTotalLetterWidth, height / baseTotalLetterHeight);
+
+  // Scale the design parameters
+  const gridSize = baseGridSize * scale;
+  const dotSize = baseDotSize * scale;
+  const letterSpacing = baseLetterSpacing * scale;
+
+  // Recalculate each letter's width using the scaled gridSize.
+  const letterWidths = Object.values(LUZMO_LETTERS).map(
+    l => Math.max(...l.map(([x]) => x)) * gridSize + gridSize
+  );
+  const totalLetterWidth =
+    letterWidths.reduce((a, b) => a + b, 0) + letterSpacing * (letterWidths.length - 1);
+
+  // Center the letters within the canvas
+  let offsetX = (width - totalLetterWidth) / 2;
+  const offsetY = (height - 5 * gridSize) / 2;
+
+  // IMPORTANT: Clear any existing elements first
+  // Remove any existing tooltip and clear selection button
+  d3.select(container).selectAll('.tooltip, .clear-selection-btn').remove();
+
+  // Either select an existing canvas or create one
+  let canvasSelection = d3.select(container).select<HTMLCanvasElement>('canvas');
+  if (canvasSelection.empty()) {
+    canvasSelection = d3.select(container)
+      .append('canvas')
+      .attr('width', width)
+      .attr('height', height)
+      .style('display', 'block');
+  } else {
+    // Update existing canvas size
+    canvasSelection
+      .attr('width', width)
+      .attr('height', height);
+  }
+
+  const canvas = canvasSelection.node() as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d')!;
+
+  // Clear any existing state
+  (canvas as any)._state = null;
+
+  // Draw the background.
+  ctx.fillStyle = '#262626';
+  ctx.fillRect(0, 0, width, height);
+
+  // Create an array to hold the dot data.
+  let dots: { x: number; y: number; opacity: number; targetOpacity: number }[] = [];
+
+  // Iterate over the letters and draw each dot.
+  Object.entries(LUZMO_LETTERS).forEach(([, positions], index) => {
+    positions.forEach(([x, y]) => {
+      const posX = offsetX + x * gridSize;
+      const posY = offsetY + y * gridSize;
+      dots.push({ x: posX, y: posY, opacity: 1, targetOpacity: 1 });
+
+      ctx.beginPath();
+      ctx.arc(posX, posY, dotSize, 0, Math.PI * 2);
+      ctx.fillStyle = '#ebff00';
+      ctx.fill();
+    });
+
+    offsetX += letterWidths[index] + letterSpacing;
+  });
+
+  let lastUpdate = Date.now();
+  let animationId: number | null = null;
+
+  // Animation function
+  function animate() {
+    if (!ctx) return;
+    const now = Date.now();
+    const deltaTime = now - lastUpdate;
+    lastUpdate = now;
+
+    // Clear and redraw the background.
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#262626';
+    ctx.fillRect(0, 0, width, height);
+
+    // Animate the dots.
+    dots.forEach(dot => {
+      dot.opacity += (dot.targetOpacity - dot.opacity) * (deltaTime / animationDuration);
+      dot.opacity = Math.max(0.3, Math.min(1, dot.opacity));
+
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, dotSize, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(235, 255, 0, ${dot.opacity})`;
+      ctx.fill();
+    });
+
+    animationId = requestAnimationFrame(animate);
+  }
+
+  // Start animation
+  animate();
+
+  // Add interactivity
+  canvasSelection.on('mousemove', function (event) {
+    const [mouseX, mouseY] = d3.pointer(event, canvas);
+    let hoveredDot: { x: number; y: number } | undefined;
+
+    dots.forEach(dot => {
+      const dx = mouseX - dot.x;
+      const dy = mouseY - dot.y;
+      if (Math.sqrt(dx * dx + dy * dy) < dotSize) {
+        hoveredDot = dot;
+      }
+    });
+
+    dots.forEach(dot => (dot.targetOpacity = hoveredDot ? (dot === hoveredDot ? 1 : 0.3) : 1));
+  });
+
+  // Store logo state on canvas
+  (canvas as any)._logoState = {
+    width,
+    height,
+    dots,
+    animationId,
+    dotSize
+  };
+
+  return { canvas, dots, animate };
+}
+
+/**
+ * Render the hexbin map using canvas or LUZMO logo if data is empty.
  */
 export const render = ({
   container,
@@ -70,26 +248,67 @@ export const render = ({
   language: string;
   dimensions: { width: number; height: number };
 }): void => {
-  console.log('Rendering', slots, slotConfigurations);
+  console.log('Rendering with data length:', data.length);
+
+  // Check if data is empty or invalid
+  const isEmptyData = !data || data.length === 0 || !Array.isArray(data);
+
+  if (isEmptyData) {
+    console.log('No data available, rendering LUZMO logo');
+    // Clean up any existing canvas state
+    const existingCanvas = d3.select(container).select<HTMLCanvasElement>('canvas').node();
+    if (existingCanvas) {
+      // Clean up any existing hex chart elements
+      d3.select(container).selectAll('.tooltip, .clear-selection-btn').remove();
+
+      // Stop any ongoing hex animations
+      const hexState = (existingCanvas as any)._state;
+      if (hexState && hexState.animationId) {
+        cancelAnimationFrame(hexState.animationId);
+      }
+
+      // Stop any ongoing logo animations
+      const logoState = (existingCanvas as any)._logoState;
+      if (logoState && logoState.animationId) {
+        cancelAnimationFrame(logoState.animationId);
+      }
+    }
+
+    renderLuzmoLogo(container, width, height);
+    return;
+  }
+
+  // Data is available, render hex chart
+  console.log('Rendering hex chart with data');
   const margin = { top: 20, right: 20, bottom: 30, left: 40 };
 
-  // Either select an existing canvas or create one.
-  let canvasSelection = d3.select(container).select<HTMLCanvasElement>('canvas');
-  if (canvasSelection.empty()) {
-    canvasSelection = d3.select(container)
-      .append('canvas')
-      .attr('width', width)
-      .attr('height', height)
-      .style('display', 'block');
+  // Clear any existing animation and state
+  const existingCanvas = d3.select(container).select<HTMLCanvasElement>('canvas').node();
+  if (existingCanvas) {
+    // Stop logo animation if it exists
+    const logoState = (existingCanvas as any)._logoState;
+    if (logoState && logoState.animationId) {
+      cancelAnimationFrame(logoState.animationId);
+      (existingCanvas as any)._logoState = null;
+    }
   }
+
+  // Clear all existing elements for a fresh start
+  d3.select(container).selectAll('canvas').remove();
+  d3.select(container).selectAll('.tooltip, .clear-selection-btn').remove();
+
+  // Create a new canvas
+  const canvasSelection = d3.select(container)
+    .append('canvas')
+    .attr('width', width)
+    .attr('height', height)
+    .style('display', 'block');
+
   const canvas = canvasSelection.node() as HTMLCanvasElement;
   const ctx = canvas.getContext('2d')!;
-  // Store the new data.
-  (canvas as any).__data__ = data;
 
-  // Update canvas dimensions based on the container.
-  canvas.width = width;
-  canvas.height = height;
+  // Store the new data
+  (canvas as any).__data__ = data;
 
   // Set up scales based on the data extents.
   const xExtent = d3.extent(data, (d) => +d[0]);
@@ -100,8 +319,11 @@ export const render = ({
     yExtent[0] === undefined ||
     yExtent[1] === undefined
   ) {
+    console.warn('Invalid data extents, falling back to LUZMO logo');
+    renderLuzmoLogo(container, width, height);
     return;
   }
+
   const xScale = d3.scaleLinear().domain(xExtent).nice().range([margin.left, width - margin.right]);
   const yScale = d3.scaleLinear().domain(yExtent).nice().range([height - margin.bottom, margin.top]);
 
@@ -147,6 +369,7 @@ export const render = ({
     totalClicks,
     colorScale,
     hexagonPath,
+    isEmptyData: false
   };
   (canvas as any)._state = state;
 
@@ -218,47 +441,41 @@ export const render = ({
   let currentHovered: HexBinExtended | null = null;
 
   // --- TOOLTIP SETUP ---
-  let tooltip = d3.select(container).select<HTMLDivElement>('.tooltip');
-  if (tooltip.empty()) {
-    tooltip = d3.select(container)
-      .append('div')
-      .attr('class', 'tooltip')
-      .style('position', 'absolute')
-      .style('pointer-events', 'none')
-      .style('background-color', '#000')
-      .style('color', '#fff')
-      .style('padding', '8px 12px')
-      .style('border-radius', '6px')
-      .style('font-family', 'Inter, sans-serif')
-      .style('font-size', '14px')
-      .style('line-height', '20px')
-      .style('opacity', 0);
-  }
+  let tooltip = d3.select(container)
+    .append('div')
+    .attr('class', 'tooltip')
+    .style('position', 'absolute')
+    .style('pointer-events', 'none')
+    .style('background-color', '#000')
+    .style('color', '#fff')
+    .style('padding', '8px 12px')
+    .style('border-radius', '6px')
+    .style('font-family', 'Inter, sans-serif')
+    .style('font-size', '14px')
+    .style('line-height', '20px')
+    .style('opacity', 0);
 
   // --- CLEAR SELECTION BUTTON ---
-  let clearSelectionBtn = d3.select(container).select<HTMLDivElement>('.clear-selection-btn');
-  if (clearSelectionBtn.empty()) {
-    clearSelectionBtn = d3.select(container)
-      .append('div')
-      .attr('class', 'clear-selection-btn')
-      .style('position', 'absolute')
-      .style('pointer-events', 'auto')
-      .style('background-color', '#000')
-      .style('color', '#fff')
-      .style('padding', '6px 8px')
-      .style('border-radius', '6px')
-      .style('font-family', 'Inter, sans-serif')
-      .style('font-size', '12px')
-      .style('opacity', 0)
-      .style('cursor', 'pointer')
-      .text('Clear selection')
-      .on('click', function (event) {
-        event.stopPropagation();
-        clearSelection();
-      });
-  }
+  let clearSelectionBtn = d3.select(container)
+    .append('div')
+    .attr('class', 'clear-selection-btn')
+    .style('position', 'absolute')
+    .style('pointer-events', 'auto')
+    .style('background-color', '#000')
+    .style('color', '#fff')
+    .style('padding', '6px 8px')
+    .style('border-radius', '6px')
+    .style('font-family', 'Inter, sans-serif')
+    .style('font-size', '12px')
+    .style('opacity', 0)
+    .style('cursor', 'pointer')
+    .text('Clear selection')
+    .on('click', function (event) {
+      event.stopPropagation();
+      clearSelection();
+    });
 
-  // Helper function to update the clear-selection button’s position.
+  // Helper function to update the clear-selection button's position.
   function updateClearSelectionButtonPosition() {
     const canvasRect = canvas.getBoundingClientRect();
     const canvasLeft = canvasRect.left + window.pageXOffset;
@@ -268,10 +485,14 @@ export const render = ({
       .style('top', `${canvasTop + 10}px`);
   }
   updateClearSelectionButtonPosition();
+
+  // Use namespaced events with debouncing for resize/scroll
+  const debouncedUpdatePosition = debounce(updateClearSelectionButtonPosition, 100);
+
   // Use namespaced events so that subsequent calls replace the old ones.
   d3.select(window)
-    .on('scroll.renderClearBtn', updateClearSelectionButtonPosition)
-    .on('resize.renderClearBtn', updateClearSelectionButtonPosition);
+    .on('scroll.renderClearBtn', debouncedUpdatePosition)
+    .on('resize.renderClearBtn', debouncedUpdatePosition);
 
   // Helper function to clear any selection.
   function clearSelection() {
@@ -363,9 +584,13 @@ export const render = ({
   drawCanvas();
 };
 
+// Create a debounced resize function at module level
+let resizeTimer: number | null = null;
+const RESIZE_DEBOUNCE_TIME = 200; // milliseconds
+
 /**
- * Resize the chart by updating dimensions, scales, and re-computing bins.
- * It re-uses the data and state stored on the canvas element.
+ * Resize the chart while maintaining state.
+ * Uses debounce to prevent excessive calls.
  */
 export const resize = ({
   container,
@@ -382,10 +607,57 @@ export const resize = ({
   language: string;
   dimensions: { width: number; height: number };
 }): void => {
+  // Debounce the resize operation
+  if (resizeTimer !== null) {
+    window.clearTimeout(resizeTimer);
+  }
+
+  resizeTimer = window.setTimeout(() => {
+    performResize(container, slots, slotConfigurations, options, language, width, height);
+    resizeTimer = null;
+  }, RESIZE_DEBOUNCE_TIME);
+};
+
+/**
+ * Actual resize implementation after debouncing
+ */
+function performResize(
+  container: HTMLElement,
+  slots: Slot[] = [],
+  slotConfigurations: SlotConfig[] = [],
+  options: Record<string, any> = {},
+  language: string = 'en',
+  width: number = 0,
+  height: number = 0
+): void {
   // Select the existing canvas.
   const canvasSelection = d3.select(container).select<HTMLCanvasElement>('canvas');
   if (canvasSelection.empty()) return;
   const canvas = canvasSelection.node() as HTMLCanvasElement;
+
+  // Check what type of content we have (logo or hex chart)
+  const logoState = (canvas as any)._logoState;
+  const hexState: CanvasState | undefined = (canvas as any)._state;
+
+  if (logoState) {
+    // We have a logo, resize it
+    console.log('Resizing LUZMO logo');
+    if (logoState.animationId) {
+      cancelAnimationFrame(logoState.animationId);
+    }
+    // Simply re-render the logo with new dimensions
+    renderLuzmoLogo(container, width, height);
+    return;
+  }
+
+  if (!hexState || !hexState.data || hexState.data.length === 0) {
+    // Either no state or empty data, render logo
+    console.log('No valid hex state, rendering LUZMO logo');
+    renderLuzmoLogo(container, width, height);
+    return;
+  }
+
+  console.log('Resizing hex chart');
   const ctx = canvas.getContext('2d')!;
 
   // Update canvas dimensions.
@@ -393,9 +665,7 @@ export const resize = ({
   canvas.height = height ?? 0;
 
   // Retrieve the previously stored state.
-  const state: CanvasState | undefined = (canvas as any)._state;
-  if (!state) return;
-  const { margin, data } = state;
+  const { margin, data } = hexState;
 
   // Recalculate scales based on the (unchanged) data domain and new ranges.
   const xExtent = d3.extent(data, (d) => +d[0]);
@@ -406,8 +676,11 @@ export const resize = ({
     yExtent[0] === undefined ||
     yExtent[1] === undefined
   ) {
+    // Invalid data, switch to logo
+    renderLuzmoLogo(container, width, height);
     return;
   }
+
   const xScale = d3.scaleLinear()
     .domain(xExtent)
     .nice()
@@ -425,13 +698,7 @@ export const resize = ({
     .extent([[margin.left, margin.top], [width - margin.right, height - margin.bottom]]);
 
   // Recompute bins based on the new hexbin generator.
-  const bins = hexbin(data) as Array<d3Hexbin.HexbinBin<[number, number]> & {
-    selected?: boolean;
-    path?: Path2D;
-    currentOpacity?: number;
-    targetOpacity?: number;
-    startOpacity?: number;
-  }>;
+  const bins = hexbin(data) as HexBinExtended[];
   const maxCount = d3.max(bins, (d) => d.length) || 1;
   const colorScale = d3.scaleSequential(d3.interpolateMagma).domain([0, maxCount]);
   const hexPathString = hexbin.hexagon();
@@ -448,15 +715,15 @@ export const resize = ({
   });
 
   // Update the saved state.
-  state.width = width;
-  state.height = height;
-  state.xScale = xScale;
-  state.yScale = yScale;
-  state.hexbin = hexbin;
-  state.bins = bins;
-  state.maxCount = maxCount;
-  state.colorScale = colorScale;
-  state.hexagonPath = hexagonPath;
+  hexState.width = width;
+  hexState.height = height;
+  hexState.xScale = xScale;
+  hexState.yScale = yScale;
+  hexState.hexbin = hexbin;
+  hexState.bins = bins;
+  hexState.maxCount = maxCount;
+  hexState.colorScale = colorScale;
+  hexState.hexagonPath = hexagonPath;
 
   // Clear and redraw the canvas.
   ctx.clearRect(0, 0, width, height);
@@ -488,15 +755,15 @@ export const resize = ({
       .style('left', `${left + window.pageXOffset + 10}px`)
       .style('top', `${top + window.pageYOffset + 10}px`);
   }
-};
+}
 
-export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery => {
+export const buildQuery = (data: { slots: Slot[], slotConfigurations: SlotConfig[] }): ItemQuery => {
   const measures: ItemQueryMeasure[] = [];
   const dimensions: ItemQueryDimension[] = [];
 
-  console.log('Slots query', slots, slotsConfig);
+  const { slots, slotConfigurations } = data;
 
-  const slotMeasuresByDefinition = getSlotMeasureBySlotDefinition(slotsConfig);
+  const slotMeasuresByDefinition = getSlotMeasureBySlotDefinition(slotConfigurations);
   const allMeasureSlots = slots.filter(
     s => slotMeasuresByDefinition.find(sd => sd.name === s.name)
   );
@@ -506,13 +773,12 @@ export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery 
   for (const measureSlot of allMeasureSlots) {
     for (const measureSlotContent of measureSlot.content) {
       hasMeasures = true;
-      console.log('HAs measures', measureSlotContent);
       addToMeasures(measures, measureSlotContent);
     }
   }
 
   // From slotDefenitions we extract slots, whose type are categorical and sort them by order. These are our dimensions (categories and legends)
-  const slotCategorySortedByOrder = getSlotCategoryBySlotDefinition(slotsConfig)
+  const slotCategorySortedByOrder = getSlotCategoryBySlotDefinition(slotConfigurations)
     .sort((a, b) => a.order! - b.order!);
 
   if (slotCategorySortedByOrder?.length > 0) {
@@ -523,7 +789,7 @@ export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery 
 
     // Check if the slot is filled
     for (const categorySlot of categorySlots) {
-      const categorySlotConfig = slotsConfig.find(sc => sc.name === categorySlot.name);
+      const categorySlotConfig = slotConfigurations.find(sc => sc.name === categorySlot.name);
       if (categorySlot.content.length > 0) {
         addToDimensions(dimensions, categorySlot.content[0], categorySlotConfig?.options?.isBinningDisabled);
       }
@@ -536,12 +802,10 @@ export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery 
 
   const query = {
     dimensions,
-    measures: [],
+    measures,
     limit: { by: 60000 },
     options: { rollup_data: false }
   };
 
-  console.log('Query', query);
-
   return query;
-}
+};
