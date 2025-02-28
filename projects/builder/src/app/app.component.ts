@@ -6,6 +6,7 @@ import {
   HostListener,
   inject,
   OnInit,
+  OnDestroy,
   ViewChild,
 } from '@angular/core';
 import { LoginComponent } from '@builder/components/login/login.component';
@@ -23,6 +24,7 @@ import { BehaviorSubject, of, Subject } from 'rxjs';
 import { filter, map, shareReplay, switchMap, take, tap } from 'rxjs/operators';
 import { defaultSlotConfigs } from '../../../custom-chart/src/slots.config';
 import { ItemData, ItemQuery } from './helpers/types';
+import { isValidMessageSource, setUpSecureIframe } from './helpers/iframe.utils';
 
 @UntilDestroy()
 @Component({
@@ -33,30 +35,18 @@ import { ItemData, ItemQuery } from './helpers/types';
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
   private ws = new WebSocket('ws://localhost:8080');
-  private render?: ( args:
-    {
-      container: HTMLElement,
-      data: ItemData['data'],
-      slots: Slot[],
-      slotConfigurations: SlotConfig[],
-      options: any,
-      language: string,
-      dimensions: { width: number; height: number }
-    }
-  ) => void;
-  private resize?: ( args: {
-       container: HTMLElement,
-       slots: Slot[],
-       slotConfigurations: SlotConfig[],
-       options: any,
-       language: string,
-       dimensions: { width: number; height: number }
-     }
-  ) => void;
+
+  private iframe: HTMLIFrameElement | null = null;
+  private blobUrl: string | null = null;
+  moduleLoaded = false;
+  private resizeAnimationFrame: number | null = null;
+  private renderPending = false;
+  private scriptContent = '';
+  private styleContent = '';
   private buildQuery?: (slots: Slot[], slotsConfig: SlotConfig[]) => ItemQuery;
 
   currentUser$ = this.authService.isAuthenticated$.pipe(
@@ -117,6 +107,31 @@ export class AppComponent implements OnInit {
     }))
   );
 
+  // Message handler for iframe
+  private handleMessage = (event: MessageEvent) => {
+    if (!isValidMessageSource(event, this.iframe)) {
+      return;
+    }
+
+    if (event.data.type === 'moduleLoaded') {
+      this.moduleLoaded = true;
+      console.log('Module loaded successfully');
+
+      // If we have data, render the chart
+      this.chartData$.pipe(take(1)).subscribe(data => {
+        this.performRender(data);
+      });
+    }
+    else if (event.data.type === 'queryLoaded') {
+      if (event.data.query) {
+        this.buildQuery = () => event.data.query;
+      }
+    }
+    else if (event.data.type === 'moduleError') {
+      console.error('Module error:', event.data.error);
+    }
+  };
+
   chartData$ = this.slotsSubject.pipe(
     untilDestroyed(this),
     switchMap((slots) => {
@@ -145,7 +160,11 @@ export class AppComponent implements OnInit {
         return of([]);
       }
     }),
-    shareReplay(1)
+    tap(data => {
+        if (this.moduleLoaded) {
+          this.performRender(data);
+        }
+      }),shareReplay(1)
   );
 
   displayedChartData$ = this.chartData$.pipe(map((data) => data.slice(0, 25)));
@@ -154,22 +173,14 @@ export class AppComponent implements OnInit {
 
   @HostListener('window:resize')
   onResize(): void {
-    if (this.authService.isAuthenticated$.getValue() && this.resize) {
-      this.resize({
-        container: this.container.nativeElement,
-        slots: this.slotsSubject.getValue(),
-        slotConfigurations: this.slotConfigs,
-        options: {},
-        language: 'en',
-        dimensions: {
-          width: this.container.nativeElement.clientWidth,
-          height: this.container.nativeElement.clientHeight,
-        },
-      });
+    if (this.authService.isAuthenticated$.getValue() === true && this.moduleLoaded && this.iframe) {
+      this.performResize();
     }
   }
 
   async ngOnInit() {
+    window.addEventListener('message', this.handleMessage);
+
     this.authService.isAuthenticated$
       .pipe(
         filter((isAuthenticated) => isAuthenticated),
@@ -179,54 +190,129 @@ export class AppComponent implements OnInit {
         this.ws.onmessage = async (message) => {
           if (message.data === 'watcher-rebuild') {
             await this.loadBundle();
-            this.chartData$
-              .pipe(take(1))
-              .subscribe((data) => this.renderChart(data));
           }
         };
 
         await this.loadBundle();
-        this.chartData$.subscribe((data) => {
-          this.renderChart(data);
-        });
       });
   }
 
-  private async loadBundle() {
-    // Load and execute the JavaScript bundle
-    const response = await fetch('/custom-chart/bundle.js?t=' + Date.now());
-    const blob = new Blob([await response.text()], { type: 'text/javascript' });
-    const url = URL.createObjectURL(blob);
-    const module = await import(url);
-    URL.revokeObjectURL(url);
+  ngOnDestroy(): void {
+    window.removeEventListener('message', this.handleMessage);
 
-    this.render = module.render;
-    this.resize = module.resize;
-    this.buildQuery = module.buildQuery;
+    if (this.resizeAnimationFrame !== null) {
+      cancelAnimationFrame(this.resizeAnimationFrame);
+    }
 
-    // Load and apply the CSS file dynamically
-    const cssLink = document.createElement('link');
-    cssLink.rel = 'stylesheet';
-    cssLink.href = '/custom-chart/styles.css?t=' + Date.now();
-    document.head.appendChild(cssLink);
+    if (this.iframe) {
+      this.iframe.remove();
+      this.iframe = null;
+    }
+
+    if (this.blobUrl) {
+      URL.revokeObjectURL(this.blobUrl);
+      this.blobUrl = null;
+    }
   }
 
-  private async renderChart(data: ItemData['data'] = []) {
-    if (!this.render) {
+  private async loadBundle() {
+    try {
+      const scriptResponse = await fetch('/custom-chart/bundle.js?t=' + Date.now());
+      this.scriptContent = await scriptResponse.text();
+
+      this.scriptContent = this.scriptContent.replaceAll('\\', '\\\\')     // Escape backslashes first
+        .replaceAll('`', '\\`')       // Escape backticks
+        .replaceAll('$', String.raw`\$`)      // Escape dollar signs
+        .replaceAll('\'', String.raw`\'`)      // Escape single quotes
+        .replaceAll('"', String.raw`\"`);
+
+      // Load style content
+      try {
+        const styleResponse = await fetch('/custom-chart/styles.css?t=' + Date.now());
+        this.styleContent = await styleResponse.text();
+      } catch (error) {
+        console.warn('No styles found, continuing without styles');
+        this.styleContent = '';
+      }
+
+      // Setup iframe
+      const chartContainer = this.container.nativeElement;
+
+      chartContainer.innerHTML = '';
+
+      // Create the iframe
+      setUpSecureIframe(chartContainer, this.scriptContent, this.styleContent)
+        .then(({ iframe, blobUrl }) => {
+          this.iframe = iframe;
+          this.blobUrl = blobUrl;
+
+          // We'll wait for the moduleLoaded message to handle rendering
+        })
+        .catch(error => {
+          console.error('Failed to setup iframe:', error);
+        });
+    } catch (error) {
+      console.error('Failed to load bundle:', error);
+    }
+  }
+
+  private performRender(data: ItemData['data'] = []): void {
+    if (this.renderPending || !this.iframe) {
       return;
     }
 
-    this.render({
-      container: this.container.nativeElement,
-      data,
+    const renderData = {
+      data: data,
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {},
       language: 'en',
       dimensions: {
         width: this.container.nativeElement.clientWidth,
-        height: this.container.nativeElement.clientHeight,
-      },
+        height: this.container.nativeElement.clientHeight
+      }
+    };
+
+    this.renderPending = true;
+
+    requestAnimationFrame(() => {
+      try {
+        this.iframe?.contentWindow?.postMessage({
+          type: 'render',
+          data: renderData
+        }, '*');
+      }
+      catch (error) {
+        console.error('Render error:', error);
+      }
+      finally {
+        this.renderPending = false;
+      }
+    });
+  }
+
+  private performResize(): void {
+    if (this.resizeAnimationFrame !== null) {
+      cancelAnimationFrame(this.resizeAnimationFrame);
+    }
+
+    const resizeData = {
+      slots: this.slotsSubject.getValue(),
+      slotConfigurations: this.slotConfigs,
+      options: {},
+      language: 'en',
+      dimensions: {
+        width: this.container.nativeElement.clientWidth,
+        height: this.container.nativeElement.clientHeight
+      }
+    };
+
+    this.resizeAnimationFrame = requestAnimationFrame(() => {
+      this.iframe?.contentWindow?.postMessage({
+        type: 'resize',
+        data: resizeData
+      }, '*');
+      this.resizeAnimationFrame = null;
     });
   }
 

@@ -76,7 +76,7 @@ export const render = ({
   // Either select an existing canvas or create one.
   let canvasSelection = d3.select(container).select<HTMLCanvasElement>('canvas');
   if (canvasSelection.empty()) {
-    canvasSelection = d3.select(container)
+    canvasSelection = d3.select(data.container)
       .append('canvas')
       .attr('width', width)
       .attr('height', height)
