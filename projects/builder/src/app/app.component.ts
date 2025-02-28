@@ -5,9 +5,9 @@ import {
   ElementRef,
   HostListener,
   inject,
-  OnInit,
   OnDestroy,
-  ViewChild,
+  OnInit,
+  ViewChild
 } from '@angular/core';
 import { LoginComponent } from '@builder/components/login/login.component';
 import { buildLuzmoQuery } from '@builder/helpers/getData';
@@ -23,8 +23,8 @@ import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import { filter, map, shareReplay, switchMap, take, tap } from 'rxjs/operators';
 import { defaultSlotConfigs } from '../../../custom-chart/src/slots.config';
-import { ItemData, ItemQuery } from './helpers/types';
 import { isValidMessageSource, setUpSecureIframe } from './helpers/iframe.utils';
+import { ItemData, ItemQuery } from './helpers/types';
 
 @UntilDestroy()
 @Component({
@@ -47,7 +47,14 @@ export class AppComponent implements OnInit, OnDestroy {
   private renderPending = false;
   private scriptContent = '';
   private styleContent = '';
-  private buildQuery?: (slots: Slot[], slotsConfig: SlotConfig[]) => ItemQuery;
+
+
+  private queryInProgress = false;
+  private lastQueryTime = 0;
+  private queryThrottleTime = 500; // ms
+
+  private querySubject = new BehaviorSubject<ItemQuery | null>(null);
+  private queryReady$ = this.querySubject.asObservable();
 
   currentUser$ = this.authService.isAuthenticated$.pipe(
     filter((isAuthenticated) => isAuthenticated),
@@ -107,6 +114,46 @@ export class AppComponent implements OnInit, OnDestroy {
     }))
   );
 
+  private fetchQuery(): void {
+    const now = Date.now();
+
+    // Don't fetch if a query is already in progress or if we've recently fetched
+    if (this.queryInProgress || (now - this.lastQueryTime < this.queryThrottleTime)) {
+      return;
+    }
+
+    if (!this.iframe || !this.moduleLoaded) {
+      console.log('Cannot fetch query: iframe not ready or module not loaded');
+      return;
+    }
+
+    const slots = this.slotsSubject.getValue();
+
+    // Skip if all slots are empty
+    if (!slots.some(slot => slot.content.length > 0)) {
+      console.log('Skipping query fetch: all slots are empty');
+      return;
+    }
+
+    console.log('Requesting query build with slots:', slots);
+    this.queryInProgress = true;
+    this.lastQueryTime = now;
+
+    this.iframe.contentWindow?.postMessage({
+      type: 'buildQuery',
+      slots: slots,
+      slotConfigurations: this.slotConfigs
+    }, '*');
+
+    // Set a safety timeout to reset queryInProgress flag if no response received
+    setTimeout(() => {
+      if (this.queryInProgress) {
+        console.log('Query request timed out, resetting status');
+        this.queryInProgress = false;
+      }
+    }, 5000); // 5-second timeout
+  }
+
   // Message handler for iframe
   private handleMessage = (event: MessageEvent) => {
     if (!isValidMessageSource(event, this.iframe)) {
@@ -123,48 +170,61 @@ export class AppComponent implements OnInit, OnDestroy {
       });
     }
     else if (event.data.type === 'queryLoaded') {
-      if (event.data.query) {
-        this.buildQuery = () => event.data.query;
-      }
+      this.queryInProgress = false;
+
+      // Update the query subject with the new query
+      this.querySubject.next(event.data.query);
     }
     else if (event.data.type === 'moduleError') {
       console.error('Module error:', event.data.error);
     }
   };
 
+
+// 3. Update your chartData$ to use the queryReady$ observable
   chartData$ = this.slotsSubject.pipe(
     untilDestroyed(this),
     switchMap((slots) => {
-      const allRequiredSlotsFilled = defaultSlotConfigs
+      const allRequiredSlotsFilled = this.slotConfigs
         .filter((s) => s.isRequired)
         .map((s) => slots.find((slot) => slot.name === s.name))
         .every((s) => s && s.content.length > 0);
 
       if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
-        let query: ItemQuery = { dimensions: [], measures: [], options: {} };
+        // Only fetch the query if we're not already doing so and module is loaded
+        if (this.moduleLoaded && !this.queryInProgress) {
+          console.log('Fetching query due to slot changes');
+          this.fetchQuery();
+        }
 
-          if (this.buildQuery) {
-            console.log('Building query with custom function');
-            query = this.buildQuery(slots, defaultSlotConfigs);
-          }
-          else {
-            query = buildLuzmoQuery(slots);
-          }
-          this.queryingData$.next(true);
+        // Wait for query to be available
+        return this.queryReady$.pipe(
+          // Take the first valid query
+          take(1),
+          // Then use it to fetch data
+          switchMap(query => {
+            // If no custom query is available yet, use the default
+            const finalQuery = query || buildLuzmoQuery(slots);
 
-        return this.luzmoAPIService.queryLuzmoDataset([query]).pipe(
-          tap(() => this.queryingData$.next(false)),
-          map((result) => result.data)
+            console.log('Using query for data fetch:', finalQuery);
+            this.queryingData$.next(true);
+
+            return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
+              tap(() => this.queryingData$.next(false)),
+              map((result) => result.data)
+            );
+          })
         );
       } else {
         return of([]);
       }
     }),
     tap(data => {
-        if (this.moduleLoaded) {
-          this.performRender(data);
-        }
-      }),shareReplay(1)
+      if (this.moduleLoaded) {
+        this.performRender(data);
+      }
+    }),
+    shareReplay(1)
   );
 
   displayedChartData$ = this.chartData$.pipe(map((data) => data.slice(0, 25)));
@@ -173,7 +233,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   @HostListener('window:resize')
   onResize(): void {
-    if (this.authService.isAuthenticated$.getValue() === true && this.moduleLoaded && this.iframe) {
+    if (this.authService.isAuthenticated$.getValue() && this.moduleLoaded && this.iframe) {
       this.performResize();
     }
   }
@@ -237,7 +297,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
       // Setup iframe
       const chartContainer = this.container.nativeElement;
-
       chartContainer.innerHTML = '';
 
       // Create the iframe
@@ -245,8 +304,6 @@ export class AppComponent implements OnInit, OnDestroy {
         .then(({ iframe, blobUrl }) => {
           this.iframe = iframe;
           this.blobUrl = blobUrl;
-
-          // We'll wait for the moduleLoaded message to handle rendering
         })
         .catch(error => {
           console.error('Failed to setup iframe:', error);

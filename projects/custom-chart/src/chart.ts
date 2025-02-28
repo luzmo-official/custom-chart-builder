@@ -76,7 +76,7 @@ export const render = ({
   // Either select an existing canvas or create one.
   let canvasSelection = d3.select(container).select<HTMLCanvasElement>('canvas');
   if (canvasSelection.empty()) {
-    canvasSelection = d3.select(data.container)
+    canvasSelection = d3.select(container)
       .append('canvas')
       .attr('width', width)
       .attr('height', height)
@@ -506,6 +506,7 @@ export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery 
   for (const measureSlot of allMeasureSlots) {
     for (const measureSlotContent of measureSlot.content) {
       hasMeasures = true;
+      console.log('HAs measures', measureSlotContent);
       addToMeasures(measures, measureSlotContent);
     }
   }
@@ -535,7 +536,7 @@ export const buildQuery = (slots: Slot[], slotsConfig: SlotConfig[]): ItemQuery 
 
   const query = {
     dimensions,
-    measures,
+    measures: [],
     limit: { by: 60000 },
     options: { rollup_data: false }
   };
