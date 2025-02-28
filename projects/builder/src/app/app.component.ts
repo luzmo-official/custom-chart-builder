@@ -35,27 +35,25 @@ import { ItemData, ItemQuery } from './helpers/types';
 export class AppComponent implements OnInit {
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
-  private ws = new WebSocket('ws://localhost:8081');
-  private render?: (args: {
-    container: HTMLElement;
-    data: ItemData['data'];
-    slots: Slot[];
-    slotConfigurations: SlotConfig[];
-    options: any;
-    language: string;
-    dimensions: { width: number; height: number };
-  }) => void;
-  private resize?: (args: {
-    container: HTMLElement;
-    slots: Slot[];
-    slotConfigurations: SlotConfig[];
-    options: any;
-    language: string;
-    dimensions: { width: number; height: number };
-  }) => void;
-  private buildQuery?: (args: {
-    slots: Slot[]
-  }) => ItemQuery;
+  private ws = new WebSocket('ws://localhost:8080');
+  private render?: (
+    container: HTMLElement,
+    data: ItemData['data'],
+    slots: Slot[],
+    slotConfigurations: SlotConfig[],
+    options: any,
+    language: string,
+    dimensions: { width: number; height: number }
+  ) => void;
+  private resize?: (
+    container: HTMLElement,
+    slots: Slot[],
+    slotConfigurations: SlotConfig[],
+    options: any,
+    language: string,
+    dimensions: { width: number; height: number }
+  ) => void;
+  private buildQuery?: (slots: Slot[], slotsConfig: SlotConfig[]) => ItemQuery;
 
   currentUser$ = this.authService.isAuthenticated$.pipe(
     filter((isAuthenticated) => isAuthenticated),
@@ -87,8 +85,9 @@ export class AppComponent implements OnInit {
     map((dataset) =>
       dataset.columns.map((column) => ({
         columnId: column.id,
-        currency: column.currency?.symbol,
+        column: column.id,currency: column.currency?.symbol,
         datasetId: dataset.id,
+          set:dataset.id,
         description: column.description,
         format: column.format,
         hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
@@ -125,10 +124,13 @@ export class AppComponent implements OnInit {
       if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
         let query: ItemQuery = { dimensions: [], measures: [], options: {} };
 
-        if (this.buildQuery) {
-          query = this.buildQuery({ slots });
-        }
-        this.queryingData$.next(true);
+          if (this.buildQuery) {
+            query = this.buildQuery(slots, defaultSlotConfigs);
+          }
+          else {
+            query = buildLuzmoQuery(slots);
+          }
+          this.queryingData$.next(true);
 
         return this.luzmoAPIService.queryLuzmoDataset([query]).pipe(
           tap(() => this.queryingData$.next(false)),
@@ -232,15 +234,17 @@ export class AppComponent implements OnInit {
       if (slot.name === slotName) {
         const droppedColumn = event.detail.slotContents[0];
         const content = event.detail.slotContents.map((column) => ({
-          columnId: column.columnId,
-          currency: column.currency,
-          datasetId: column.datasetId,
-          format: column.format,
-          label: column.label,
-          level: column.level,
-          lowestLevel: column.lowestLevel,
-          subtype: column.subtype,
-          type: column.type
+          columnId: droppedColumn.columnId,
+          column: droppedColumn.column,
+          currency: droppedColumn.currency,
+          datasetId: droppedColumn.datasetId,
+          set: droppedColumn.datasetId,
+          format: droppedColumn.format,
+          label: droppedColumn.label,
+          level: droppedColumn.level,
+          lowestLevel: droppedColumn.lowestLevel,
+          subtype: droppedColumn.subtype,
+          type: droppedColumn.type
         }));
 
         return {
