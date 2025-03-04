@@ -53,7 +53,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private lastQueryTime = 0;
   private queryThrottleTime = 500; // ms
 
-  private querySubject = new BehaviorSubject<ItemQuery | null>(null);
+  private querySubject = new Subject<ItemQuery | null>();
   private queryReady$ = this.querySubject.asObservable();
 
   loadingAllDatasets$ = new BehaviorSubject<boolean>(false);
