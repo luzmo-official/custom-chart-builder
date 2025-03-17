@@ -60,12 +60,11 @@ function buildChart() {
   });
 }
 
+buildChart();
+
 // Watch for changes
 chokidar.watch([
-  join(__dirname, 'src/chart.ts'),
-  join(__dirname, 'src/manifest.json'),
-  join(__dirname, 'src/icon.svg'),
-  join(__dirname, 'src/chart.css')
+  join(__dirname, 'src')
 ], {
   ignoreInitial: true,
   persistent: true,

@@ -218,8 +218,6 @@ export const render = ({
   
   // Prepare data for visualization
   let chartData: ChartDataItem[] = [];
-
-  console.log('Is in empty state..?', isEmptyState);
   
   if (isEmptyState) {
     // Generate sample data for empty state

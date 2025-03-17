@@ -391,7 +391,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
       // Load style content
       try {
-        const styleResponse = await fetch('/custom-chart/styles.css?t=' + Date.now());
+        const styleResponse = await fetch('/custom-chart/index.css?t=' + Date.now());
         this.styleContent = await styleResponse.text();
       } catch (error) {
         console.warn('No styles found, continuing without styles');
