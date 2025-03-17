@@ -20,12 +20,16 @@ import '@luzmo/analytics-components-kit/progress-circle';
 import { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
-import { BehaviorSubject, of, Subject } from 'rxjs';
+import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
 import { filter, map, shareReplay, switchMap, take, tap } from 'rxjs/operators';
 import { defaultSlotConfigs } from '../../../custom-chart/src/slots.config';
 import { isValidMessageSource, setUpSecureIframe } from './helpers/iframe.utils';
 import { ItemData, ItemQuery } from './helpers/types';
 
+/**
+ * Main component for the Luzmo Custom Chart Builder application
+ * Provides dataset selection, chart configuration, and visualization
+ */
 @UntilDestroy()
 @Component({
   selector: 'app-root',
@@ -36,10 +40,14 @@ import { ItemData, ItemQuery } from './helpers/types';
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class AppComponent implements OnInit, OnDestroy {
+  // Services
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
+
+  // WebSocket connection for real-time updates
   private ws = new WebSocket('ws://localhost:8080');
 
+  // IFrame and visualization state
   private iframe: HTMLIFrameElement | null = null;
   private blobUrl: string | null = null;
   moduleLoaded = false;
@@ -48,68 +56,142 @@ export class AppComponent implements OnInit, OnDestroy {
   private scriptContent = '';
   private styleContent = '';
 
-
+  // Query management
   private queryInProgress = false;
   private lastQueryTime = 0;
   private queryThrottleTime = 500; // ms
-
   private querySubject = new Subject<ItemQuery | null>();
   private queryReady$ = this.querySubject.asObservable();
 
+  // Loading state indicators
   loadingAllDatasets$ = new BehaviorSubject<boolean>(false);
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
   queryingData$ = new BehaviorSubject<boolean>(false);
 
-  currentUser$ = this.authService.isAuthenticated$
-    .pipe(
-      filter((isAuthenticated) => isAuthenticated),
-      switchMap(() => this.authService.getOrLoadUser())
-    );
+  // Slot configuration
+  slotConfigs: SlotConfig[] = defaultSlotConfigs;
+  private slotsSubject = new BehaviorSubject<Slot[]>(
+    this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] }))
+  );
+
+  // User and dataset state
+  private selectedDatasetIdSubject = new Subject<string>();
+
+  // Observable streams
+  currentUser$ = this.authService.isAuthenticated$.pipe(
+    filter(isAuthenticated => isAuthenticated),
+    switchMap(() => this.authService.getOrLoadUser())
+  );
 
   datasets$ = this.authService.isAuthenticated$
-    .pipe(
+  .pipe(
       untilDestroyed(this),
-      filter((isAuthenticated) => isAuthenticated),
+      filter(isAuthenticated => isAuthenticated),
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
       filter(() => !this.loadingAllDatasets$.value),
       switchMap(() => this.luzmoAPIService.loadAllDatasets()),
-      map((result) => result.rows),
+      map(result => result.rows),
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
     );
 
-  private selectedDatasetIdSubject = new Subject<string>();
   columns$ = this.selectedDatasetIdSubject
     .pipe(
       untilDestroyed(this),
-      // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(true), 0)),
-      switchMap((datasetId) => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
-      map((result) => result.rows[0]),
-      map((dataset) =>
-        dataset.columns.map((column) => ({
-          columnId: column.id,
-          column: column.id,currency: column.currency?.symbol,
-          datasetId: dataset.id,
-          set: dataset.id,
-          description: column.description,
-          format: column.format,
-          hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
-            id: level.id,
-            level: level.level,
-            label: level.name
-          })),
-          label: column.name,
-          level: column.level,
-          lowestLevel: column.lowestLevel,
-          subtype: column.subtype,
-          type: column.type
-        }))
-      )
-      // tap(() => setTimeout(() => this.loadingDatasetDetail$.next(false), 0))
+      switchMap(datasetId => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
+      map(result => result.rows[0]),
+      map(dataset => this.transformColumnsData(dataset))
     );
 
-  slotConfigs: SlotConfig[] = defaultSlotConfigs;
-  private slotsSubject = new BehaviorSubject<Slot[]>(this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] })));
+  chartData$ = this.slotsSubject
+    .pipe(
+      untilDestroyed(this),
+      switchMap(slots => this.fetchChartData(slots)),
+      tap(data => {
+        if (this.moduleLoaded) {
+          this.performRender(data);
+        }
+      }),
+      shareReplay(1)
+    );
 
+  displayedChartData$ = this.chartData$.pipe(
+    map(data => data.slice(0, 25))
+  );
+
+  @ViewChild('chartContainer') container!: ElementRef;
+
+  /**
+   * Transforms the raw dataset columns into the format expected by the chart builder
+   */
+  private transformColumnsData(dataset: any): any[] {
+    return dataset.columns.map((column: any) => ({
+      columnId: column.id,
+      column: column.id,
+      currency: column.currency?.symbol,
+      datasetId: dataset.id,
+      set: dataset.id,
+      description: column.description,
+      format: column.format,
+      hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
+        id: level.id,
+        level: level.level,
+        label: level.name
+      })),
+      label: column.name,
+      level: column.level,
+      lowestLevel: column.lowestLevel,
+      subtype: column.subtype,
+      type: column.type
+    }));
+  }
+
+  /**
+   * Fetches chart data based on the current slot configuration
+   */
+  private fetchChartData(slots: Slot[]): Observable<any[]> {
+    const allRequiredSlotsFilled = this.areAllRequiredSlotsFilled(slots);
+
+    if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
+      // Only fetch the query if we're not already doing so and module is loaded
+      if (this.moduleLoaded && !this.queryInProgress) {
+        console.log('Fetching query due to slot changes');
+        this.fetchQuery();
+      }
+
+      // Wait for query to be available
+      return this.queryReady$.pipe(
+        take(1),
+        switchMap(query => {
+          // If no custom query is available yet, use the default
+          const finalQuery = query || buildLuzmoQuery(slots);
+
+          console.log('Using query for data fetch:', finalQuery);
+          this.queryingData$.next(true);
+
+          return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
+            tap(() => this.queryingData$.next(false)),
+            map(result => result.data)
+          );
+        })
+      );
+    } else {
+      return of([]);
+    }
+  }
+
+  /**
+   * Checks if all required slots are filled with data
+   */
+  private areAllRequiredSlotsFilled(slots: Slot[]): boolean {
+    return this.slotConfigs
+      .filter(config => config.isRequired)
+      .map(config => slots.find(slot => slot.name === config.name))
+      .every(slot => slot && slot.content.length > 0);
+  }
+
+  /**
+   * Triggers chart query building
+   */
   private fetchQuery(): void {
     const now = Date.now();
 
@@ -150,80 +232,166 @@ export class AppComponent implements OnInit, OnDestroy {
     }, 5000); // 5-second timeout
   }
 
-  // Message handler for iframe
-  private handleMessage = (event: MessageEvent) => {
+  /**
+   * Handles messages from the iframe
+   */
+  private handleMessage = (event: MessageEvent): void => {
     if (!isValidMessageSource(event, this.iframe)) {
       return;
     }
 
-    if (event.data.type === 'moduleLoaded') {
-      this.moduleLoaded = true;
-      console.log('Module loaded successfully');
-
-      // If we have data, render the chart
-      this.chartData$.pipe(take(1)).subscribe(data => {
-        this.performRender(data);
-      });
-    }
-    else if (event.data.type === 'queryLoaded') {
-      this.queryInProgress = false;
-
-      // Update the query subject with the new query
-      this.querySubject.next(event.data.query);
-    }
-    else if (event.data.type === 'moduleError') {
-      console.error('Module error:', event.data.error);
+    switch (event.data.type) {
+      case 'moduleLoaded':
+        this.handleModuleLoaded();
+        break;
+      case 'queryLoaded':
+        this.handleQueryLoaded(event.data.query);
+        break;
+      case 'moduleError':
+        console.error('Module error:', event.data.error);
+        break;
     }
   };
-  
-  chartData$ = this.slotsSubject.pipe(
-    untilDestroyed(this),
-    switchMap((slots) => {
-      const allRequiredSlotsFilled = this.slotConfigs
-        .filter((s) => s.isRequired)
-        .map((s) => slots.find((slot) => slot.name === s.name))
-        .every((s) => s && s.content.length > 0);
 
-      if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
-        // Only fetch the query if we're not already doing so and module is loaded
-        if (this.moduleLoaded && !this.queryInProgress) {
-          console.log('Fetching query due to slot changes');
-          this.fetchQuery();
-        }
+  /**
+   * Handles module loaded event from iframe
+   */
+  private handleModuleLoaded(): void {
+    this.moduleLoaded = true;
+    console.log('Module loaded successfully');
 
-        // Wait for query to be available
-        return this.queryReady$.pipe(
-          // Take the first valid query
-          take(1),
-          // Then use it to fetch data
-          switchMap(query => {
-            // If no custom query is available yet, use the default
-            const finalQuery = query || buildLuzmoQuery(slots);
+    // If we have data, render the chart
+    this.chartData$.pipe(take(1)).subscribe(data => {
+      this.performRender(data);
+    });
+  }
 
-            console.log('Using query for data fetch:', finalQuery);
-            this.queryingData$.next(true);
+  /**
+   * Handles query loaded event from iframe
+   */
+  private handleQueryLoaded(query: ItemQuery): void {
+    this.queryInProgress = false;
+    this.querySubject.next(query);
+  }
 
-            return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
-              tap(() => this.queryingData$.next(false)),
-              map((result) => result.data)
-            );
-          })
-        );
-      } else {
-        return of([]);
+  /**
+   * Performs the chart rendering
+   */
+  private performRender(data: ItemData['data'] = []): void {
+    if (this.renderPending || !this.iframe) {
+      return;
+    }
+
+    const renderData = {
+      data: data,
+      slots: this.slotsSubject.getValue(),
+      slotConfigurations: this.slotConfigs,
+      options: {},
+      language: 'en',
+      dimensions: {
+        width: this.container.nativeElement.clientWidth,
+        height: this.container.nativeElement.clientHeight
       }
-    }),
-    tap(data => {
-      if (this.moduleLoaded) {
-        this.performRender(data);
+    };
+
+    this.renderPending = true;
+
+    requestAnimationFrame(() => {
+      try {
+        this.iframe?.contentWindow?.postMessage({
+          type: 'render',
+          data: renderData
+        }, '*');
       }
-    }),
-    shareReplay(1)
-  );
+      catch (error) {
+        console.error('Render error:', error);
+      }
+      finally {
+        this.renderPending = false;
+      }
+    });
+  }
 
-  displayedChartData$ = this.chartData$.pipe(map((data) => data.slice(0, 25)));
+  /**
+   * Performs chart resizing
+   */
+  private performResize(): void {
+    if (this.resizeAnimationFrame !== null) {
+      cancelAnimationFrame(this.resizeAnimationFrame);
+    }
 
-  @ViewChild('chartContainer') container!: ElementRef;
+    const resizeData = {
+      slots: this.slotsSubject.getValue(),
+      slotConfigurations: this.slotConfigs,
+      options: {},
+      language: 'en',
+      dimensions: {
+        width: this.container.nativeElement.clientWidth,
+        height: this.container.nativeElement.clientHeight
+      }
+    };
+
+    this.resizeAnimationFrame = requestAnimationFrame(() => {
+      this.iframe?.contentWindow?.postMessage({
+        type: 'resize',
+        data: resizeData
+      }, '*');
+      this.resizeAnimationFrame = null;
+    });
+  }
+
+  /**
+   * Loads the chart bundle into the iframe
+   */
+  private async loadBundle(): Promise<void> {
+    try {
+      // Load script content
+      const scriptResponse = await fetch('/custom-chart/bundle.js?t=' + Date.now());
+      this.scriptContent = await scriptResponse.text();
+
+      // Escape special characters in script content
+      this.scriptContent = this.escapeScriptContent(this.scriptContent);
+
+      // Load style content
+      try {
+        const styleResponse = await fetch('/custom-chart/styles.css?t=' + Date.now());
+        this.styleContent = await styleResponse.text();
+      } catch (error) {
+        console.warn('No styles found, continuing without styles');
+        this.styleContent = '';
+      }
+
+      // Setup iframe
+      const chartContainer = this.container.nativeElement;
+      chartContainer.innerHTML = '';
+
+      // Create the iframe
+      setUpSecureIframe(chartContainer, this.scriptContent, this.styleContent)
+        .then(({ iframe, blobUrl }) => {
+          this.iframe = iframe;
+          this.blobUrl = blobUrl;
+        })
+        .catch(error => {
+          console.error('Failed to setup iframe:', error);
+        });
+    } catch (error) {
+      console.error('Failed to load bundle:', error);
+    }
+  }
+
+  /**
+   * Escapes special characters in script content
+   */
+  private escapeScriptContent(script: string): string {
+    return script
+      .replaceAll('\\', '\\\\')     // Escape backslashes first
+      .replaceAll('`', '\\`')       // Escape backticks
+      .replaceAll('$', String.raw`\$`)      // Escape dollar signs
+      .replaceAll('\'', String.raw`\'`)      // Escape single quotes
+      .replaceAll('"', String.raw`\"`);
+  }
+
+  // #region Lifecycle Methods
 
   @HostListener('window:resize')
   onResize(): void {
@@ -232,7 +400,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  async ngOnInit() {
+  async ngOnInit(): Promise<void> {
     window.addEventListener('message', this.handleMessage);
 
     this.authService.isAuthenticated$
@@ -269,104 +437,13 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  private async loadBundle() {
-    try {
-      const scriptResponse = await fetch('/custom-chart/bundle.js?t=' + Date.now());
-      this.scriptContent = await scriptResponse.text();
+  // #endregion
 
-      this.scriptContent = this.scriptContent.replaceAll('\\', '\\\\')     // Escape backslashes first
-        .replaceAll('`', '\\`')       // Escape backticks
-        .replaceAll('$', String.raw`\$`)      // Escape dollar signs
-        .replaceAll('\'', String.raw`\'`)      // Escape single quotes
-        .replaceAll('"', String.raw`\"`);
+  // #region Event Handlers
 
-      // Load style content
-      try {
-        const styleResponse = await fetch('/custom-chart/styles.css?t=' + Date.now());
-        this.styleContent = await styleResponse.text();
-      } catch (error) {
-        console.warn('No styles found, continuing without styles');
-        this.styleContent = '';
-      }
-
-      // Setup iframe
-      const chartContainer = this.container.nativeElement;
-      chartContainer.innerHTML = '';
-
-      // Create the iframe
-      setUpSecureIframe(chartContainer, this.scriptContent, this.styleContent)
-        .then(({ iframe, blobUrl }) => {
-          this.iframe = iframe;
-          this.blobUrl = blobUrl;
-        })
-        .catch(error => {
-          console.error('Failed to setup iframe:', error);
-        });
-    } catch (error) {
-      console.error('Failed to load bundle:', error);
-    }
-  }
-
-  private performRender(data: ItemData['data'] = []): void {
-    if (this.renderPending || !this.iframe) {
-      return;
-    }
-
-    const renderData = {
-      data: data,
-      slots: this.slotsSubject.getValue(),
-      slotConfigurations: this.slotConfigs,
-      options: {},
-      language: 'en',
-      dimensions: {
-        width: this.container.nativeElement.clientWidth,
-        height: this.container.nativeElement.clientHeight
-      }
-    };
-
-    this.renderPending = true;
-
-    requestAnimationFrame(() => {
-      try {
-        this.iframe?.contentWindow?.postMessage({
-          type: 'render',
-          data: renderData
-        }, '*');
-      }
-      catch (error) {
-        console.error('Render error:', error);
-      }
-      finally {
-        this.renderPending = false;
-      }
-    });
-  }
-
-  private performResize(): void {
-    if (this.resizeAnimationFrame !== null) {
-      cancelAnimationFrame(this.resizeAnimationFrame);
-    }
-
-    const resizeData = {
-      slots: this.slotsSubject.getValue(),
-      slotConfigurations: this.slotConfigs,
-      options: {},
-      language: 'en',
-      dimensions: {
-        width: this.container.nativeElement.clientWidth,
-        height: this.container.nativeElement.clientHeight
-      }
-    };
-
-    this.resizeAnimationFrame = requestAnimationFrame(() => {
-      this.iframe?.contentWindow?.postMessage({
-        type: 'resize',
-        data: resizeData
-      }, '*');
-      this.resizeAnimationFrame = null;
-    });
-  }
-
+  /**
+   * Handles column drop events
+   */
   onColumnDropped(
     slotName: string,
     event: CustomEvent<{ slotContents: any[] }>
@@ -399,12 +476,20 @@ export class AppComponent implements OnInit, OnDestroy {
     this.slotsSubject.next(updatedSlots);
   }
 
+  /**
+   * Handles dataset selection events
+   */
   onDatasetSelected(event: CustomEvent<string>): void {
     const datasetId = event.detail;
     this.selectedDatasetIdSubject.next(datasetId);
   }
 
+  /**
+   * Handles logout events
+   */
   logout(): void {
     this.authService.setAuthenticated(false);
   }
+
+  // #endregion
 }
