@@ -1,15 +1,16 @@
 @if (authService.isAuthenticated$ | async) {
   <div class="container">
-    <div class="header">
+    <header class="header">
       <div class="header-title">Luzmo Custom Chart Builder</div>
       <div class="header-user-info">
         <div>Logged in as {{ (currentUser$ | async)?.name }}.</div>
         <div (click)="logout()" class="logout-button">Log out</div>
       </div>
-    </div>
+    </header>
+
     <div class="custom-chart-editor">
       <!-- Left column: Dataset selection and columns listing -->
-      <div class="column left-column">
+      <section class="column left-column">
         <div class="column-header">
           <p class="column-header-label">Dataset</p>
         </div>
@@ -56,10 +57,10 @@
             </div>
           }
         </div>
-      </div>
+      </section>
 
       <!-- Middle column: Droppable slots -->
-      <div class="column middle-column">
+      <section class="column middle-column">
         <div class="column-header">
           <p class="column-header-label">Chart slots</p>
         </div>
@@ -114,10 +115,10 @@
             }
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Right column: Chart visualization -->
-      <div class="column right-column">
+      <section class="column right-column">
         <div class="column-header">
           <p class="column-header-label">Chart visualization</p>
         </div>
@@ -139,7 +140,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 } @else {

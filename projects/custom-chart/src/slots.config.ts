@@ -2,21 +2,37 @@ import { SlotConfig } from '@luzmo/dashboard-contents-types';
 
 export const defaultSlotConfigs: SlotConfig[] = [
   {
-    name: 'x' as any,
+    name: 'category',
     rotate: false,
-    label: 'X coordinate',
-    type: 'numeric',
+    label: 'Category',
+    type: 'categorical',
     order: 1,
-    options: { isAggregationDisabled: true, isBinningDisabled: true, areDatetimeOptionsEnabled: true },
+    options: { 
+      isBinningDisabled: true,
+      areDatetimeOptionsEnabled: true 
+    },
     isRequired: true
   },
   {
-    name: 'y' as any,
+    name: 'measure',
     rotate: true,
-    label: 'Y coordinate',
+    label: 'Measure',
     type: 'numeric',
     order: 2,
-    options: { isAggregationDisabled: true, isBinningDisabled: true, areDatetimeOptionsEnabled: true },
+    options: {
+      isAggregationDisabled: false
+    },
     isRequired: true
+  },
+  {
+    name: 'legend',
+    rotate: false,
+    label: 'Legend',
+    type: 'categorical',
+    order: 3,
+    options: {
+      isBinningDisabled: true
+    },
+    isRequired: false
   }
-]
+];
