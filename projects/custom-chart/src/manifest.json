@@ -1,0 +1,35 @@
+{
+  "slots": [
+    {
+      "name": "category",
+      "rotate": false,
+      "label": "Category",
+      "type": "categorical",
+      "options": {
+        "isBinningDisabled": true,
+        "areDatetimeOptionsEnabled": true
+      },
+      "isRequired": true
+    },
+    {
+      "name": "measure",
+      "rotate": true,
+      "label": "Value",
+      "type": "numeric",
+      "options": {
+        "isAggregationDisabled": false
+      },
+      "isRequired": true
+    },
+    {
+      "name": "legend",
+      "rotate": false,
+      "label": "Legend",
+      "type": "categorical",
+      "options": {
+        "isBinningDisabled": true
+      },
+      "isRequired": false
+    }
+  ]
+}

@@ -38,3 +38,4 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+custom-chart-build-output

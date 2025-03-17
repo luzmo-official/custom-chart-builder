@@ -22,9 +22,11 @@ import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
 import { filter, map, shareReplay, switchMap, take, tap } from 'rxjs/operators';
-import { defaultSlotConfigs } from '../../../custom-chart/src/slots.config';
+import manifestJson from '../../../custom-chart/src/manifest.json';
 import { isValidMessageSource, setUpSecureIframe } from './helpers/iframe.utils';
 import { ItemData, ItemQuery } from './helpers/types';
+
+import { SlotsConfigSchema } from './slot-schema';
 
 /**
  * Main component for the Luzmo Custom Chart Builder application
@@ -68,8 +70,9 @@ export class AppComponent implements OnInit, OnDestroy {
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
   queryingData$ = new BehaviorSubject<boolean>(false);
 
-  // Slot configuration
-  slotConfigs: SlotConfig[] = defaultSlotConfigs;
+  slotConfigs: SlotConfig[] = [];
+  manifestValidationError: string | null = null;
+
   private slotsSubject = new BehaviorSubject<Slot[]>(
     this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] }))
   );
@@ -84,7 +87,7 @@ export class AppComponent implements OnInit, OnDestroy {
   );
 
   datasets$ = this.authService.isAuthenticated$
-  .pipe(
+    .pipe(
       untilDestroyed(this),
       filter(isAuthenticated => isAuthenticated),
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
@@ -119,6 +122,40 @@ export class AppComponent implements OnInit, OnDestroy {
   );
 
   @ViewChild('chartContainer') container!: ElementRef;
+
+  private initializeSlotConfigs(): void {
+    try {
+      // Validate the slots array from manifest
+      const validationResult = SlotsConfigSchema.safeParse(manifestJson.slots);
+
+      if (!validationResult.success) {
+        // Format validation errors
+        const formattedErrors = validationResult.error.errors.map(err =>
+          `${err.path.join('.')}: ${err.message}`
+        ).join('\n');
+
+        this.manifestValidationError = `Manifest slot validation failed:\n${formattedErrors}`;
+        console.error(this.manifestValidationError, validationResult.error);
+
+        // Use an empty array for slots to avoid further errors
+        this.slotConfigs = [];
+      } else {
+        this.slotConfigs = validationResult.data as SlotConfig[];
+        this.manifestValidationError = null;
+      }
+    } catch (error) {
+      this.manifestValidationError = `Failed to load slot configurations from manifest: ${error instanceof Error ? error.message : String(error)}`;
+      console.error(this.manifestValidationError, error);
+
+      // Use an empty array for slots
+      this.slotConfigs = [];
+    }
+
+    // Initialize slots subject with empty slots
+    this.slotsSubject = new BehaviorSubject<Slot[]>(
+      this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] }))
+    );
+  }
 
   /**
    * Transforms the raw dataset columns into the format expected by the chart builder
@@ -346,7 +383,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private async loadBundle(): Promise<void> {
     try {
       // Load script content
-      const scriptResponse = await fetch('/custom-chart/bundle.js?t=' + Date.now());
+      const scriptResponse = await fetch('/custom-chart/index.js?t=' + Date.now());
       this.scriptContent = await scriptResponse.text();
 
       // Escape special characters in script content
@@ -401,6 +438,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
+    this.initializeSlotConfigs();
     window.addEventListener('message', this.handleMessage);
 
     this.authService.isAuthenticated$

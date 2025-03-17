@@ -218,6 +218,8 @@ export const render = ({
   
   // Prepare data for visualization
   let chartData: ChartDataItem[] = [];
+
+  console.log('Is in empty state..?', isEmptyState);
   
   if (isEmptyState) {
     // Generate sample data for empty state
@@ -237,14 +239,20 @@ export const render = ({
   } else {
     // Process real data
     const groupSlot = slots.find(s => s.name === 'legend');
+    const hasGroup = groupSlot?.content?.length! > 0;
     
     // Transform data into the format we need
     chartData = data.map(row => {
-      // Extract data based on the format: [category, legend, measure]
-      // Where category and legend are objects with name properties
-      const category = row[0]?.name?.en || row[0] || 'Unknown';
-      const group = row[1]?.name?.en || row[1] || 'Default';
-      const value = row[2] || 0;
+      const categoryIndex = 0;
+      const groupIndex = hasGroup ? 1 : -1;
+      const measureIndex = hasGroup ? 2 : 1;
+      
+      // Extract data based on slot positions
+      const category = row[categoryIndex]?.name?.en || row[categoryIndex] || 'Unknown';
+      const group = hasGroup 
+        ? (row[groupIndex]?.name?.en || row[groupIndex] || 'Default') 
+        : 'Default';
+      const value = row[measureIndex] || 0;
       
       return {
         category: typeof category === 'string' ? category : String(category),

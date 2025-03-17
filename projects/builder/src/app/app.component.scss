@@ -15,6 +15,14 @@ $dark-color: var(--m800);
   height: 100%;
 }
 
+.custom-chart-editor {
+  display: flex;
+  width: 100%;
+  flex-grow: 1;
+  background: $background-color;
+  color: $font-color;
+}
+
 // Header styles
 .header {
   display: flex;
@@ -51,16 +59,7 @@ $dark-color: var(--m800);
   }
 }
 
-// Chart editor layout
-.custom-chart-editor {
-  display: flex;
-  width: 100%;
-  flex-grow: 1;
-  background: $background-color;
-  color: $font-color;
-}
-
-// Common column styles
+// Columns - Common Styles
 .column {
   margin: 0.5rem;
   border: 0.0625rem solid $border-color;
@@ -208,7 +207,53 @@ $dark-color: var(--m800);
   }
 }
 
-// JSON viewer styles overrides
+// =========================================
+// Validation Error Display
+// =========================================
+.validation-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.25rem;
+  margin: 0.625rem;
+  border-radius: $border-radius;
+  background-color: #fff8f8;
+  border: 0.0625rem solid #ffcdd2;
+  text-align: center;
+  
+  .error-icon {
+    font-size: 2.25rem;
+    margin-bottom: 0.625rem;
+  }
+  
+  .error-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #d32f2f;
+    margin-bottom: 0.625rem;
+  }
+  
+  .error-message {
+    padding: 0.625rem;
+    background-color: #f5f5f5;
+    border-radius: 0.25rem;
+    border: 0.0625rem solid #e0e0e0;
+    color: #333;
+    font-family: monospace;
+    white-space: pre-wrap;
+    text-align: left;
+    width: 100%;
+    max-height: 12.5rem;
+    overflow-y: auto;
+    margin-bottom: 0.625rem;
+  }
+  
+  .error-help {
+    color: #555;
+    font-size: 0.875rem;
+  }
+}
+
 ::ng-deep {
   .ngx-json-viewer {
     section {
@@ -221,11 +266,8 @@ $dark-color: var(--m800);
       font-weight: 600;
     }
   }
-}
-
-// Iframe rendering styles
-::ng-deep {
-  // Widget loader
+  
+  // IFrame and Widget loader styles
   .widget-loader {
     position: absolute;
     top: 0;
@@ -246,7 +288,7 @@ $dark-color: var(--m800);
     }
   }
 
-  // Circular loader animation
+  // Loader animation
   .cio-pre-loader {
     border-radius: 50%;
     width: 3rem;
@@ -263,11 +305,7 @@ $dark-color: var(--m800);
   }
   
   @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 }

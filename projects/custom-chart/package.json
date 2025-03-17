@@ -4,7 +4,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --minify --outfile=../../custom-chart-build-output/bundle.js --format=esm && esbuild src/chart.css --minify --outfile=../../custom-chart-build-output/styles.css",
+    "build-code": "esbuild src/index.ts --bundle --minify --outfile=../../custom-chart-build-output/index.js --format=esm && esbuild src/chart.css --minify --outfile=../../custom-chart-build-output/index.css",
+    "build": "npm run build-code && node scripts/copy-assets.js",
     "watch": "node watch.js"
   },
   "dependencies": {
