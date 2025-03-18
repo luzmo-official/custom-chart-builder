@@ -21,12 +21,22 @@ import { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
-import { filter, map, shareReplay, switchMap, take, tap } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, filter, map, shareReplay, switchMap, tap } from 'rxjs/operators';
 import manifestJson from '../../../custom-chart/src/manifest.json';
 import { isValidMessageSource, setUpSecureIframe } from './helpers/iframe.utils';
 import { ItemData, ItemQuery } from './helpers/types';
 
 import { SlotsConfigSchema } from './slot-schema';
+
+// Interface to track query-relevant slot properties without format
+interface SlotQuerySignature {
+  name: string;
+  content: Array<{
+    columnId: string;
+    datasetId: string;
+    aggregationFunc?: string;
+  }>;
+}
 
 /**
  * Main component for the Luzmo Custom Chart Builder application
@@ -73,9 +83,8 @@ export class AppComponent implements OnInit, OnDestroy {
   slotConfigs: SlotConfig[] = [];
   manifestValidationError: string | null = null;
 
-  private slotsSubject = new BehaviorSubject<Slot[]>(
-    this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] }))
-  );
+  private slotsSubject!: BehaviorSubject<Slot[]>;
+  private queryRelevantSlotsSubject = new BehaviorSubject<SlotQuerySignature[]>([]);
 
   // User and dataset state
   private selectedDatasetIdSubject = new Subject<string>();
@@ -93,7 +102,10 @@ export class AppComponent implements OnInit, OnDestroy {
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
       filter(() => !this.loadingAllDatasets$.value),
       switchMap(() => this.luzmoAPIService.loadAllDatasets()),
-      map(result => result.rows),
+      map(result => result.rows.map((dataset: any) => {
+        dataset.localizedName = dataset.name['en'] || dataset.name[Object.keys(dataset.name)[0]];
+        return dataset;
+      })),
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
     );
 
@@ -105,21 +117,9 @@ export class AppComponent implements OnInit, OnDestroy {
       map(dataset => this.transformColumnsData(dataset))
     );
 
-  chartData$ = this.slotsSubject
-    .pipe(
-      untilDestroyed(this),
-      switchMap(slots => this.fetchChartData(slots)),
-      tap(data => {
-        if (this.moduleLoaded) {
-          this.performRender(data);
-        }
-      }),
-      shareReplay(1)
-    );
+  chartData$!: Observable<any>;
 
-  displayedChartData$ = this.chartData$.pipe(
-    map(data => data.slice(0, 25))
-  );
+  displayedChartData$!: Observable<any>;
 
   @ViewChild('chartContainer') container!: ElementRef;
 
@@ -155,6 +155,60 @@ export class AppComponent implements OnInit, OnDestroy {
     this.slotsSubject = new BehaviorSubject<Slot[]>(
       this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] }))
     );
+
+    // Initialize query-relevant slots subject
+    this.queryRelevantSlotsSubject.next(
+      this.slotConfigs.map(slotConfig => ({ 
+        name: slotConfig.name, 
+        content: []
+      }))
+    );
+
+    // Setup observables for both query updates and format updates
+    
+    // This observable handles data queries based only on query-relevant slot changes
+    this.chartData$ = this.queryRelevantSlotsSubject.pipe(
+      untilDestroyed(this),
+      // Debounce to avoid rapid consecutive query requests
+      debounceTime(300),
+      // Only proceed if the query-relevant properties have actually changed
+      distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
+      switchMap(querySlots => {
+        // Convert query signatures back to full slots for processing
+        const fullSlots = this.slotsSubject.getValue();
+        return this.fetchChartData(fullSlots);
+      }),
+      // Render when data arrives
+      tap(data => {
+        if (this.moduleLoaded) {
+          this.performRender(data);
+        }
+      }),
+      // Cache the last result to avoid redundant processing
+      shareReplay(1)
+    );
+    
+    // Setup a separate observer for the full slots that includes format
+    // This will trigger renders when formats change without triggering new queries
+    this.slotsSubject.pipe(
+      untilDestroyed(this),
+      // Debounce to avoid rapid consecutive renders
+      debounceTime(50),
+      // We want to tap into the latest data whenever slots change (including format changes)
+      tap(() => {
+        // If module is loaded, get the latest chart data and render
+        if (this.moduleLoaded) {
+          // Force the chart to re-render with current data
+          this.chartData$.subscribe(data => {
+            this.performRender(data);
+          }).unsubscribe();
+        }
+      })
+    ).subscribe();
+
+    this.displayedChartData$ = this.chartData$.pipe(
+      map(data => data.slice(0, 25))
+    );
   }
 
   /**
@@ -183,6 +237,21 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Extract query-relevant properties from slots
+   * This excludes format and other non-query-relevant properties
+   */
+  private extractQueryRelevantSlots(slots: Slot[]): SlotQuerySignature[] {
+    return slots.map(slot => ({
+      name: slot.name,
+      content: slot.content.map(item => ({
+        columnId: item.columnId!,
+        datasetId: item.datasetId!,
+        aggregationFunc: item.aggregationFunc
+      }))
+    }));
+  }
+
+  /**
    * Fetches chart data based on the current slot configuration
    */
   private fetchChartData(slots: Slot[]): Observable<any[]> {
@@ -191,18 +260,15 @@ export class AppComponent implements OnInit, OnDestroy {
     if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
       // Only fetch the query if we're not already doing so and module is loaded
       if (this.moduleLoaded && !this.queryInProgress) {
-        console.log('Fetching query due to slot changes');
         this.fetchQuery();
       }
 
       // Wait for query to be available
       return this.queryReady$.pipe(
-        take(1),
         switchMap(query => {
           // If no custom query is available yet, use the default
           const finalQuery = query || buildLuzmoQuery(slots);
-
-          console.log('Using query for data fetch:', finalQuery);
+          console.log('Fetching data with query', finalQuery);
           this.queryingData$.next(true);
 
           return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
@@ -295,12 +361,12 @@ export class AppComponent implements OnInit, OnDestroy {
    */
   private handleModuleLoaded(): void {
     this.moduleLoaded = true;
-    console.log('Module loaded successfully');
 
     // If we have data, render the chart
-    this.chartData$.pipe(take(1)).subscribe(data => {
+    // Create a subscription that auto-unsubscribes
+    this.chartData$.subscribe(data => {
       this.performRender(data);
-    });
+    }).unsubscribe();
   }
 
   /**
@@ -325,10 +391,7 @@ export class AppComponent implements OnInit, OnDestroy {
       slotConfigurations: this.slotConfigs,
       options: {},
       language: 'en',
-      dimensions: {
-        width: this.container.nativeElement.clientWidth,
-        height: this.container.nativeElement.clientHeight
-      }
+      dimensions: this.getContainerDimensions()
     };
 
     this.renderPending = true;
@@ -350,7 +413,17 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Performs chart resizing
+   * Get container dimensions (extracted to avoid duplication)
+   */
+  private getContainerDimensions() {
+    return {
+      width: this.container?.nativeElement?.clientWidth || 0,
+      height: this.container?.nativeElement?.clientHeight || 0
+    };
+  }
+
+  /**
+   * Performs chart resizing with debounce to improve performance
    */
   private performResize(): void {
     if (this.resizeAnimationFrame !== null) {
@@ -362,10 +435,7 @@ export class AppComponent implements OnInit, OnDestroy {
       slotConfigurations: this.slotConfigs,
       options: {},
       language: 'en',
-      dimensions: {
-        width: this.container.nativeElement.clientWidth,
-        height: this.container.nativeElement.clientHeight
-      }
+      dimensions: this.getContainerDimensions()
     };
 
     this.resizeAnimationFrame = requestAnimationFrame(() => {
@@ -428,8 +498,6 @@ export class AppComponent implements OnInit, OnDestroy {
       .replaceAll('"', String.raw`\"`);
   }
 
-  // #region Lifecycle Methods
-
   @HostListener('window:resize')
   onResize(): void {
     if (this.authService.isAuthenticated$.getValue() && this.moduleLoaded && this.iframe) {
@@ -444,7 +512,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.authService.isAuthenticated$
       .pipe(
         filter((isAuthenticated) => isAuthenticated),
-        take(1)
+        filter(() => !this.queryInProgress)
       )
       .subscribe(async () => {
         this.ws.onmessage = async (message) => {
@@ -475,18 +543,20 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  // #endregion
-
-  // #region Event Handlers
-
   /**
    * Handles column drop events
    */
   onColumnDropped(
     slotName: string,
+    slotType: string,
     event: CustomEvent<{ slotContents: any[] }>
   ): void {
     const currentSlots = this.slotsSubject.getValue();
+    // Extract the previous content for the slot being updated
+    const previousSlot = currentSlots.find(s => s.name === slotName);
+    const previousContent = previousSlot?.content || [];
+    
+    // Create updated slots
     const updatedSlots = currentSlots.map((slot) => {
       if (slot.name === slotName) {
         const content = event.detail.slotContents.map((column) => ({
@@ -500,8 +570,21 @@ export class AppComponent implements OnInit, OnDestroy {
           level: column.level,
           lowestLevel: column.lowestLevel,
           subtype: column.subtype,
-          type: column.type
+          type: column.type,
+          aggregationFunc: slotType === 'numeric' ? (column.aggregationFunc || 'sum') : undefined
         }));
+        
+        // Check if this is just a format change
+        let isFormatChangeOnly = false;
+        if (previousContent.length === content.length) {
+          isFormatChangeOnly = content.every((item, index) => {
+            const prev = previousContent[index];
+            return prev && 
+                   prev.columnId === item.columnId && 
+                   prev.datasetId === item.datasetId && 
+                   prev.aggregationFunc === item.aggregationFunc;
+          });
+        }
 
         return {
           ...slot,
@@ -511,7 +594,17 @@ export class AppComponent implements OnInit, OnDestroy {
       return slot;
     });
 
+    // Always update the main slots subject for rendering
     this.slotsSubject.next(updatedSlots);
+    
+    // Extract query-relevant properties
+    const newQuerySlots = this.extractQueryRelevantSlots(updatedSlots);
+    const currentQuerySlots = this.queryRelevantSlotsSubject.getValue();
+    
+    // Only update the query-relevant subject if there's an actual change in query-relevant properties
+    if (JSON.stringify(newQuerySlots) !== JSON.stringify(currentQuerySlots)) {
+      this.queryRelevantSlotsSubject.next(newQuerySlots);
+    }
   }
 
   /**
@@ -528,6 +621,4 @@ export class AppComponent implements OnInit, OnDestroy {
   logout(): void {
     this.authService.setAuthenticated(false);
   }
-
-  // #endregion
 }

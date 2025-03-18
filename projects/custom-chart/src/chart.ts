@@ -1,11 +1,13 @@
 import { Slot, SlotConfig, ItemQueryDimension, ItemQueryMeasure, ItemQuery } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
+import { formatter } from './utils/formatter/formatter';
 
 // Define types for chart data
 interface ChartDataItem {
   category: string;
   group: string;
-  value: number;
+  value: number | string;  // Allow string values for formatted numbers
+  rawValue: number;        // Store the raw numeric value for calculations
 }
 
 // Define types for chart configuration
@@ -38,10 +40,12 @@ function generateSampleData(numCategories = 5, numGroups = 3): ChartDataItem[] {
   const data = [];
   for (let i = 0; i < numCategories; i++) {
     for (let j = 0; j < numGroups; j++) {
+      const rawValue = Math.floor(Math.random() * 800) + 200;
       data.push({
         category: categories[i],
         group: groups[j],
-        value: Math.floor(Math.random() * 800) + 200
+        value: rawValue.toString(),  // Convert to string for sample data
+        rawValue: rawValue           // Store the raw value
       });
     }
   }
@@ -78,7 +82,7 @@ function renderChart(
     .attr('x', width / 2)
     .attr('y', 20)
     .attr('text-anchor', 'middle')
-    .text(isEmptyState ? 'Sample Bar Chart' : 'Bar Chart');
+    .text(isEmptyState ? 'Sample Column Chart' : 'Column Chart');
 
   // Group data by category and group
   const nestedData: d3.InternMap<string, ChartDataItem[]> = d3.group(chartData, d => d.category);
@@ -104,8 +108,8 @@ function renderChart(
     .range([0, xScale.bandwidth()])
     .padding(0.05);
 
-  // Create Y scale
-  const maxValue: number = d3.max(chartData, d => d.value) || 0;
+  // Create Y scale - use the rawValue for scale calculations
+  const maxValue: number = d3.max(chartData, d => d.rawValue) || 0;
   const yScale: d3.ScaleLinear<number, number> = d3.scaleLinear()
     .domain([0, maxValue * 1.1]) // Add 10% padding
     .range([innerHeight, 0]);
@@ -142,14 +146,14 @@ function renderChart(
         chart.append('rect')
           .attr('class', 'bar')
           .attr('x', xScale(category)! + groupedXScale(group)!)
-          .attr('y', yScale(groupData[0].value))
+          .attr('y', yScale(groupData[0].rawValue))  // Use raw value for positioning
           .attr('width', groupedXScale.bandwidth())
-          .attr('height', innerHeight - yScale(groupData[0].value))
+          .attr('height', innerHeight - yScale(groupData[0].rawValue))  // Use raw value for height
           .attr('fill', colorScale(group))
           .on('mouseover', function(event: MouseEvent) {
             d3.select(this).transition().duration(200).attr('opacity', 0.8);
             tooltip.transition().duration(200).style('opacity', 0.9);
-            tooltip.html(`${category}<br>${group}<br>Value: ${groupData[0].value}`)
+            tooltip.html(`${category}<br>${group}<br>Value: ${groupData[0].value}`)  // Display formatted value
               .style('left', (event.offsetX + 10) + 'px')
               .style('top', (event.offsetY - 28) + 'px');
           })
@@ -188,7 +192,7 @@ function renderChart(
 }
 
 /**
- * Main render function for the bar chart
+ * Main render function for the column chart
  * @param params Chart rendering parameters
  */
 export const render = ({
@@ -239,6 +243,9 @@ export const render = ({
     const groupSlot = slots.find(s => s.name === 'legend');
     const hasGroup = groupSlot?.content?.length! > 0;
     
+    // Get formatter for measure if available
+    const formatValue = measureSlot?.content[0] ? formatter(measureSlot.content[0]) : (val: any) => val.toString();
+    
     // Transform data into the format we need
     chartData = data.map(row => {
       const categoryIndex = 0;
@@ -250,12 +257,18 @@ export const render = ({
       const group = hasGroup 
         ? (row[groupIndex]?.name?.en || row[groupIndex] || 'Default') 
         : 'Default';
-      const value = row[measureIndex] || 0;
+      
+      // Convert value to number for calculations
+      const rawValue = typeof row[measureIndex] === 'number' ? row[measureIndex] : Number(row[measureIndex]) || 0;
+      
+      // Format the value as a string
+      const formattedValue = formatValue(rawValue);
       
       return {
         category: typeof category === 'string' ? category : String(category),
         group: typeof group === 'string' ? group : String(group),
-        value: typeof value === 'number' ? value : Number(value) || 0
+        value: formattedValue,                 // Formatted string value
+        rawValue: rawValue                     // Raw number for calculations
       };
     });
   }

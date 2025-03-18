@@ -9,7 +9,8 @@
         "isBinningDisabled": true,
         "areDatetimeOptionsEnabled": true
       },
-      "isRequired": true
+      "isRequired": true,
+      "acceptableColumnTypes": ["hierarchy"]
     },
     {
       "name": "measure",
@@ -19,7 +20,8 @@
       "options": {
         "isAggregationDisabled": false
       },
-      "isRequired": true
+      "isRequired": true,
+      "acceptableColumnTypes": ["numeric"]
     },
     {
       "name": "legend",
@@ -29,7 +31,8 @@
       "options": {
         "isBinningDisabled": true
       },
-      "isRequired": false
+      "isRequired": false,
+      "acceptableColumnTypes": ["hierarchy"]
     }
   ]
 }

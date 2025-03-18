@@ -79,7 +79,6 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
             window.parent.postMessage({ type: 'moduleLoaded', hasBuildQuery }, '*');
 
             window.addEventListener('message', async (event) => {
-              console.log('Message received from parent:', event.data);
               if (event.source !== parent) return;
 
               const { type, data } = event.data;
@@ -92,12 +91,10 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
               }
               else if (type === 'render' && module?.render) {
                 const container = document.querySelector('.widget-body');
-                console.log('Rendering', { container, ...data });
                 module.render({ container, ...data });
               }
               else if (type === 'resize' && module?.resize) {
                 const container = document.querySelector('.widget-body');
-                console.log('Resizing', { container, ...data });
                 module.resize({ container, ...data });
               }
             });

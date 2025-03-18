@@ -28,7 +28,7 @@
             @for (dataset of datasets$ | async; track dataset.id) {
               <luzmo-menu-item [value]="dataset.id">
                 <div class="dataset-info">
-                  <span>{{ dataset.name["en"] }}</span>
+                  <span>{{ dataset.localizedName }}</span>
                 </div>
               </luzmo-menu-item>
             }
@@ -86,7 +86,7 @@
                   variant="highlight"
                   size="m"
                   (slot-contents-changed)="
-                    onColumnDropped(slotConfig.name, $any($event))
+                    onColumnDropped(slotConfig.name, slotConfig.type!, $any($event))
                   "
                 >
                 </luzmo-droppable-slot>
