@@ -54,7 +54,7 @@ Your development environment will be available at [http://localhost:4200](http:/
 ## Project Structure
 
 ```
-luzmo-custom-chart-builder/
+custom-chart-builder/
 ├── custom-chart-build-output/  # Production build files
 ├── projects/
 │   ├── builder/               # Angular application for the chart builder UI
