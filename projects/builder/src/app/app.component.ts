@@ -38,6 +38,11 @@ interface SlotQuerySignature {
   }>;
 }
 
+interface DatasetState {
+  loading: boolean;
+  columns: any[];
+}
+
 /**
  * Main component for the Luzmo Custom Chart Builder application
  * Provides dataset selection, chart configuration, and visualization
@@ -109,12 +114,36 @@ export class AppComponent implements OnInit, OnDestroy {
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
     );
 
-  columns$ = this.selectedDatasetIdSubject
-    .pipe(
+    private datasetState: DatasetState = {
+      loading: false,
+      columns: []
+    };
+    
+    // Expose getters for the template
+    get isLoadingDataset(): boolean {
+      return this.datasetState.loading;
+    }
+    
+    get datasetColumns(): any[] {
+      return this.datasetState.columns;
+    }
+    
+    // Then modify your observable chain
+    columns$ = this.selectedDatasetIdSubject.pipe(
       untilDestroyed(this),
+      tap(() => {
+        // Update state directly
+        this.datasetState.loading = true;
+        this.datasetState.columns = [];
+      }),
       switchMap(datasetId => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
       map(result => result.rows[0]),
-      map(dataset => this.transformColumnsData(dataset))
+      map(dataset => this.transformColumnsData(dataset)),
+      tap(columns => {
+        // Update state with results
+        this.datasetState.columns = columns;
+        this.datasetState.loading = false;
+      })
     );
 
   chartData$!: Observable<any>;
@@ -506,6 +535,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
+    this.columns$.subscribe();
     this.initializeSlotConfigs();
     window.addEventListener('message', this.handleMessage);
 

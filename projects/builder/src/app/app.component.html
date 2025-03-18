@@ -34,7 +34,7 @@
             }
           </luzmo-picker>
 
-          @if (loadingDatasetDetail$ | async) {
+          @if (isLoadingDataset) {
             <div class="loading-container">
               <luzmo-progress-circle
                 indeterminate
@@ -45,7 +45,7 @@
             </div>
           } @else {
             <div class="column-list">
-              @for (column of columns$ | async; track column.columnId) {
+              @for (column of datasetColumns; track column.columnId) {
                 <luzmo-draggable-data-item
                   variant="highlight"
                   size="m"
