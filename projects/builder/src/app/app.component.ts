@@ -1,3 +1,4 @@
+import { NgbDropdown, NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { AsyncPipe } from '@angular/common';
 import {
   Component,
@@ -20,13 +21,15 @@ import '@luzmo/analytics-components-kit/progress-circle';
 import { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
-import { BehaviorSubject, Observable, of, Subject } from 'rxjs';
+import { BehaviorSubject, Observable, of, Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged, filter, map, shareReplay, switchMap, tap } from 'rxjs/operators';
 import manifestJson from '../../../custom-chart/src/manifest.json';
 import { isValidMessageSource, setUpSecureIframe } from './helpers/iframe.utils';
 import { ItemData, ItemQuery } from './helpers/types';
 
 import { SlotsConfigSchema } from './slot-schema';
+import { FormsModule } from '@angular/forms';
+import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 
 // Interface to track query-relevant slot properties without format
 interface SlotQuerySignature {
@@ -50,7 +53,7 @@ interface DatasetState {
 @UntilDestroy()
 @Component({
   selector: 'app-root',
-  imports: [NgxJsonViewerModule, LoginComponent, AsyncPipe],
+  imports: [NgxJsonViewerModule, LoginComponent, AsyncPipe, NgbDropdownModule, FormsModule, ScrollingModule],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   standalone: true,
@@ -79,6 +82,22 @@ export class AppComponent implements OnInit, OnDestroy {
   private queryThrottleTime = 500; // ms
   private querySubject = new Subject<ItemQuery | null>();
   private queryReady$ = this.querySubject.asObservable();
+
+  @ViewChild('datasetDropdown') datasetDropdown!: NgbDropdown;
+  @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
+
+  // State properties
+  searchQuery = '';
+  sortOption: 'name' | 'date' = 'date';
+  selectedDatasetId: string | null = null;
+  selectedDatasetName: string | null = null;
+  isLoadingDatasets = false;
+  datasets: any[] = [];
+  filteredDatasets: any[] = [];
+
+  // Subscriptions
+  private datasetsSubscription: Subscription | null = null;
+  private loadingSubscription: Subscription | null = null;
 
   // Loading state indicators
   loadingAllDatasets$ = new BehaviorSubject<boolean>(false);
@@ -114,37 +133,37 @@ export class AppComponent implements OnInit, OnDestroy {
       tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
     );
 
-    private datasetState: DatasetState = {
-      loading: false,
-      columns: []
-    };
-    
-    // Expose getters for the template
-    get isLoadingDataset(): boolean {
-      return this.datasetState.loading;
-    }
-    
-    get datasetColumns(): any[] {
-      return this.datasetState.columns;
-    }
-    
-    // Then modify your observable chain
-    columns$ = this.selectedDatasetIdSubject.pipe(
-      untilDestroyed(this),
-      tap(() => {
-        // Update state directly
-        this.datasetState.loading = true;
-        this.datasetState.columns = [];
-      }),
-      switchMap(datasetId => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
-      map(result => result.rows[0]),
-      map(dataset => this.transformColumnsData(dataset)),
-      tap(columns => {
-        // Update state with results
-        this.datasetState.columns = columns;
-        this.datasetState.loading = false;
-      })
-    );
+  private datasetState: DatasetState = {
+    loading: false,
+    columns: []
+  };
+
+  // Expose getters for the template
+  get isLoadingDataset(): boolean {
+    return this.datasetState.loading;
+  }
+
+  get datasetColumns(): any[] {
+    return this.datasetState.columns;
+  }
+
+  // Then modify your observable chain
+  columns$ = this.selectedDatasetIdSubject.pipe(
+    untilDestroyed(this),
+    tap(() => {
+      // Update state directly
+      this.datasetState.loading = true;
+      this.datasetState.columns = [];
+    }),
+    switchMap(datasetId => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
+    map(result => result.rows[0]),
+    map(dataset => this.transformColumnsData(dataset)),
+    tap(columns => {
+      // Update state with results
+      this.datasetState.columns = columns;
+      this.datasetState.loading = false;
+    })
+  );
 
   chartData$!: Observable<any>;
 
@@ -187,14 +206,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Initialize query-relevant slots subject
     this.queryRelevantSlotsSubject.next(
-      this.slotConfigs.map(slotConfig => ({ 
-        name: slotConfig.name, 
+      this.slotConfigs.map(slotConfig => ({
+        name: slotConfig.name,
         content: []
       }))
     );
 
     // Setup observables for both query updates and format updates
-    
+
     // This observable handles data queries based only on query-relevant slot changes
     this.chartData$ = this.queryRelevantSlotsSubject.pipe(
       untilDestroyed(this),
@@ -216,7 +235,7 @@ export class AppComponent implements OnInit, OnDestroy {
       // Cache the last result to avoid redundant processing
       shareReplay(1)
     );
-    
+
     // Setup a separate observer for the full slots that includes format
     // This will trigger renders when formats change without triggering new queries
     this.slotsSubject.pipe(
@@ -539,6 +558,15 @@ export class AppComponent implements OnInit, OnDestroy {
     this.initializeSlotConfigs();
     window.addEventListener('message', this.handleMessage);
 
+    this.loadingSubscription = this.loadingAllDatasets$.subscribe(isLoading => {
+      this.isLoadingDatasets = isLoading;
+    });
+    
+    this.datasetsSubscription = this.datasets$.subscribe(datasets => {
+      this.datasets = datasets || [];
+      this.filterDatasets();
+    });
+
     this.authService.isAuthenticated$
       .pipe(
         filter((isAuthenticated) => isAuthenticated),
@@ -571,6 +599,117 @@ export class AppComponent implements OnInit, OnDestroy {
       URL.revokeObjectURL(this.blobUrl);
       this.blobUrl = null;
     }
+
+    if (this.datasetsSubscription) {
+      this.datasetsSubscription.unsubscribe();
+    }
+    
+    if (this.loadingSubscription) {
+      this.loadingSubscription.unsubscribe();
+    }
+  }
+
+  onDropdownOpened(): void {
+    // Wait for the DOM to be ready
+    setTimeout(() => {
+      if (this.viewport) {
+        // If we have a selected item, scroll to it
+        if (this.selectedDatasetId) {
+          const index = this.filteredDatasets.findIndex(d => d.id === this.selectedDatasetId);
+          if (index >= 0) {
+            this.viewport.scrollToIndex(index, 'smooth');
+          }
+        }
+      }
+    });
+  }
+
+  // Method to track datasets by ID (for ngFor optimization)
+  trackById(index: number, item: any): string {
+    return item.id;
+  }
+
+  // Method to filter datasets based on search query
+  filterDatasets(): void {
+    let filtered = [...this.datasets];
+    
+    // Apply search filter if query exists
+    if (this.searchQuery) {
+      const query = this.searchQuery.toLowerCase();
+      filtered = filtered.filter(dataset => 
+        dataset.localizedName.toLowerCase().includes(query)
+      );
+    }
+    
+    // Sort the datasets
+    filtered.sort((a, b) => {
+      if (this.sortOption === 'name') {
+        return a.localizedName.localeCompare(b.localizedName);
+      } else {
+        // Sort by date (most recent first)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+    
+    this.filteredDatasets = filtered;
+  }
+
+    // Method to select a dataset
+  selectDataset(dataset: any): void {
+    this.selectedDatasetId = dataset.id;
+    this.selectedDatasetName = dataset.localizedName;
+    this.onDatasetSelected(new CustomEvent('change', { detail: dataset.id }));
+    
+    // Close the dropdown after selection
+    if (this.datasetDropdown) {
+      this.datasetDropdown.close();
+    }
+  }
+
+  // Method to set the sort option
+  setSortOption(option: 'name' | 'date'): void {
+    this.sortOption = option;
+    this.filterDatasets();
+  }
+
+  // Format date for display
+  formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    const options: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    };
+    return date.toLocaleDateString(undefined, options);
+  }
+
+  // Method to handle dataset selection
+  onDatasetSelect(dataset: any): void {
+    this.selectedDatasetId = dataset.id;
+    this.selectedDatasetName = dataset.localizedName;
+
+    // Create a custom event to pass to your existing handler
+    const customEvent = new CustomEvent<string>('detail', {
+      detail: dataset.id
+    });
+    this.onDatasetSelected(customEvent);
+  }
+
+  // Method to sort datasets
+  sortDatasets(): void {
+    if (this.sortOption === 'name') {
+      this.filteredDatasets.sort((a, b) => {
+        if (!a.localizedName) return 1;
+        if (!b.localizedName) return -1;
+        return a.localizedName.localeCompare(b.localizedName);
+      });
+    } else {
+      this.filteredDatasets.sort((a, b) => {
+        if (!a.created_at) return 1;
+        if (!b.created_at) return -1;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
   }
 
   /**
@@ -585,7 +724,7 @@ export class AppComponent implements OnInit, OnDestroy {
     // Extract the previous content for the slot being updated
     const previousSlot = currentSlots.find(s => s.name === slotName);
     const previousContent = previousSlot?.content || [];
-    
+
     // Create updated slots
     const updatedSlots = currentSlots.map((slot) => {
       if (slot.name === slotName) {
@@ -603,16 +742,16 @@ export class AppComponent implements OnInit, OnDestroy {
           type: column.type,
           aggregationFunc: slotType === 'numeric' ? (column.aggregationFunc || 'sum') : undefined
         }));
-        
+
         // Check if this is just a format change
         let isFormatChangeOnly = false;
         if (previousContent.length === content.length) {
           isFormatChangeOnly = content.every((item, index) => {
             const prev = previousContent[index];
-            return prev && 
-                   prev.columnId === item.columnId && 
-                   prev.datasetId === item.datasetId && 
-                   prev.aggregationFunc === item.aggregationFunc;
+            return prev &&
+              prev.columnId === item.columnId &&
+              prev.datasetId === item.datasetId &&
+              prev.aggregationFunc === item.aggregationFunc;
           });
         }
 
@@ -626,11 +765,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Always update the main slots subject for rendering
     this.slotsSubject.next(updatedSlots);
-    
+
     // Extract query-relevant properties
     const newQuerySlots = this.extractQueryRelevantSlots(updatedSlots);
     const currentQuerySlots = this.queryRelevantSlotsSubject.getValue();
-    
+
     // Only update the query-relevant subject if there's an actual change in query-relevant properties
     if (JSON.stringify(newQuerySlots) !== JSON.stringify(currentQuerySlots)) {
       this.queryRelevantSlotsSubject.next(newQuerySlots);

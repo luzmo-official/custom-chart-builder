@@ -1,5 +1,5 @@
 @if (authService.isAuthenticated$ | async) {
-  <div class="container">
+  <div class="app-container">
     <header class="header">
       <div class="header-title">Luzmo Custom Chart Builder</div>
       <div class="header-user-info">
@@ -15,24 +15,81 @@
           <p class="column-header-label">Dataset</p>
         </div>
         <div class="column-content">
-          <luzmo-picker
-            class="dataset-picker"
-            id="picker-1"
-            label="Select a dataset..."
-            size="m"
-            variant="highlight"
-            [pending]="loadingAllDatasets$ | async"
-            [readonly]="loadingAllDatasets$ | async"
-            (change)="onDatasetSelected($any($event))"
+<div class="dataset-dropdown-container">
+  <div ngbDropdown class="d-block w-100" #datasetDropdown="ngbDropdown" (openChange)="$event && onDropdownOpened()">
+    <button class="w-100 dataset-dropdown-toggle" 
+            id="datasetDropdown" 
+            ngbDropdownToggle
+            [disabled]="isLoadingDatasets"
+            [title]="selectedDatasetName || 'Select a dataset...'">
+      <div class="d-flex align-items-center">
+        <span class="dataset-label">{{ selectedDatasetName || 'Select a dataset...' }}</span>
+        @if (isLoadingDatasets) {
+          <div class="spinner-border spinner-border-sm text-primary ms-2"></div>
+        }
+      </div>
+    </button>
+    <div ngbDropdownMenu aria-labelledby="datasetDropdown" class="w-100 dataset-dropdown-menu">
+      <div class="search-box-container" (click)="$event.stopPropagation()">
+        <div class="search-input-wrapper">
+          <input 
+            type="text" 
+            class="form-control search-input" 
+            placeholder="Search datasets..." 
+            [(ngModel)]="searchQuery"
+            (input)="filterDatasets()"
+            (click)="$event.stopPropagation()"
+            autocomplete="off"
           >
-            @for (dataset of datasets$ | async; track dataset.id) {
-              <luzmo-menu-item [value]="dataset.id">
-                <div class="dataset-info">
-                  <span>{{ dataset.localizedName }}</span>
-                </div>
-              </luzmo-menu-item>
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
+        <div class="sort-controls">
+          <span class="sort-label">Sort by:</span>
+          <div class="sort-buttons">
+            <button 
+              type="button" 
+              class="sort-button" 
+              [class.active]="sortOption === 'name'"
+              (click)="$event.stopPropagation(); setSortOption('name')">
+              Name
+            </button>
+            <button 
+              type="button" 
+              class="sort-button" 
+              [class.active]="sortOption === 'date'"
+              (click)="$event.stopPropagation(); setSortOption('date')">
+              Date
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="dropdown-items-container">
+        @if (filteredDatasets.length > 0) {
+          <cdk-virtual-scroll-viewport class="virtual-scroll-viewport" itemSize="44" minBufferPx="200" maxBufferPx="400">
+            @for (dataset of filteredDatasets; track dataset.id) {
+              <button 
+                ngbDropdownItem
+                class="dataset-item"
+                [class.active]="selectedDatasetId === dataset.id"
+                (click)="selectDataset(dataset)"
+                [title]="dataset.localizedName">
+                <span class="dataset-name">{{ dataset.localizedName }}</span>
+                <span class="dataset-date">{{ formatDate(dataset.created_at) }}</span>
+              </button>
             }
-          </luzmo-picker>
+          </cdk-virtual-scroll-viewport>
+        } @else {
+          <div class="no-results">
+            No matching datasets found
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
 
           @if (isLoadingDataset) {
             <div class="loading-container">

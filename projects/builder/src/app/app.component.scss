@@ -8,8 +8,32 @@ $background-color: var(--background-color);
 $light-bg-color: var(--m50);
 $dark-color: var(--m800);
 
+$dropdown-border-color: #e0e0e0;
+$dropdown-bg: #ffffff;
+$dropdown-hover-bg: #f8f9fa;
+$dropdown-focus-border: var(--primary, #6200ee);
+$dropdown-active-bg: rgba(var(--primary-rgb, 98, 0, 238), 0.08); // Lighter background for active items
+$dropdown-active-text: var(--primary, #6200ee); // Primary color for active text
+$dropdown-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+$dropdown-text: #333333;
+$dropdown-secondary-text: #666666;
+$input-height: 42px; // Increased height
+$icon-size: 16px;
+$transition-speed: 0.15s; // Shortened transition speed
+
+// Bootstrap root variable overrides
+:root {
+  --bs-primary: var(--primary);
+  --bs-primary-rgb: var(--primary-rgb);
+  --bs-font-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+    "Helvetica Neue", sans-serif;
+  
+  // Override Bootstrap button focus shadow
+  --bs-btn-focus-box-shadow: none;
+}
+
 // Main container layout
-.container {
+.app-container {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -31,13 +55,13 @@ $dark-color: var(--m800);
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   height: 30px;
-  
+
   &-title {
     font-weight: 500;
     font-size: 1.25rem;
     color: $primary-color;
   }
-  
+
   &-user-info {
     display: flex;
     align-items: center;
@@ -55,7 +79,7 @@ $dark-color: var(--m800);
   border: none;
   padding: 0;
   font: inherit;
-  
+
   &:hover {
     color: $dark-color;
   }
@@ -68,14 +92,14 @@ $dark-color: var(--m800);
   border-radius: $border-radius;
   display: flex;
   flex-direction: column;
-  
+
   &-header {
     padding: 0.75rem 1rem;
     border-top-left-radius: $border-radius;
     border-top-right-radius: $border-radius;
     border-bottom: 0.0625rem solid $border-color;
     background-color: $light-bg-color;
-    
+
     &-label {
       color: $dark-color;
       font-weight: 500;
@@ -83,20 +107,11 @@ $dark-color: var(--m800);
       margin: 0;
     }
   }
-  
+
   &-content {
     padding: 1rem;
     overflow-y: auto;
   }
-}
-
-.custom-chart-editor {
-  display: flex;
-  width: 100%;
-  flex: 1;
-  background: $background-color;
-  color: $font-color;
-  height: calc(100vh - 60px);
 }
 
 // Left column
@@ -105,73 +120,68 @@ $dark-color: var(--m800);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 30px);
-  
+
   .column-content {
     display: flex;
     flex-direction: column;
     overflow: hidden;
     height: calc(100% - 30px);
   }
-  
-  .dataset-picker {
-    width: 100%;
-    margin-bottom: 1rem;
-    flex-shrink: 0;
-  }
-  
+
   .loading-container {
     display: flex;
     justify-content: center;
     flex: 1;
   }
-  
+
   .column-list {
     flex: 1;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    margin-top: 1rem;
   }
 }
 
 // Middle column - Chart configuration
 .middle-column {
   width: 25%;
-  
+
   .slot-mode-selector {
     margin-bottom: 1.25rem;
   }
-  
+
   .slot-editor {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    
+
     &.hidden {
       display: none;
     }
   }
-  
+
   .query-result {
     margin-top: 1.25rem;
-    
+
     .loading-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      
+
       luzmo-progress-circle {
         margin: 1.25rem 0;
       }
     }
-    
+
     .result-header {
       margin-bottom: 0.5rem;
       font-weight: 500;
       color: $active-font-color;
     }
-    
+
     .remaining-rows {
       margin-top: 0.5rem;
       font-style: italic;
@@ -182,21 +192,21 @@ $dark-color: var(--m800);
 // Right column - Chart visualization
 .right-column {
   width: 60%;
-  
+
   .visualization-container {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
     height: 100%;
   }
-  
+
   .chart-container {
     position: relative;
     height: 700px;
     width: 100%;
     border-radius: $border-radius;
     overflow: hidden;
-    
+
     #chartContainer {
       position: absolute;
       top: 0;
@@ -207,7 +217,7 @@ $dark-color: var(--m800);
       will-change: transform;
       border-radius: $border-radius;
     }
-    
+
     .chart-loading {
       position: absolute;
       top: 50%;
@@ -235,19 +245,19 @@ $dark-color: var(--m800);
   background-color: #fff8f8;
   border: 0.0625rem solid #ffcdd2;
   text-align: center;
-  
+
   .error-icon {
     font-size: 2.25rem;
     margin-bottom: 0.625rem;
   }
-  
+
   .error-title {
     font-size: 1.125rem;
     font-weight: 600;
     color: #d32f2f;
     margin-bottom: 0.625rem;
   }
-  
+
   .error-message {
     padding: 0.625rem;
     background-color: #f5f5f5;
@@ -262,13 +272,271 @@ $dark-color: var(--m800);
     overflow-y: auto;
     margin-bottom: 0.625rem;
   }
-  
+
   .error-help {
     color: #555;
     font-size: 0.875rem;
   }
 }
 
+// =========================================
+// Modern Dataset Dropdown Styling
+// =========================================
+
+// Dataset dropdown container
+.dataset-dropdown-container {
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+.dataset-dropdown-toggle {
+  height: $input-height;
+  border: 1px solid $dropdown-border-color;
+  background-color: $dropdown-bg;
+  border-radius: $border-radius;
+  font-size: 0.875rem;
+  color: $dropdown-text;
+  padding: 0 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  position: relative;
+  line-height: 1.5;
+  
+  &:hover:not(:disabled) {
+    border-color: #c8c8c8; // Slightly darker border on hover
+    background-color: $dropdown-hover-bg;
+  }
+  
+  &:focus:not(:disabled) {
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb, 98, 0, 238), 0.15);
+    outline: none;
+  }
+  
+  &:active:not(:disabled) {
+    background-color: $dropdown-hover-bg;
+  }
+  
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    background-color: #f8f9fa;
+  }
+  
+  .dataset-label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: calc($input-height - 14px); // Proper vertical centering
+    display: inline-block;
+  }
+  
+  .spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+    vertical-align: middle;
+    margin-top: -2px;
+  }
+  
+  // Override Bootstrap's default caret
+  &::after {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    margin-top: -2px; // Fine tuning caret vertical position
+  }
+}
+
+// Dropdown menu
+.dataset-dropdown-menu {
+  padding: 0;
+  border: 1px solid $dropdown-border-color;
+  border-radius: $border-radius;
+  box-shadow: $dropdown-shadow;
+  overflow: hidden;
+  max-height: 420px; // Further increased height for better visibility
+}
+
+@keyframes dropdownFadeIn {
+  from { 
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Search box container
+.search-box-container {
+  padding: 0.75rem;
+  border-bottom: 1px solid $dropdown-border-color;
+  background-color: #f9f9f9;
+}
+
+// Search input
+.search-input-wrapper {
+  position: relative;
+  margin-bottom: 0.5rem;
+  
+  .search-input {
+    height: 38px;
+    padding-left: 2.25rem;
+    border: 1px solid $dropdown-border-color;
+    border-radius: $border-radius;
+    font-size: 0.875rem;
+    width: 100%;
+    transition: border-color $transition-speed ease, box-shadow $transition-speed ease;
+    
+    &:focus {
+      border-color: $dropdown-focus-border;
+      box-shadow: 0 0 0 2px rgba(var(--primary-rgb, 98, 0, 238), 0.15);
+      outline: none;
+    }
+    
+    &::placeholder {
+      color: #aaa;
+    }
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+    pointer-events: none;
+  }
+}
+
+// Sort controls
+.sort-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  
+  .sort-label {
+    color: $dropdown-secondary-text;
+    font-weight: 500;
+  }
+  
+  .sort-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .sort-button {
+    background: none;
+    border: none;
+    color: $dropdown-secondary-text;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    transition: all $transition-speed ease;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: #f0f0f0; // Slightly darker than hover background
+    }
+    
+    &:active {
+      background-color: #e9ecef; // Slightly darker for active state
+    }
+    
+    &.active {
+      background-color: $dropdown-active-bg;
+      color: $dropdown-active-text;
+      font-weight: 500;
+    }
+  }
+}
+
+// Dropdown items container
+.dropdown-items-container {
+  max-height: unset; // Further increased height
+  overflow-y: unset;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+  }
+}
+
+// Dataset items
+.dataset-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color $transition-speed ease;
+  font-size: 0.875rem;
+  height: 44px;
+  overflow: hidden;
+
+  & > * {
+    flex-shrink: 0;
+  }
+  
+  &:hover {
+    background-color: $dropdown-hover-bg;
+  }
+  
+  &:active {
+    background-color: #e9ecef; // Slightly darker for active state
+  }
+  
+  &.active {
+    background-color: $dropdown-active-bg;
+    color: $dropdown-active-text;
+    font-weight: 500;
+    
+    .dataset-date {
+      color: rgba(var(--primary-rgb, 98, 0, 238), 0.7); // Slightly muted primary color for dates
+    }
+  }
+  
+  .dataset-name {
+    flex: 1;
+    min-width: 0; // Critical for flexbox truncation
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 8px; // Space between name and date
+  }
+  
+  .dataset-date {
+    color: #666666;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+}
+
+// No results message
+.no-results {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: $dropdown-secondary-text;
+  font-style: italic;
+  font-size: 0.875rem;
+}
+
+// =========================================
+// Global Styles and Widget Loader
+// =========================================
 ::ng-deep {
   .ngx-json-viewer {
     section {
@@ -281,7 +549,7 @@ $dark-color: var(--m800);
       font-weight: 600;
     }
   }
-  
+
   // IFrame and Widget loader styles
   .widget-loader {
     position: absolute;
@@ -297,10 +565,50 @@ $dark-color: var(--m800);
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.3s ease;
-    
+
     &.visible {
       opacity: 1;
     }
+  }
+
+  // Bootstrap dropdown custom styling
+  .dropdown-toggle::after {
+    display: inline-block;
+    content: "";
+    border-top: 0.3em solid;
+    border-right: 0.3em solid transparent;
+    border-bottom: 0;
+    border-left: 0.3em solid transparent;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    margin-top: -0.1em;
+    transition: transform $transition-speed ease;
+  }
+  
+  .show > .dropdown-toggle::after {
+    transform: rotate(180deg);
+  }
+  
+  // Ensure dropdown items have appropriate colors when active/hover
+  .dropdown-item:hover {
+    background-color: $dropdown-hover-bg;
+  }
+
+  .cdk-virtual-scroll-content-wrapper {
+    width: 100% !important;
+    
+    // Force all dropdown items to respect parent width
+    & > button {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+  }
+  
+  .dropdown-item.active,
+  .dropdown-item:active {
+    background-color: $dropdown-active-bg;
+    color: $dropdown-active-text;
   }
 
   // Loader animation
@@ -311,16 +619,44 @@ $dark-color: var(--m800);
     border: 0.375rem solid rgba(var(--primary-rgb), 0.2);
     border-top-color: $primary-color;
     animation: spin 1s infinite linear;
-    
+
     &.sm {
       width: 2rem;
       height: 2rem;
       border-width: 0.25rem;
     }
   }
-  
+
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+.virtual-scroll-viewport {
+  height: 320px;
+  width: 100%;
+  overflow-x: hidden;
+  
+  // Hide the default scrollbar
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
   }
 }
