@@ -30,6 +30,7 @@ import { ItemData, ItemQuery } from './helpers/types';
 import { SlotsConfigSchema } from './slot-schema';
 import { FormsModule } from '@angular/forms';
 import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
+import { DatasetPickerComponent } from './components/dataset-picker/dataset-picker.component';
 
 // Interface to track query-relevant slot properties without format
 interface SlotQuerySignature {
@@ -53,7 +54,15 @@ interface DatasetState {
 @UntilDestroy()
 @Component({
   selector: 'app-root',
-  imports: [NgxJsonViewerModule, LoginComponent, AsyncPipe, NgbDropdownModule, FormsModule, ScrollingModule],
+  imports: [
+    NgxJsonViewerModule, 
+    LoginComponent, 
+    AsyncPipe, 
+    NgbDropdownModule, 
+    FormsModule, 
+    ScrollingModule, 
+    DatasetPickerComponent
+  ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   standalone: true,
@@ -564,7 +573,6 @@ export class AppComponent implements OnInit, OnDestroy {
     
     this.datasetsSubscription = this.datasets$.subscribe(datasets => {
       this.datasets = datasets || [];
-      this.filterDatasets();
     });
 
     this.authService.isAuthenticated$
@@ -606,109 +614,6 @@ export class AppComponent implements OnInit, OnDestroy {
     
     if (this.loadingSubscription) {
       this.loadingSubscription.unsubscribe();
-    }
-  }
-
-  onDropdownOpened(): void {
-    // Wait for the DOM to be ready
-    setTimeout(() => {
-      if (this.viewport) {
-        // If we have a selected item, scroll to it
-        if (this.selectedDatasetId) {
-          const index = this.filteredDatasets.findIndex(d => d.id === this.selectedDatasetId);
-          if (index >= 0) {
-            this.viewport.scrollToIndex(index, 'smooth');
-          }
-        }
-      }
-    });
-  }
-
-  // Method to track datasets by ID (for ngFor optimization)
-  trackById(index: number, item: any): string {
-    return item.id;
-  }
-
-  // Method to filter datasets based on search query
-  filterDatasets(): void {
-    let filtered = [...this.datasets];
-    
-    // Apply search filter if query exists
-    if (this.searchQuery) {
-      const query = this.searchQuery.toLowerCase();
-      filtered = filtered.filter(dataset => 
-        dataset.localizedName.toLowerCase().includes(query)
-      );
-    }
-    
-    // Sort the datasets
-    filtered.sort((a, b) => {
-      if (this.sortOption === 'name') {
-        return a.localizedName.localeCompare(b.localizedName);
-      } else {
-        // Sort by date (most recent first)
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      }
-    });
-    
-    this.filteredDatasets = filtered;
-  }
-
-    // Method to select a dataset
-  selectDataset(dataset: any): void {
-    this.selectedDatasetId = dataset.id;
-    this.selectedDatasetName = dataset.localizedName;
-    this.onDatasetSelected(new CustomEvent('change', { detail: dataset.id }));
-    
-    // Close the dropdown after selection
-    if (this.datasetDropdown) {
-      this.datasetDropdown.close();
-    }
-  }
-
-  // Method to set the sort option
-  setSortOption(option: 'name' | 'date'): void {
-    this.sortOption = option;
-    this.filterDatasets();
-  }
-
-  // Format date for display
-  formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    const options: Intl.DateTimeFormatOptions = { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    };
-    return date.toLocaleDateString(undefined, options);
-  }
-
-  // Method to handle dataset selection
-  onDatasetSelect(dataset: any): void {
-    this.selectedDatasetId = dataset.id;
-    this.selectedDatasetName = dataset.localizedName;
-
-    // Create a custom event to pass to your existing handler
-    const customEvent = new CustomEvent<string>('detail', {
-      detail: dataset.id
-    });
-    this.onDatasetSelected(customEvent);
-  }
-
-  // Method to sort datasets
-  sortDatasets(): void {
-    if (this.sortOption === 'name') {
-      this.filteredDatasets.sort((a, b) => {
-        if (!a.localizedName) return 1;
-        if (!b.localizedName) return -1;
-        return a.localizedName.localeCompare(b.localizedName);
-      });
-    } else {
-      this.filteredDatasets.sort((a, b) => {
-        if (!a.created_at) return 1;
-        if (!b.created_at) return -1;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
     }
   }
 
@@ -779,9 +684,15 @@ export class AppComponent implements OnInit, OnDestroy {
   /**
    * Handles dataset selection events
    */
-  onDatasetSelected(event: CustomEvent<string>): void {
-    const datasetId = event.detail;
+  onDatasetSelected(datasetId: string): void {
     this.selectedDatasetIdSubject.next(datasetId);
+    
+    // Find the dataset to update the name
+    const dataset = this.datasets.find(d => d.id === datasetId);
+    if (dataset) {
+      this.selectedDatasetId = datasetId;
+      this.selectedDatasetName = dataset.localizedName;
+    }
   }
 
   /**
