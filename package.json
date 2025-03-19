@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start:angular": "ng serve --proxy-config proxy.conf.json",
+    "start:angular": "ng serve -o --proxy-config proxy.conf.json",
     "start:bundle-server": "node server.js",
     "start:watcher": "node projects/custom-chart/watch.js",
     "start": "concurrently \"npm run start:angular\" \"npm run start:bundle-server\" \"npm run start:watcher\" --kill-others --names \"ANGULAR,BUNDLE,WATCHER\" --prefix-colors \"blue,green,yellow\" --prefix \"[{name}]\"",
