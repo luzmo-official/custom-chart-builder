@@ -199,7 +199,7 @@ This will compile the chart and place files in the `custom-chart-build-output` d
 To create a distribution-ready package:
 
 ```bash
-npm run build:archive
+npm run archive
 ```
 
 This command:
