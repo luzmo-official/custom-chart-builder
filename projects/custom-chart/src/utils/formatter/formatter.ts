@@ -18,7 +18,7 @@ import {
   SMART_DATE_FORMATS,
   SMART_TIME_FORMATS
 } from './smart-datetime-formats.const';
-import { ColumnType } from '@luzmo/dashboard-contents-types';
+import type { ColumnType } from '@luzmo/dashboard-contents-types';
 import { isEmpty, isNumeric, isString } from '../types.utils';
 
 export function formatter(
@@ -94,9 +94,8 @@ export function formatter(
                 content.duration.levels,
                 localFormats
               );
-      }
-      // Normal numeric formatting or 'fixed' duration formatting (120.5h)
-      else {
+      } else {
+        // Normal numeric formatting or 'fixed' duration formatting (120.5h)
         const useFormat = { ...localFormats };
 
         let typeFormat: string = decomp.typeFormat;

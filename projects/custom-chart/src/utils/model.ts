@@ -1,11 +1,11 @@
-import { Slot, SlotConfig } from "@luzmo/dashboard-contents-types";
+import type { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 
 // Define types for chart data
 export interface ChartDataItem {
   category: string;
   group: string;
-  value: number | string;  // Allow string values for formatted numbers
-  rawValue: number;        // Store the raw numeric value for calculations
+  value: number | string; // Allow string values for formatted numbers
+  rawValue: number; // Store the raw numeric value for calculations
 }
 
 // Define types for chart configuration

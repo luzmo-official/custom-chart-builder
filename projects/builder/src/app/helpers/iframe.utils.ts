@@ -113,11 +113,18 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
 `;
 }
 
-export function isValidMessageSource(event: MessageEvent, iframe: HTMLIFrameElement | null): boolean {
+export function isValidMessageSource(
+  event: MessageEvent,
+  iframe: HTMLIFrameElement | null
+): boolean {
   return event.source === iframe?.contentWindow;
 }
 
-export function setUpSecureIframe(container: HTMLElement, scriptContent: string, styleContent: string): Promise<{iframe: HTMLIFrameElement, blobUrl: string}> {
+export function setUpSecureIframe(
+  container: HTMLElement,
+  scriptContent: string,
+  styleContent: string
+): Promise<{ iframe: HTMLIFrameElement; blobUrl: string }> {
   const iframe = document.createElement('iframe');
   configureIframe(iframe);
 

@@ -1,7 +1,12 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { AuthService } from '@builder/services/auth.service';
-import { ItemData, ItemQuery, RowsData, Securable } from '../helpers/types';
+import type {
+  ItemData,
+  ItemQuery,
+  RowsData,
+  Securable
+} from '../helpers/types';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +16,9 @@ export class LuzmoApiService {
   private httpClient = inject(HttpClient);
 
   loadAllDatasets() {
-    return this.httpClient.post<RowsData<Pick<Securable, 'id' | 'name' | 'created_at' | 'subtype'>>>(
+    return this.httpClient.post<
+      RowsData<Pick<Securable, 'id' | 'name' | 'created_at' | 'subtype'>>
+    >(
       `${this.authService.getApiUrl()}/0.1.0/securable`,
       {
         action: 'get',
@@ -31,7 +38,13 @@ export class LuzmoApiService {
 
   // TODO: fix columns type
   loadDatasetWithColumns(datasetId: string) {
-    return this.httpClient.post<RowsData<Pick<Securable, 'id' | 'name' | 'created_at' | 'subtype'> & { columns: any[] }>>(
+    return this.httpClient.post<
+      RowsData<
+        Pick<Securable, 'id' | 'name' | 'created_at' | 'subtype'> & {
+          columns: any[];
+        }
+      >
+    >(
       `${this.authService.getApiUrl()}/0.1.0/securable`,
       {
         action: 'get',
@@ -44,7 +57,17 @@ export class LuzmoApiService {
           include: [
             {
               model: 'Column',
-              attributes: ['id', 'name', 'description', 'type', 'subtype', 'format', 'highestLevel', 'lowestLevel', 'duration_levels', 'duration_format'
+              attributes: [
+                'id',
+                'name',
+                'description',
+                'type',
+                'subtype',
+                'format',
+                'highestLevel',
+                'lowestLevel',
+                'duration_levels',
+                'duration_format'
               ],
               separate: true,
               order: [['order', 'asc']],

@@ -1,13 +1,12 @@
-import { NgbDropdown, NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
+import type { NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
+import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { AsyncPipe } from '@angular/common';
+import type { ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
   Component,
   CUSTOM_ELEMENTS_SCHEMA,
-  ElementRef,
   HostListener,
   inject,
-  OnDestroy,
-  OnInit,
   ViewChild
 } from '@angular/core';
 import { LoginComponent } from '@builder/components/login/login.component';
@@ -18,18 +17,33 @@ import '@luzmo/analytics-components-kit/draggable-data-item';
 import '@luzmo/analytics-components-kit/droppable-slot';
 import '@luzmo/analytics-components-kit/picker';
 import '@luzmo/analytics-components-kit/progress-circle';
-import { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
+import type { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
-import { BehaviorSubject, Observable, of, Subject, Subscription } from 'rxjs';
-import { debounceTime, distinctUntilChanged, filter, map, shareReplay, switchMap, tap } from 'rxjs/operators';
+import type { Observable, Subscription } from 'rxjs';
+import { BehaviorSubject, of, Subject } from 'rxjs';
+import {
+  debounceTime,
+  distinctUntilChanged,
+  filter,
+  map,
+  shareReplay,
+  switchMap,
+  tap
+} from 'rxjs/operators';
 import manifestJson from '../../../custom-chart/src/manifest.json';
-import { isValidMessageSource, setUpSecureIframe } from './helpers/iframe.utils';
-import { ItemData, ItemQuery } from './helpers/types';
+import {
+  isValidMessageSource,
+  setUpSecureIframe
+} from './helpers/iframe.utils';
+import type { ItemData, ItemQuery } from './helpers/types';
 
 import { SlotsConfigSchema } from './slot-schema';
 import { FormsModule } from '@angular/forms';
-import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
+import {
+  CdkVirtualScrollViewport,
+  ScrollingModule
+} from '@angular/cdk/scrolling';
 import { DatasetPickerComponent } from './components/dataset-picker/dataset-picker.component';
 
 // Interface to track query-relevant slot properties without format
@@ -55,12 +69,12 @@ interface DatasetState {
 @Component({
   selector: 'app-root',
   imports: [
-    NgxJsonViewerModule, 
-    LoginComponent, 
-    AsyncPipe, 
-    NgbDropdownModule, 
-    FormsModule, 
-    ScrollingModule, 
+    NgxJsonViewerModule,
+    LoginComponent,
+    AsyncPipe,
+    NgbDropdownModule,
+    FormsModule,
+    ScrollingModule,
     DatasetPickerComponent
   ],
   templateUrl: './app.component.html',
@@ -117,30 +131,34 @@ export class AppComponent implements OnInit, OnDestroy {
   manifestValidationError: string | null = null;
 
   private slotsSubject!: BehaviorSubject<Slot[]>;
-  private queryRelevantSlotsSubject = new BehaviorSubject<SlotQuerySignature[]>([]);
+  private queryRelevantSlotsSubject = new BehaviorSubject<SlotQuerySignature[]>(
+    []
+  );
 
   // User and dataset state
   private selectedDatasetIdSubject = new Subject<string>();
 
   // Observable streams
   currentUser$ = this.authService.isAuthenticated$.pipe(
-    filter(isAuthenticated => isAuthenticated),
+    filter((isAuthenticated) => isAuthenticated),
     switchMap(() => this.authService.getOrLoadUser())
   );
 
-  datasets$ = this.authService.isAuthenticated$
-    .pipe(
-      untilDestroyed(this),
-      filter(isAuthenticated => isAuthenticated),
-      tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
-      filter(() => !this.loadingAllDatasets$.value),
-      switchMap(() => this.luzmoAPIService.loadAllDatasets()),
-      map(result => result.rows.map((dataset: any) => {
-        dataset.localizedName = dataset.name['en'] || dataset.name[Object.keys(dataset.name)[0]];
+  datasets$ = this.authService.isAuthenticated$.pipe(
+    untilDestroyed(this),
+    filter((isAuthenticated) => isAuthenticated),
+    tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
+    filter(() => !this.loadingAllDatasets$.value),
+    switchMap(() => this.luzmoAPIService.loadAllDatasets()),
+    map((result) =>
+      result.rows.map((dataset: any) => {
+        dataset.localizedName =
+          dataset.name['en'] || dataset.name[Object.keys(dataset.name)[0]];
         return dataset;
-      })),
-      tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
-    );
+      })
+    ),
+    tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
+  );
 
   private datasetState: DatasetState = {
     loading: false,
@@ -164,10 +182,12 @@ export class AppComponent implements OnInit, OnDestroy {
       this.datasetState.loading = true;
       this.datasetState.columns = [];
     }),
-    switchMap(datasetId => this.luzmoAPIService.loadDatasetWithColumns(datasetId)),
-    map(result => result.rows[0]),
-    map(dataset => this.transformColumnsData(dataset)),
-    tap(columns => {
+    switchMap((datasetId) =>
+      this.luzmoAPIService.loadDatasetWithColumns(datasetId)
+    ),
+    map((result) => result.rows[0]),
+    map((dataset) => this.transformColumnsData(dataset)),
+    tap((columns) => {
       // Update state with results
       this.datasetState.columns = columns;
       this.datasetState.loading = false;
@@ -187,9 +207,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
       if (!validationResult.success) {
         // Format validation errors
-        const formattedErrors = validationResult.error.errors.map(err =>
-          `${err.path.join('.')}: ${err.message}`
-        ).join('\n');
+        const formattedErrors = validationResult.error.errors
+          .map((err) => `${err.path.join('.')}: ${err.message}`)
+          .join('\n');
 
         this.manifestValidationError = `Manifest slot validation failed:\n${formattedErrors}`;
         console.error(this.manifestValidationError, validationResult.error);
@@ -210,12 +230,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Initialize slots subject with empty slots
     this.slotsSubject = new BehaviorSubject<Slot[]>(
-      this.slotConfigs.map(slotConfig => ({ name: slotConfig.name, content: [] }))
+      this.slotConfigs.map((slotConfig) => ({
+        name: slotConfig.name,
+        content: []
+      }))
     );
 
     // Initialize query-relevant slots subject
     this.queryRelevantSlotsSubject.next(
-      this.slotConfigs.map(slotConfig => ({
+      this.slotConfigs.map((slotConfig) => ({
         name: slotConfig.name,
         content: []
       }))
@@ -229,14 +252,16 @@ export class AppComponent implements OnInit, OnDestroy {
       // Debounce to avoid rapid consecutive query requests
       debounceTime(300),
       // Only proceed if the query-relevant properties have actually changed
-      distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
-      switchMap(querySlots => {
+      distinctUntilChanged(
+        (prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)
+      ),
+      switchMap(() => {
         // Convert query signatures back to full slots for processing
         const fullSlots = this.slotsSubject.getValue();
         return this.fetchChartData(fullSlots);
       }),
       // Render when data arrives
-      tap(data => {
+      tap((data) => {
         if (this.moduleLoaded) {
           this.performRender(data);
         }
@@ -247,24 +272,28 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // Setup a separate observer for the full slots that includes format
     // This will trigger renders when formats change without triggering new queries
-    this.slotsSubject.pipe(
-      untilDestroyed(this),
-      // Debounce to avoid rapid consecutive renders
-      debounceTime(50),
-      // We want to tap into the latest data whenever slots change (including format changes)
-      tap(() => {
-        // If module is loaded, get the latest chart data and render
-        if (this.moduleLoaded) {
-          // Force the chart to re-render with current data
-          this.chartData$.subscribe(data => {
-            this.performRender(data);
-          }).unsubscribe();
-        }
-      })
-    ).subscribe();
+    this.slotsSubject
+      .pipe(
+        untilDestroyed(this),
+        // Debounce to avoid rapid consecutive renders
+        debounceTime(50),
+        // We want to tap into the latest data whenever slots change (including format changes)
+        tap(() => {
+          // If module is loaded, get the latest chart data and render
+          if (this.moduleLoaded) {
+            // Force the chart to re-render with current data
+            this.chartData$
+              .subscribe((data) => {
+                this.performRender(data);
+              })
+              .unsubscribe();
+          }
+        })
+      )
+      .subscribe();
 
     this.displayedChartData$ = this.chartData$.pipe(
-      map(data => data.slice(0, 25))
+      map((data) => data.slice(0, 25))
     );
   }
 
@@ -298,9 +327,9 @@ export class AppComponent implements OnInit, OnDestroy {
    * This excludes format and other non-query-relevant properties
    */
   private extractQueryRelevantSlots(slots: Slot[]): SlotQuerySignature[] {
-    return slots.map(slot => ({
+    return slots.map((slot) => ({
       name: slot.name,
-      content: slot.content.map(item => ({
+      content: slot.content.map((item) => ({
         columnId: item.columnId!,
         datasetId: item.datasetId!,
         aggregationFunc: item.aggregationFunc
@@ -314,7 +343,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private fetchChartData(slots: Slot[]): Observable<any[]> {
     const allRequiredSlotsFilled = this.areAllRequiredSlotsFilled(slots);
 
-    if (allRequiredSlotsFilled && slots.some(s => s.content.length > 0)) {
+    if (allRequiredSlotsFilled && slots.some((s) => s.content.length > 0)) {
       // Only fetch the query if we're not already doing so and module is loaded
       if (this.moduleLoaded && !this.queryInProgress) {
         this.fetchQuery();
@@ -322,7 +351,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
       // Wait for query to be available
       return this.queryReady$.pipe(
-        switchMap(query => {
+        switchMap((query) => {
           // If no custom query is available yet, use the default
           const finalQuery = query || buildLuzmoQuery(slots);
           console.log('Fetching data with query', finalQuery);
@@ -330,7 +359,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
           return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
             tap(() => this.queryingData$.next(false)),
-            map(result => result.data)
+            map((result) => result.data)
           );
         })
       );
@@ -344,9 +373,9 @@ export class AppComponent implements OnInit, OnDestroy {
    */
   private areAllRequiredSlotsFilled(slots: Slot[]): boolean {
     return this.slotConfigs
-      .filter(config => config.isRequired)
-      .map(config => slots.find(slot => slot.name === config.name))
-      .every(slot => slot && slot.content.length > 0);
+      .filter((config) => config.isRequired)
+      .map((config) => slots.find((slot) => slot.name === config.name))
+      .every((slot) => slot && slot.content.length > 0);
   }
 
   /**
@@ -356,7 +385,10 @@ export class AppComponent implements OnInit, OnDestroy {
     const now = Date.now();
 
     // Don't fetch if a query is already in progress or if we've recently fetched
-    if (this.queryInProgress || (now - this.lastQueryTime < this.queryThrottleTime)) {
+    if (
+      this.queryInProgress ||
+      now - this.lastQueryTime < this.queryThrottleTime
+    ) {
       return;
     }
 
@@ -368,7 +400,7 @@ export class AppComponent implements OnInit, OnDestroy {
     const slots = this.slotsSubject.getValue();
 
     // Skip if all slots are empty
-    if (!slots.some(slot => slot.content.length > 0)) {
+    if (!slots.some((slot) => slot.content.length > 0)) {
       console.log('Skipping query fetch: all slots are empty');
       return;
     }
@@ -377,11 +409,14 @@ export class AppComponent implements OnInit, OnDestroy {
     this.queryInProgress = true;
     this.lastQueryTime = now;
 
-    this.iframe.contentWindow?.postMessage({
-      type: 'buildQuery',
-      slots: slots,
-      slotConfigurations: this.slotConfigs
-    }, '*');
+    this.iframe.contentWindow?.postMessage(
+      {
+        type: 'buildQuery',
+        slots: slots,
+        slotConfigurations: this.slotConfigs
+      },
+      '*'
+    );
 
     // Set a safety timeout to reset queryInProgress flag if no response received
     setTimeout(() => {
@@ -421,9 +456,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
     // If we have data, render the chart
     // Create a subscription that auto-unsubscribes
-    this.chartData$.subscribe(data => {
-      this.performRender(data);
-    }).unsubscribe();
+    this.chartData$
+      .subscribe((data) => {
+        this.performRender(data);
+      })
+      .unsubscribe();
   }
 
   /**
@@ -455,15 +492,16 @@ export class AppComponent implements OnInit, OnDestroy {
 
     requestAnimationFrame(() => {
       try {
-        this.iframe?.contentWindow?.postMessage({
-          type: 'render',
-          data: renderData
-        }, '*');
-      }
-      catch (error) {
+        this.iframe?.contentWindow?.postMessage(
+          {
+            type: 'render',
+            data: renderData
+          },
+          '*'
+        );
+      } catch (error) {
         console.error('Render error:', error);
-      }
-      finally {
+      } finally {
         this.renderPending = false;
       }
     });
@@ -496,10 +534,13 @@ export class AppComponent implements OnInit, OnDestroy {
     };
 
     this.resizeAnimationFrame = requestAnimationFrame(() => {
-      this.iframe?.contentWindow?.postMessage({
-        type: 'resize',
-        data: resizeData
-      }, '*');
+      this.iframe?.contentWindow?.postMessage(
+        {
+          type: 'resize',
+          data: resizeData
+        },
+        '*'
+      );
       this.resizeAnimationFrame = null;
     });
   }
@@ -510,7 +551,9 @@ export class AppComponent implements OnInit, OnDestroy {
   private async loadBundle(): Promise<void> {
     try {
       // Load script content
-      const scriptResponse = await fetch('/custom-chart/index.js?t=' + Date.now());
+      const scriptResponse = await fetch(
+        '/custom-chart/index.js?t=' + Date.now()
+      );
       this.scriptContent = await scriptResponse.text();
 
       // Escape special characters in script content
@@ -518,9 +561,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
       // Load style content
       try {
-        const styleResponse = await fetch('/custom-chart/index.css?t=' + Date.now());
+        const styleResponse = await fetch(
+          '/custom-chart/index.css?t=' + Date.now()
+        );
         this.styleContent = await styleResponse.text();
-      } catch (error) {
+      } catch {
         console.warn('No styles found, continuing without styles');
         this.styleContent = '';
       }
@@ -535,7 +580,7 @@ export class AppComponent implements OnInit, OnDestroy {
           this.iframe = iframe;
           this.blobUrl = blobUrl;
         })
-        .catch(error => {
+        .catch((error) => {
           console.error('Failed to setup iframe:', error);
         });
     } catch (error) {
@@ -547,17 +592,24 @@ export class AppComponent implements OnInit, OnDestroy {
    * Escapes special characters in script content
    */
   private escapeScriptContent(script: string): string {
-    return script
-      .replaceAll('\\', '\\\\')     // Escape backslashes first
-      .replaceAll('`', '\\`')       // Escape backticks
-      .replaceAll('$', String.raw`\$`)      // Escape dollar signs
-      .replaceAll('\'', String.raw`\'`)      // Escape single quotes
-      .replaceAll('"', String.raw`\"`);
+    return (
+      script
+        .replaceAll('\\', '\\\\') // Escape backslashes first
+        .replaceAll('`', '\\`') // Escape backticks
+        .replaceAll('$', String.raw`\$`) // Escape dollar signs
+        // eslint-disable-next-line prettier/prettier
+        .replaceAll('\'', String.raw`\'`) // Escape single quotes
+        .replaceAll('"', String.raw`\"`)
+    );
   }
 
   @HostListener('window:resize')
   onResize(): void {
-    if (this.authService.isAuthenticated$.getValue() && this.moduleLoaded && this.iframe) {
+    if (
+      this.authService.isAuthenticated$.getValue() &&
+      this.moduleLoaded &&
+      this.iframe
+    ) {
       this.performResize();
     }
   }
@@ -567,11 +619,13 @@ export class AppComponent implements OnInit, OnDestroy {
     this.initializeSlotConfigs();
     window.addEventListener('message', this.handleMessage);
 
-    this.loadingSubscription = this.loadingAllDatasets$.subscribe(isLoading => {
-      this.isLoadingDatasets = isLoading;
-    });
-    
-    this.datasetsSubscription = this.datasets$.subscribe(datasets => {
+    this.loadingSubscription = this.loadingAllDatasets$.subscribe(
+      (isLoading) => {
+        this.isLoadingDatasets = isLoading;
+      }
+    );
+
+    this.datasetsSubscription = this.datasets$.subscribe((datasets) => {
       this.datasets = datasets || [];
     });
 
@@ -611,7 +665,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.datasetsSubscription) {
       this.datasetsSubscription.unsubscribe();
     }
-    
+
     if (this.loadingSubscription) {
       this.loadingSubscription.unsubscribe();
     }
@@ -627,8 +681,6 @@ export class AppComponent implements OnInit, OnDestroy {
   ): void {
     const currentSlots = this.slotsSubject.getValue();
     // Extract the previous content for the slot being updated
-    const previousSlot = currentSlots.find(s => s.name === slotName);
-    const previousContent = previousSlot?.content || [];
 
     // Create updated slots
     const updatedSlots = currentSlots.map((slot) => {
@@ -645,20 +697,9 @@ export class AppComponent implements OnInit, OnDestroy {
           lowestLevel: column.lowestLevel,
           subtype: column.subtype,
           type: column.type,
-          aggregationFunc: slotType === 'numeric' ? (column.aggregationFunc || 'sum') : undefined
+          aggregationFunc:
+            slotType === 'numeric' ? column.aggregationFunc || 'sum' : undefined
         }));
-
-        // Check if this is just a format change
-        let isFormatChangeOnly = false;
-        if (previousContent.length === content.length) {
-          isFormatChangeOnly = content.every((item, index) => {
-            const prev = previousContent[index];
-            return prev &&
-              prev.columnId === item.columnId &&
-              prev.datasetId === item.datasetId &&
-              prev.aggregationFunc === item.aggregationFunc;
-          });
-        }
 
         return {
           ...slot,
@@ -686,9 +727,9 @@ export class AppComponent implements OnInit, OnDestroy {
    */
   onDatasetSelected(datasetId: string): void {
     this.selectedDatasetIdSubject.next(datasetId);
-    
+
     // Find the dataset to update the name
-    const dataset = this.datasets.find(d => d.id === datasetId);
+    const dataset = this.datasets.find((d) => d.id === datasetId);
     if (dataset) {
       this.selectedDatasetId = datasetId;
       this.selectedDatasetName = dataset.localizedName;

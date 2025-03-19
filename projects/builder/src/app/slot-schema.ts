@@ -36,15 +36,26 @@ export const SlotsConfigSchema = z
       'low',
       'high',
       'order',
-      'route',
+      'route'
     ]),
     label: z.union([z.string(), z.record(z.string(), z.string())]).optional(),
     description: z.string().optional(),
     type: z.enum(['numeric', 'categorical', 'mixed']).optional(),
     order: z.number().optional(),
-    acceptableColumnTypes: z.array(z.enum(['numeric', 'hierarchy', 'datetime', 'spatial'])).optional(),
+    acceptableColumnTypes: z
+      .array(z.enum(['numeric', 'hierarchy', 'datetime', 'spatial']))
+      .optional(),
     acceptableColumnSubtypes: z
-      .array(z.enum(['duration', 'currency', 'coordinates', 'hierarchy_element_expression', 'topography', 'ip_address']))
+      .array(
+        z.enum([
+          'duration',
+          'currency',
+          'coordinates',
+          'hierarchy_element_expression',
+          'topography',
+          'ip_address'
+        ])
+      )
       .optional(),
     canAcceptFormula: z.boolean().optional(),
     rotate: z.boolean().optional(),
@@ -83,7 +94,7 @@ export const SlotsConfigSchema = z
           'low',
           'high',
           'order',
-          'route',
+          'route'
         ])
       )
       .optional(),
@@ -95,8 +106,8 @@ export const SlotsConfigSchema = z
         showOnlyFirstSlotGrandTotals: z.boolean().optional(),
         isCumulativeSumEnabled: z.boolean().optional(),
         areDatetimeOptionsEnabled: z.boolean().optional(),
-        showOnlyFirstSlotContentOptions: z.boolean().optional(),
+        showOnlyFirstSlotContentOptions: z.boolean().optional()
       })
-      .optional(),
+      .optional()
   })
   .array();

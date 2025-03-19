@@ -1,4 +1,4 @@
-import { isEmpty } from "../types.utils"
+import { isEmpty } from '../types.utils';
 
 const conversionMatrix: number[][] = [
   // YEAR

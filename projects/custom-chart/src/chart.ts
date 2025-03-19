@@ -1,6 +1,19 @@
-import { Slot, SlotConfig, ItemQueryDimension, ItemQueryMeasure, ItemQuery } from '@luzmo/dashboard-contents-types';
-import { ChartDataItem, ChartParams } from './utils/model'
-import { generateSampleData, preProcessData, renderChart, setupContainer, setupEmptyState } from './utils/chart.utils';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import type {
+  Slot,
+  SlotConfig,
+  ItemQueryDimension,
+  ItemQueryMeasure,
+  ItemQuery
+} from '@luzmo/dashboard-contents-types';
+import type { ChartDataItem, ChartParams } from './utils/model';
+import {
+  generateSampleData,
+  preProcessData,
+  renderChart,
+  setupContainer,
+  setupEmptyState
+} from './utils/chart.utils';
 
 /**
  * Main render function for the column chart
@@ -13,27 +26,27 @@ export const render = ({
   slotConfigurations = [],
   options = {},
   language = 'en',
-  dimensions: { width, height } = { width: 0, height: 0 },
+  dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
   const chartContainer = setupContainer(container);
   // Check if we have actual data or need sample data
-  const categorySlot = slots.find(s => s.name === 'category');
-  const measureSlot = slots.find(s => s.name === 'measure');
-  
+  const categorySlot = slots.find((s) => s.name === 'category');
+  const measureSlot = slots.find((s) => s.name === 'measure');
+
   const hasCategory = categorySlot?.content?.length! > 0;
   const hasMeasure = measureSlot?.content?.length! > 0;
   const isEmptyState = !data.length || !hasCategory || !hasMeasure;
-  
+
   // Prepare data for visualization
   let chartData: ChartDataItem[] = [];
-  
+
   if (isEmptyState) {
     // Generate sample data for empty state
     chartData = generateSampleData();
     setupEmptyState(container);
   } else {
     // Process real data
-    const groupSlot = slots.find(s => s.name === 'legend');
+    const groupSlot = slots.find((s) => s.name === 'legend');
     chartData = preProcessData(data, measureSlot!, groupSlot!);
   }
 
@@ -43,7 +56,16 @@ export const render = ({
   const innerHeight = height - margin.top - margin.bottom;
 
   // Render the chart
-  renderChart(chartContainer, chartData, width, height, margin, innerWidth, innerHeight, isEmptyState);
+  renderChart(
+    chartContainer,
+    chartData,
+    width,
+    height,
+    margin,
+    innerWidth,
+    innerHeight,
+    isEmptyState
+  );
 
   // Store the chart data on the container for reference during resize
   (container as any).__chartData = chartData;
@@ -60,27 +82,36 @@ export const resize = ({
   slotConfigurations = [],
   options = {},
   language = 'en',
-  dimensions: { width, height } = { width: 0, height: 0 },
+  dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
   // Get the existing state
   const chartData = (container as any).__chartData || [];
   const isEmptyState = (container as any).__isEmptyState || false;
-  
+
   const newChartContainer = setupContainer(container);
-  
+
   // Set up dimensions
   const margin = { top: 40, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
-  
+
   // Render chart with existing data
-  renderChart(newChartContainer, chartData, width, height, margin, innerWidth, innerHeight, isEmptyState);
-  
+  renderChart(
+    newChartContainer,
+    chartData,
+    width,
+    height,
+    margin,
+    innerWidth,
+    innerHeight,
+    isEmptyState
+  );
+
   // Re-add empty state overlay if needed
   if (isEmptyState) {
     setupEmptyState(container);
   }
-  
+
   // Maintain state for future resizes
   (container as any).__chartData = chartData;
   (container as any).__isEmptyState = isEmptyState;
@@ -91,18 +122,18 @@ export const resize = ({
  * @param params Object containing slots and slot configurations
  * @returns Query object for data retrieval
  */
-export const buildQuery = ({ 
-  slots, 
-  slotConfigurations 
-}: { 
-  slots: Slot[], 
-  slotConfigurations: SlotConfig[] 
+export const buildQuery = ({
+  slots,
+  slotConfigurations
+}: {
+  slots: Slot[];
+  slotConfigurations: SlotConfig[];
 }): ItemQuery => {
   const dimensions: ItemQueryDimension[] = [];
   const measures: ItemQueryMeasure[] = [];
-  
+
   // Add category dimension
-  const categorySlot = slots.find(s => s.name === 'category');
+  const categorySlot = slots.find((s) => s.name === 'category');
   if (categorySlot?.content.length! > 0) {
     const category = categorySlot!.content[0];
     dimensions.push({
@@ -111,9 +142,9 @@ export const buildQuery = ({
       level: category.level || 1
     });
   }
-  
+
   // Add group by dimension (if available)
-  const groupSlot = slots.find(s => s.name === 'legend');
+  const groupSlot = slots.find((s) => s.name === 'legend');
   if (groupSlot?.content.length! > 0) {
     const group = groupSlot!.content[0];
     dimensions.push({
@@ -122,14 +153,19 @@ export const buildQuery = ({
       level: group.level || 1
     });
   }
-  
+
   // Add measure
-  const measureSlot = slots.find(s => s.name === 'measure');
+  const measureSlot = slots.find((s) => s.name === 'measure');
   if (measureSlot?.content.length! > 0) {
     const measure = measureSlot!.content[0];
-    
+
     // Handle different types of measures
-    if (measure.aggregationFunc && ['sum', 'average', 'min', 'max', 'count', 'distinct'].includes(measure.aggregationFunc)) {
+    if (
+      measure.aggregationFunc &&
+      ['sum', 'average', 'min', 'max', 'count', 'distinct'].includes(
+        measure.aggregationFunc
+      )
+    ) {
       measures.push({
         dataset_id: measure.datasetId || measure.set,
         column_id: measure.columnId || measure.column,
@@ -142,7 +178,7 @@ export const buildQuery = ({
       });
     }
   }
-  
+
   return {
     dimensions,
     measures,
