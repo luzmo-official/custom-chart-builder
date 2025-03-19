@@ -1,0 +1,38 @@
+{
+  "slots": [
+    {
+      "name": "category",
+      "rotate": false,
+      "label": "Category",
+      "type": "categorical",
+      "options": {
+        "isBinningDisabled": true,
+        "areDatetimeOptionsEnabled": true
+      },
+      "isRequired": true,
+      "acceptableColumnTypes": ["hierarchy"]
+    },
+    {
+      "name": "measure",
+      "rotate": true,
+      "label": "Value",
+      "type": "numeric",
+      "options": {
+        "isAggregationDisabled": false
+      },
+      "isRequired": true,
+      "acceptableColumnTypes": ["numeric"]
+    },
+    {
+      "name": "legend",
+      "rotate": false,
+      "label": "Legend",
+      "type": "categorical",
+      "options": {
+        "isBinningDisabled": true
+      },
+      "isRequired": false,
+      "acceptableColumnTypes": ["hierarchy"]
+    }
+  ]
+}

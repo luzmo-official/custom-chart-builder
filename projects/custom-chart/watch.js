@@ -2,14 +2,69 @@ const chokidar = require('chokidar');
 const { exec } = require('child_process');
 const { join } = require('path');
 const WebSocket = require('ws');
+const fs = require('fs');
 
 const wss = new WebSocket.Server({ port: 8080 });
 let currentBuild = null;
 
+// Helper function to copy static assets
+function copyStaticAssets() {
+  const outputDir = join(__dirname, '../../custom-chart-build-output');
+  
+  // Copy manifest.json
+  fs.copyFileSync(
+    join(__dirname, 'src/manifest.json'),
+    join(outputDir, 'manifest.json')
+  );
+  
+  // Copy icon.svg
+  fs.copyFileSync(
+    join(__dirname, 'src/icon.svg'),
+    join(outputDir, 'icon.svg')
+  );
+  
+  console.log('Static assets copied to build output directory');
+}
+
+// Build function that runs esbuild and copies static assets
+function buildChart() {
+  if (currentBuild) {
+    currentBuild.kill();
+  }
+
+  console.log('Building chart...');
+  
+  currentBuild = exec('npm run build-code', { cwd: join(__dirname) }, (error, stdout, stderr) => {
+    if (error) {
+      console.error('Build failed:', error);
+      console.error(stderr);
+      return;
+    }
+    
+    console.log(stdout);
+    
+    // After building JS/CSS, copy static assets
+    try {
+      copyStaticAssets();
+      console.log('Build completed successfully');
+      
+      // Notify connected clients
+      wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send('watcher-rebuild');
+        }
+      });
+    } catch (copyError) {
+      console.error('Error copying static assets:', copyError);
+    }
+  });
+}
+
+buildChart();
+
+// Watch for changes
 chokidar.watch([
-  join(__dirname, '../../projects/custom-chart/src/chart.ts'),
-  join(__dirname, '../../projects/custom-chart/src/build-query.utils.ts'),
-  join(__dirname, '../../projects/custom-chart/src/slots.config.ts')
+  join(__dirname, 'src')
 ], {
   ignoreInitial: true,
   persistent: true,
@@ -17,20 +72,9 @@ chokidar.watch([
   useFsEvents: false,
   usePolling: true,
   interval: 1000
-}).on('change', () => {
-  if (currentBuild) {
-    currentBuild.kill();
-  }
-
-  currentBuild = exec('npm run build', { cwd: join(__dirname) }, (error, stdout) => {
-    if (error) {
-      console.error('Build failed:', error);
-      return;
-    }
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send('watcher-rebuild');
-      }
-    });
-  });
+}).on('change', (path) => {
+  console.log(`File ${path} has been changed`);
+  buildChart();
 });
+
+console.log('Watching for file changes...');

@@ -4,8 +4,12 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --minify --outfile=../../custom-chart-build-output/bundle.js --format=esm && esbuild src/chart.css --minify --outfile=../../custom-chart-build-output/styles.css",
-    "watch": "node watch.js"
+    "build-code": "esbuild src/index.ts --bundle --minify --outfile=../../custom-chart-build-output/index.js --format=esm && esbuild src/chart.css --minify --outfile=../../custom-chart-build-output/index.css",
+    "build": "npm run build-code && node scripts/copy-assets.js",
+    "watch": "node watch.js",
+    "archive": "node scripts/archive-bundle.js",
+    "validate": "node scripts/validate-manifest.js",
+    "build:archive": "npm run build && npm run archive"
   },
   "dependencies": {
     "@luzmo/dashboard-contents-types": "^1.0.14",

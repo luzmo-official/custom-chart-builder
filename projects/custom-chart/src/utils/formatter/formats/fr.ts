@@ -1,0 +1,283 @@
+export default {
+  decimal: ',',
+  thousands: '\u00A0',
+  grouping: [3],
+  currency: ['', '\u00A0€'],
+  dateTime: '%a %b %e %X %Y',
+  date: '%d-%m-%Y',
+  dateSeparator: '-',
+  time: '%H:%M:%S',
+  periods: ['AM', 'PM'],
+  days: [
+    'Dimanche',
+    'Lundi',
+    'Mardi',
+    'Mercredi',
+    'Jeudi',
+    'Vendredi',
+    'Samedi'
+  ],
+  shortDays: ['Di', 'Lu', 'Ma', 'Me', 'Je', 'Ve', 'Sa'],
+  months: [
+    'Janvier',
+    'Février',
+    'Mars',
+    'Avril',
+    'Mai',
+    'Juin',
+    'Juillet',
+    'Août',
+    'Septembre',
+    'Octobre',
+    'Novembre',
+    'Décembre'
+  ],
+  shortMonths: [
+    'Jan',
+    'Fév',
+    'Mar',
+    'Avr',
+    'Mai',
+    'Juin',
+    'Juil',
+    'Août',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Déc'
+  ],
+  levels: [
+    'Tous',
+    'Année',
+    'Trimestre',
+    'Mois',
+    'Semaine',
+    'Jour',
+    'Heure',
+    'Minute',
+    'Seconde',
+    'Milliseconde'
+  ],
+  shortLevels: [
+    'Tous',
+    'An',
+    'Trim',
+    'Mois',
+    'Sem',
+    'Date',
+    'Hr',
+    'Min',
+    'Sec',
+    'Msec'
+  ],
+  durationLongSuffix: [
+    '',
+    'ans',
+    'trimestres',
+    'mois',
+    'semaines',
+    'jours',
+    'heures',
+    'minutes',
+    'secondes',
+    'millisecondes'
+  ],
+  durationShortSuffix: ['', 'a', 'tr', 'mo', 'sem', 'j', 'h', 'm', 's', 'ms'],
+  multi: ['.%L', ':%S', '%I:%M', '%I %p', '%a %d', 'S%G', '%b %d', '%B', '%Y'],
+  smartDateFormats: [
+    {
+      key: '%a %e %b %Y',
+      lev1: '%Y',
+      lev2: 'T%q-%Y',
+      lev3: '%b %Y',
+      lev4: 'Se %V-%G',
+      lev5: '%a %e %b %Y',
+      monthType: 'name',
+      longText: false,
+      weekday: true
+    },
+    {
+      key: '%e %b %Y',
+      lev1: '%Y',
+      lev2: 'T%q-%Y',
+      lev3: '%b %Y',
+      lev4: 'Se %V-%G',
+      lev5: '%e %b %Y',
+      monthType: 'name',
+      longText: false,
+      weekday: false
+    },
+    {
+      key: '%a %e %B %Y',
+      lev1: '%Y',
+      lev2: 'T%q-%Y',
+      lev3: '%B %Y',
+      lev4: 'Semaine %V, %G',
+      lev5: '%a %e %B %Y',
+      monthType: 'name',
+      longText: true,
+      weekday: true
+    },
+    {
+      key: '%e %B %Y',
+      lev1: '%Y',
+      lev2: 'T%q-%Y',
+      lev3: '%B %Y',
+      lev4: 'Semaine %V, %G',
+      lev5: '%e %B %Y',
+      monthType: 'name',
+      longText: true,
+      weekday: false
+    },
+    {
+      key: '%d/%m/%Y',
+      lev1: '%Y',
+      lev2: 'T%q/%Y',
+      lev3: '%m/%Y',
+      lev4: 'S%V/%G',
+      lev5: '%d/%m/%Y',
+      monthType: 'number',
+      mmdd: false,
+      separator: '/'
+    },
+    {
+      key: '%d-%m-%Y',
+      lev1: '%Y',
+      lev2: 'T%q-%Y',
+      lev3: '%m-%Y',
+      lev4: 'S%V-%G',
+      lev5: '%d-%m-%Y',
+      monthType: 'number',
+      mmdd: false,
+      separator: '-'
+    },
+    {
+      key: '%d.%m.%Y',
+      lev1: '%Y',
+      lev2: 'T%q.%Y',
+      lev3: '%m.%Y',
+      lev4: 'S%V.%G',
+      lev5: '%d.%m.%Y',
+      monthType: 'number',
+      mmdd: false,
+      separator: '.'
+    },
+    {
+      key: '%d~%m~%Y',
+      lev1: '%Y',
+      lev2: 'T%q~%Y',
+      lev3: '%m~%Y',
+      lev4: 'S%V~%G',
+      lev5: '%d~%m~%Y',
+      monthType: 'number',
+      mmdd: false,
+      separator: '~'
+    },
+    {
+      key: '%m/%d/%Y',
+      lev1: '%Y',
+      lev2: 'T%q/%Y',
+      lev3: '%m/%Y',
+      lev4: '%G/S%V',
+      lev5: '%m/%d/%Y',
+      monthType: 'number',
+      mmdd: true,
+      separator: '/'
+    },
+    {
+      key: '%m-%d-%Y',
+      lev1: '%Y',
+      lev2: 'T%q-%Y',
+      lev3: '%m-%Y',
+      lev4: '%G-S%V',
+      lev5: '%m-%d-%Y',
+      monthType: 'number',
+      mmdd: true,
+      separator: '-'
+    },
+    {
+      key: '%m.%d.%Y',
+      lev1: '%Y',
+      lev2: 'T%q.%Y',
+      lev3: '%m.%Y',
+      lev4: '%G.S%V',
+      lev5: '%m.%d.%Y',
+      monthType: 'number',
+      mmdd: true,
+      separator: '.'
+    },
+    {
+      key: '%m~%d~%Y',
+      lev1: '%Y',
+      lev2: 'T%q~%Y',
+      lev3: '%m~%Y',
+      lev4: '%G~S%V',
+      lev5: '%m~%d~%Y',
+      monthType: 'number',
+      mmdd: true,
+      separator: '~'
+    },
+    {
+      key: '%amd/%Y',
+      lev1: '%Y',
+      lev2: 'T%q/%Y',
+      lev3: '%m/%Y',
+      lev4: '%G/S%V',
+      lev5: '%amd/%Y',
+      monthType: 'number',
+      mmdd: true,
+      separator: '/'
+    },
+    {
+      key: '%amd-%Y',
+      lev1: '%Y',
+      lev2: 'T%q-%Y',
+      lev3: '%m-%Y',
+      lev4: '%G-S%V',
+      lev5: '%amd-%Y',
+      monthType: 'number',
+      mmdd: true,
+      separator: '-'
+    },
+    {
+      key: '%amd.%Y',
+      lev1: '%Y',
+      lev2: 'T%q.%Y',
+      lev3: '%m.%Y',
+      lev4: '%G.S%V',
+      lev5: '%amd.%Y',
+      monthType: 'number',
+      mmdd: true,
+      separator: '.'
+    },
+    {
+      key: '%amd~%Y',
+      lev1: '%Y',
+      lev2: 'T%q~%Y',
+      lev3: '%m~%Y',
+      lev4: '%G~S%V',
+      lev5: '%amd~%Y',
+      monthType: 'number',
+      mmdd: true,
+      separator: '~'
+    }
+  ],
+  smartTimeFormats: [
+    {
+      key: '%H:%M:%S.%L',
+      lev6: '%H:00',
+      lev7: '%H:%M',
+      lev8: '%H:%M:%S',
+      lev9: '%H:%M:%S.%L',
+      ampm: false
+    },
+    {
+      key: '%I:%M:%S.%L %p',
+      lev6: '%I:00 %p',
+      lev7: '%I:%M %p',
+      lev8: '%I:%M:%S %p',
+      lev9: '%I:%M:%S.%L %p',
+      ampm: true
+    }
+  ]
+};

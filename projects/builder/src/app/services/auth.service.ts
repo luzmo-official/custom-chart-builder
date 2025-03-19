@@ -1,9 +1,13 @@
 import { inject, Injectable } from '@angular/core';
 import { CookieService } from 'ngx-cookie-service';
-import { BehaviorSubject, Observable, take } from 'rxjs';
+import type { Observable } from 'rxjs';
+import { BehaviorSubject, take } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { AuthResponse, RowsData, User } from '../helpers/types';
-import { isBoolean, isEmpty } from '@builder/helpers/types.utils';
+import type { AuthResponse, RowsData, User } from '../helpers/types';
+import {
+  isBoolean,
+  isEmpty
+} from '../../../../custom-chart/src/utils/types.utils';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { of } from 'rxjs/internal/observable/of';
 
@@ -36,22 +40,55 @@ export class AuthService {
       for (const cookieKey of ['k', 't', 'e']) {
         this.cookieService.delete(cookieKey, '/', cookieDomain);
       }
-    }
-    else if (user && this.isAuthResponse(user) && !isEmpty(user.token)) {
+    } else if (user && this.isAuthResponse(user) && !isEmpty(user.token)) {
       // Set login cookies when logging in.
       const cookieExpiry = new Date(user.token.cookieExpiry);
-      this.setLoginCookies(user.token.id, user.token.token, user.token.tokenExpiry, cookieExpiry);
+      this.setLoginCookies(
+        user.token.id,
+        user.token.token,
+        user.token.tokenExpiry,
+        cookieExpiry
+      );
     }
 
     this.authenticated = value;
     this.isAuthenticated$.next(value);
   }
 
-  setLoginCookies(key: string, token: string, expiry: string, cookieExpiry: Date): void {
+  setLoginCookies(
+    key: string,
+    token: string,
+    expiry: string,
+    cookieExpiry: Date
+  ): void {
     const cookieDomain = 'localhost';
-    this.cookieService.set('k', key, cookieExpiry, '/', cookieDomain, false, 'Lax');
-    this.cookieService.set('t', token, cookieExpiry, '/', cookieDomain, false, 'Lax');
-    this.cookieService.set('e', expiry, cookieExpiry, '/', cookieDomain, false, 'Lax');
+    this.cookieService.set(
+      'k',
+      key,
+      cookieExpiry,
+      '/',
+      cookieDomain,
+      false,
+      'Lax'
+    );
+    this.cookieService.set(
+      't',
+      token,
+      cookieExpiry,
+      '/',
+      cookieDomain,
+      false,
+      'Lax'
+    );
+    this.cookieService.set(
+      'e',
+      expiry,
+      cookieExpiry,
+      '/',
+      cookieDomain,
+      false,
+      'Lax'
+    );
   }
 
   getLoginCookies(): Record<'key' | 'token', string> {
@@ -66,7 +103,7 @@ export class AuthService {
   }
 
   loadUser(uid = 'me'): Observable<User | null> {
-    console.log('-- loading user')
+    console.log('-- loading user');
     return this.httpClient
       .post<RowsData<User>>(
         `${this.apiUrl}/0.1.0/user`,
@@ -84,7 +121,7 @@ export class AuthService {
       )
       .pipe(
         take(1),
-        map(result => {
+        map((result) => {
           if (!result.rows?.length) {
             this.setAuthenticated(false);
             return null;
@@ -96,11 +133,11 @@ export class AuthService {
   }
 
   getUser(): User {
-    return this.user || {} as User;
+    return this.user || ({} as User);
   }
 
   setUser(value: User): User {
-    return this.user = { ...value };
+    return (this.user = { ...value });
   }
 
   getAppUrl(): string {
@@ -135,7 +172,9 @@ export class AuthService {
     return this.user as User;
   }
 
-  private isAuthResponse(user: AuthResponse['user'] | User): user is AuthResponse['user'] {
+  private isAuthResponse(
+    user: AuthResponse['user'] | User
+  ): user is AuthResponse['user'] {
     return (user as AuthResponse['user']).token !== undefined;
   }
 }

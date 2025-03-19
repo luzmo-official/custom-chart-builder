@@ -32,7 +32,7 @@
                 "output": "/assets/custom-chart"
               }
             ],
-            "styles": ["projects/builder/src/styles.scss"],
+            "styles": ["projects/builder/src/styles.scss", "node_modules/bootstrap/dist/css/bootstrap.min.css"],
             "scripts": []
           },
           "configurations": {

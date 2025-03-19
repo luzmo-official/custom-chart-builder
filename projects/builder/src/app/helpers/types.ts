@@ -1,43 +1,44 @@
-import { ItemQueryDimension } from "@luzmo/dashboard-contents-types";
+import type { ItemQueryDimension } from '@luzmo/dashboard-contents-types';
 
-type PublicConnector = 'amazonathena'
-| 'asana'
-| 'bigquery'
-| 'citybikes'
-| 'clickhouse'
-| 'databricks'
-| 'demodataplugin'
-| 'elasticsearch'
-| 'exact'
-| 'exactonline'
-| 'exactonlinenl'
-| 'google'
-| 'googleanalytics'
-| 'googleanalyticsv4'
-| 'googledrive'
-| 'hubspot'
-| 'mailchimp'
-| 'mariadb'
-| 'mongodb'
-| 'mysql'
-| 'oracle'
-| 'panoply'
-| 'pipedrive'
-| 'pipelinedb'
-| 'postgresql'
-| 'presto'
-| 'quandl'
-| 'redshift'
-| 'salesforce'
-| 'saphana'
-| 'snowflake'
-| 'sqlserver'
-| 'stardog'
-| 'synapse'
-| 'teamleader'
-| 'trino'
-| 'typeform'
-| 'zendesk';
+type PublicConnector =
+  | 'amazonathena'
+  | 'asana'
+  | 'bigquery'
+  | 'citybikes'
+  | 'clickhouse'
+  | 'databricks'
+  | 'demodataplugin'
+  | 'elasticsearch'
+  | 'exact'
+  | 'exactonline'
+  | 'exactonlinenl'
+  | 'google'
+  | 'googleanalytics'
+  | 'googleanalyticsv4'
+  | 'googledrive'
+  | 'hubspot'
+  | 'mailchimp'
+  | 'mariadb'
+  | 'mongodb'
+  | 'mysql'
+  | 'oracle'
+  | 'panoply'
+  | 'pipedrive'
+  | 'pipelinedb'
+  | 'postgresql'
+  | 'presto'
+  | 'quandl'
+  | 'redshift'
+  | 'salesforce'
+  | 'saphana'
+  | 'snowflake'
+  | 'sqlserver'
+  | 'stardog'
+  | 'synapse'
+  | 'teamleader'
+  | 'trino'
+  | 'typeform'
+  | 'zendesk';
 
 export type Securable = {
   acceleration_id: string;
@@ -149,7 +150,11 @@ export interface User {
   userGroups: string[];
   plan: string;
   whitelabelingActive: boolean;
-  authorization: { id: string; integration_id: string; type: 'sso' | 'temporary' | 'login' | 'api' | 'technical' };
+  authorization: {
+    id: string;
+    integration_id: string;
+    type: 'sso' | 'temporary' | 'login' | 'api' | 'technical';
+  };
 }
 
 export interface OrganizationRole {
@@ -175,7 +180,7 @@ export interface Organization {
   flag_whitelabeling: boolean;
   invitecode?: string;
   organizationBackground: unknown;
-  locales: {id: string }[];
+  locales: { id: string }[];
   organizationRole: OrganizationRole;
   thumbnail: Record<string, string>;
 }
