@@ -3,6 +3,7 @@ import {
   ScrollingModule
 } from '@angular/cdk/scrolling';
 import type { OnDestroy, OnInit } from '@angular/core';
+import type { ElementRef } from '@angular/core';
 import {
   Component,
   EventEmitter,
@@ -29,6 +30,7 @@ export class DatasetPickerComponent implements OnInit, OnDestroy {
 
   @ViewChild('datasetDropdown') datasetDropdown!: NgbDropdown;
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
+  @ViewChild('searchInput') searchInput!: ElementRef;
 
   searchQuery = '';
   sortOption: 'name' | 'date' = 'date';
@@ -66,6 +68,7 @@ export class DatasetPickerComponent implements OnInit, OnDestroy {
   onDropdownOpened(): void {
     // Wait for the DOM to be ready
     setTimeout(() => {
+      this.searchInput.nativeElement.focus();
       if (this.viewport) {
         // If we have a selected item, scroll to it
         if (this.selectedDatasetId) {

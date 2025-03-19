@@ -99,6 +99,7 @@ $transition-speed: 0.15s;
   .search-input {
     height: 38px;
     padding-left: 2.25rem;
+    padding-right: 2.25rem;
     border: 1px solid $dropdown-border-color;
     border-radius: $border-radius;
     font-size: 0.875rem;
@@ -123,6 +124,19 @@ $transition-speed: 0.15s;
     transform: translateY(-50%);
     color: #aaa;
     pointer-events: none;
+  }
+  
+  .clear-icon {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+    cursor: pointer;
+    
+    &:hover {
+      color: #666;
+    }
   }
 }
 
