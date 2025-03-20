@@ -1,19 +1,16 @@
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { Component, CUSTOM_ELEMENTS_SCHEMA, inject, OnInit } from '@angular/core';
-import {
-  FormBuilder,
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators
-} from '@angular/forms';
-import { isEmpty, isObject, isString } from '../../../../../custom-chart/src/utils/types.utils';
+import type { HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import type { OnInit } from '@angular/core';
+import { Component, CUSTOM_ELEMENTS_SCHEMA, inject } from '@angular/core';
+import type { FormControl, FormGroup } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { isEmpty, isObject, isString } from '../../helpers/types.utils';
 import { AuthService } from '@builder/services/auth.service';
 import { EMPTY, of } from 'rxjs';
 import { switchMap, take } from 'rxjs/operators';
-import { AuthResponse, User } from '../../helpers/types';
+import type { AuthResponse, User } from '../../helpers/types';
 import { CommonModule } from '@angular/common';
-import '@luzmo/analytics-components-kit/picker';
+import '@luzmo/lucero/picker';
 
 interface LogInForm {
   email: FormControl<string>;
@@ -74,13 +71,11 @@ export class LoginComponent implements OnInit {
         switchMap((response: AuthResponse) => {
           if (isEmpty(response)) {
             return EMPTY;
-          }
-          else {
+          } else {
             if (response.user.twoFactorAuthentication) {
               this.mode = '2FA';
               return of('2FA');
-            }
-            else {
+            } else {
               this.authService.setAuthenticated(true, response.user);
               return this.authService.loadUser(response.user.id);
             }
@@ -98,7 +93,9 @@ export class LoginComponent implements OnInit {
         error: (error: HttpErrorResponse) => {
           console.error('error', error);
           this.logInForm.controls.busy.setValue(false);
-          this.logInForm.controls.errorMsg.setValue(this.getErrorMessage(error, 'login'));
+          this.logInForm.controls.errorMsg.setValue(
+            this.getErrorMessage(error, 'login')
+          );
           this.authService.setAuthenticated(false);
         }
       });
@@ -136,7 +133,9 @@ export class LoginComponent implements OnInit {
         error: (error: HttpErrorResponse) => {
           this.twoFAForm.controls.totp.setValue('');
           this.twoFAForm.controls.busy.setValue(false);
-          this.logInForm.controls.errorMsg.setValue(this.getErrorMessage(error.error, 'login'));
+          this.logInForm.controls.errorMsg.setValue(
+            this.getErrorMessage(error.error, 'login')
+          );
           this.mode = 'login';
         }
       });
@@ -155,13 +154,11 @@ export class LoginComponent implements OnInit {
       this.region = 'us';
       this.authService.setAppUrl('https://app.us.luzmo.com');
       this.authService.setApiUrl('https://api.us.luzmo.com');
-    }
-    else if (region === 'europe') {
+    } else if (region === 'europe') {
       this.region = 'europe';
       this.authService.setAppUrl('https://app.luzmo.com');
       this.authService.setApiUrl('https://api.luzmo.com');
-    }
-    else if (region === 'custom') {
+    } else if (region === 'custom') {
       this.region = 'custom';
       // TODO: set custom app and api urls
     }
@@ -169,16 +166,20 @@ export class LoginComponent implements OnInit {
 
   private loginUser(user: User): void {
     if (isEmpty(user)) {
-      this.logInForm.controls.errorMsg.setValue(this.getErrorMessage(null, 'login'));
+      this.logInForm.controls.errorMsg.setValue(
+        this.getErrorMessage(null, 'login')
+      );
       this.authService.setAuthenticated(false);
-    }
-    else {
+    } else {
       this.logInForm.controls.errorMsg.setValue('');
       this.authService.setAuthenticated(true, user);
     }
   }
 
-  private getErrorMessage(error: null | string | HttpErrorResponse, action: string): string {
+  private getErrorMessage(
+    error: null | string | HttpErrorResponse,
+    action: string
+  ): string {
     if (isString(error)) {
       return error;
     }

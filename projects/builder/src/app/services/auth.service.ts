@@ -4,10 +4,7 @@ import type { Observable } from 'rxjs';
 import { BehaviorSubject, take } from 'rxjs';
 import { map } from 'rxjs/operators';
 import type { AuthResponse, RowsData, User } from '../helpers/types';
-import {
-  isBoolean,
-  isEmpty
-} from '../../../../custom-chart/src/utils/types.utils';
+import { isBoolean, isEmpty } from '../helpers/types.utils';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { of } from 'rxjs/internal/observable/of';
 
