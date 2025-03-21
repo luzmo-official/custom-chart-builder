@@ -2,11 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const manifestPath = path.join(__dirname, '../src/manifest.json');
+const manifestPath = path.join(__dirname, '../projects/custom-chart/src/manifest.json');
+const customChartProjectPath = path.join(__dirname, '../projects/custom-chart');
 
 // Create a temporary TypeScript validation file
 const createValidatorScript = () => {
-  const tempDir = path.join(__dirname, 'temp');
+  const tempDir = path.join(customChartProjectPath, 'temp');
   const validatorPath = path.join(tempDir, 'validator.ts');
 
   if (!fs.existsSync(tempDir)) {
@@ -15,7 +16,7 @@ const createValidatorScript = () => {
   
   // Hack - create TS file dynamically to avoid typescript import error in the JS file
   const validatorContent = `
-import { SlotsConfigSchema } from '../../../builder/src/app/slot-schema';
+import { SlotsConfigSchema } from '../../builder/src/app/slot-schema';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -100,7 +101,7 @@ function validateManifest() {
     } finally {
       // Clean up temp files
       try {
-        const tempDir = path.join(__dirname, 'temp');
+        const tempDir = path.join(customChartProjectPath, 'temp');
         fs.rmSync(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn('Warning: Could not clean up temporary files:', cleanupError.message);

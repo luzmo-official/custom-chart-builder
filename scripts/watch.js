@@ -6,20 +6,21 @@ const fs = require('fs');
 
 const wss = new WebSocket.Server({ port: 8080 });
 let currentBuild = null;
+const customChartProjectPath = join(__dirname, '../projects/custom-chart');
 
 // Helper function to copy static assets
 function copyStaticAssets() {
-  const outputDir = join(__dirname, '../../custom-chart-build-output');
+  const outputDir = join(__dirname, '../custom-chart-build-output');
   
   // Copy manifest.json
   fs.copyFileSync(
-    join(__dirname, 'src/manifest.json'),
+    join(customChartProjectPath, 'src/manifest.json'),
     join(outputDir, 'manifest.json')
   );
   
   // Copy icon.svg
   fs.copyFileSync(
-    join(__dirname, 'src/icon.svg'),
+    join(customChartProjectPath, 'src/icon.svg'),
     join(outputDir, 'icon.svg')
   );
   
@@ -34,7 +35,7 @@ function buildChart() {
 
   console.log('Building chart...');
   
-  currentBuild = exec('npm run build-code', { cwd: join(__dirname) }, (error, stdout, stderr) => {
+  currentBuild = exec('npm run build', { cwd: join(customChartProjectPath) }, (error, stdout, stderr) => {
     if (error) {
       console.error('Build failed:', error);
       console.error(stderr);
@@ -64,7 +65,7 @@ buildChart();
 
 // Watch for changes
 chokidar.watch([
-  join(__dirname, 'src')
+  join(customChartProjectPath, 'src')
 ], {
   ignoreInitial: true,
   persistent: true,

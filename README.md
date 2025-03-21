@@ -360,22 +360,12 @@ Your CSS will be minified during the build process and included in the final cha
 
 ## Building and Packaging
 
-### Development Build
-
-To build the chart during development:
-
-```bash
-npm run build
-```
-
-This will compile the chart and place files in the `custom-chart-build-output` directory.
-
 ### Production Package
 
 To create a distribution-ready package:
 
 ```bash
-npm run archive
+npm run build
 ```
 
 This command:

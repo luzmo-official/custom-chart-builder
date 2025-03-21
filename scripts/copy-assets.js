@@ -2,10 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 // Output directory for the built files
-const outputDir = path.join(__dirname, '../../../custom-chart-build-output');
+const outputDir = path.join(__dirname, '../custom-chart-build-output');
 
 // Source directory
-const sourceDir = path.join(__dirname, '../src');
+const sourceDir = path.join(__dirname, '../projects/custom-chart/src');
 
 // List of static assets to copy
 const staticAssets = [

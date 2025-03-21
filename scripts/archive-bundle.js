@@ -3,7 +3,7 @@ const path = require('path');
 const archiver = require('archiver');
 const validateManifest = require('./validate-manifest');
 
-const rootDir = path.resolve(__dirname, '../../../');
+const rootDir = path.resolve(__dirname, '..');
 const buildOutputDir = path.join(rootDir, 'custom-chart-build-output');
 const outputZipPath = path.join(buildOutputDir, 'bundle.zip');
 
