@@ -174,9 +174,13 @@ export function resize({
 }
 ```
 
-#### 3. buildQuery() Function
+#### 3. buildQuery() Function (Optional)
 
-The `buildQuery()` function creates the data query that fetches the appropriate data from the server:
+The `buildQuery()` function creates the data query that fetches the appropriate data from the server.
+
+> **This function is optional:** The `buildQuery()` method is not required to get the chart working. If your chart does not require a custom data query, you can omit this function entirely.
+
+Example implementation:
 
 ```typescript
 interface BuildQueryParams {
@@ -404,7 +408,7 @@ Add them to the custom-chart package.json and import them in your chart.ts file.
 ### Logs and Debugging
 
 - Builder logs appear with the [ANGULAR] prefix
-- Bundle server logs appear with the [BUNDLE] prefix 
+- Bundle server logs appear with the [BUNDLE] prefix
 - Chart watcher logs appear with the [WATCHER] prefix
 
 ## License
