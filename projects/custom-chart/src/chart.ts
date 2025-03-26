@@ -7,13 +7,85 @@ import type {
   ItemQuery
 } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
-import { formatter } from '@luzmo/analytics-components-kit';
+import { formatter } from '@luzmo/analytics-components-kit/utils';
+
+// Filter related interfaces
+interface ItemFilter {
+  expression: '? = ?' | '? in ?';
+  parameters: [
+    {
+      column_id?: string;
+      dataset_id?: string;
+      level?: number;
+    },
+    any
+  ];
+  properties?: {
+    origin: 'filterFromVizItem';
+    type: 'where';
+    itemId?: string;
+  };
+}
 
 interface ChartDataItem {
   category: string;
   group: string;
   value: number | string; // Allow string values for formatted numbers
   rawValue: number; // Store the raw numeric value for calculations
+  columnId?: string; // Add columnId to track which column this data point belongs to
+  datasetId?: string; // Add datasetId to track which dataset this data point belongs to
+}
+
+// Define custom event data interface
+interface CustomEventData {
+  type: string;
+  data: {
+    category: string;
+    group: string;
+    value: string | number;
+    rawValue: number;
+  };
+}
+
+interface FilterEventData {
+  type: string;
+  filters: ItemFilter[];
+}
+
+// State management for selected bars
+interface ChartState {
+  selectedBars: Set<string>; // Store unique identifiers for selected bars
+  categorySlot?: Slot;
+  measureSlot?: Slot;
+  groupSlot?: Slot;
+}
+
+// Initialize chart state
+const chartState: ChartState = {
+  selectedBars: new Set()
+};
+
+/**
+ * Helper function to send custom events to the parent window
+ * @param eventType Type of event
+ * @param data Data to send with the event
+ */
+function sendCustomEvent(eventType: string, data: any): void {
+  const eventData: CustomEventData = {
+    type: eventType,
+    data
+  };
+
+  // Post message to parent window
+  window.parent.postMessage(eventData, '*');
+}
+
+function sendFilterEvent(filters: ItemFilter[]): void {
+  const eventData: FilterEventData = {
+    type: 'setFilter',
+    filters
+  };
+  window.parent.postMessage(eventData, '*');
 }
 
 // Define types for chart configuration
@@ -57,7 +129,9 @@ function generateSampleData(numCategories = 5, numGroups = 3): ChartDataItem[] {
         category: categories[i],
         group: groups[j],
         value: rawValue.toString(), // Convert to string for sample data
-        rawValue: rawValue // Store the raw value
+        rawValue: rawValue, // Store the raw value
+        columnId: `column_${i}_${j}`,
+        datasetId: `dataset_${i}_${j}`
       });
     }
   }
@@ -184,6 +258,77 @@ function renderChart(
           .on('mouseout', function () {
             d3.select(this).transition().duration(200).attr('opacity', 1);
             tooltip.transition().duration(500).style('opacity', 0);
+          })
+          .on('click', function (event: MouseEvent) {
+            // Create unique identifier for this bar
+            const barId = `${category}-${group}`;
+
+            // Toggle selection state
+            if (chartState.selectedBars.has(barId)) {
+              // Remove selection
+              chartState.selectedBars.delete(barId);
+              d3.select(this).classed('bar-selected', false);
+            } else {
+              // Add selection
+              chartState.selectedBars.add(barId);
+              d3.select(this).classed('bar-selected', true);
+            }
+
+            // Show/hide clear filter button based on selection state
+            const clearFilterBtn = d3
+              .select(chartContainer)
+              .select('.clear-filter-btn');
+            clearFilterBtn.classed('visible', chartState.selectedBars.size > 0);
+
+            // Create filters array based on selected bars
+            const filters: ItemFilter[] = [];
+
+            // Group selected bars by columnId and datasetId
+            const groupedFilters = new Map<string, Set<string>>();
+
+            Array.from(chartState.selectedBars).forEach((barId) => {
+              const [cat, grp] = barId.split('-');
+              const categoryContent = chartState.categorySlot?.content[0];
+              const key = `${categoryContent?.columnId || categoryContent?.column}:${categoryContent?.datasetId || categoryContent?.set}`;
+
+              if (!groupedFilters.has(key)) {
+                groupedFilters.set(key, new Set());
+              }
+              groupedFilters.get(key)?.add(cat);
+            });
+
+            // Create filters from grouped data
+            groupedFilters.forEach((values, key) => {
+              const [columnId, datasetId] = key.split(':');
+              const uniqueValues = Array.from(values);
+
+              filters.push({
+                expression: uniqueValues.length > 1 ? '? in ?' : '? = ?',
+                parameters: [
+                  {
+                    column_id: columnId,
+                    dataset_id: datasetId,
+                    level:
+                      chartState.categorySlot?.content[0]?.level || undefined
+                  },
+                  uniqueValues.length > 1 ? uniqueValues : uniqueValues[0]
+                ],
+                properties: {
+                  origin: 'filterFromVizItem',
+                  type: 'where'
+                }
+              });
+            });
+
+            // Send setFilter event
+            sendFilterEvent(filters);
+
+            sendCustomEvent('customEvent', {
+              category: category,
+              group: group,
+              value: groupData[0].value,
+              rawValue: groupData[0].rawValue
+            });
           });
       }
     });
@@ -231,6 +376,23 @@ function setupContainer(container: HTMLElement): HTMLElement {
   const chartContainer = document.createElement('div');
   chartContainer.className = 'bar-chart-container';
   container.appendChild(chartContainer);
+
+  // Add clear filter button
+  const clearFilterBtn = document.createElement('button');
+  clearFilterBtn.className = 'clear-filter-btn';
+  clearFilterBtn.textContent = 'Clear Filters';
+  clearFilterBtn.onclick = () => {
+    // Clear all selected bars
+    chartState.selectedBars.clear();
+    // Remove selected class from all bars
+    d3.selectAll('.bar').classed('bar-selected', false);
+    // Hide clear filter button
+    clearFilterBtn.classList.remove('visible');
+    // Send empty filters array to clear filters
+    sendFilterEvent([]);
+  };
+  chartContainer.appendChild(clearFilterBtn);
+
   return chartContainer;
 }
 
@@ -283,7 +445,9 @@ function preProcessData(data: any[][], measureSlot: Slot, groupSlot: Slot) {
       category: typeof category === 'string' ? category : String(category),
       group: typeof group === 'string' ? group : String(group),
       value: formattedValue, // Formatted string value
-      rawValue: rawValue // Raw number for calculations
+      rawValue: rawValue, // Raw number for calculations
+      columnId: row[measureIndex]?.columnId,
+      datasetId: row[measureIndex]?.datasetId
     };
   });
 }
@@ -302,12 +466,15 @@ export const render = ({
   dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
   const chartContainer = setupContainer(container);
-  // Check if we have actual data or need sample data
-  const categorySlot = slots.find((s) => s.name === 'category');
-  const measureSlot = slots.find((s) => s.name === 'measure');
 
-  const hasCategory = categorySlot?.content?.length! > 0;
-  const hasMeasure = measureSlot?.content?.length! > 0;
+  // Store slots in chart state
+  chartState.categorySlot = slots.find((s) => s.name === 'category');
+  chartState.measureSlot = slots.find((s) => s.name === 'measure');
+  chartState.groupSlot = slots.find((s) => s.name === 'legend');
+
+  // Check if we have actual data or need sample data
+  const hasCategory = chartState.categorySlot?.content?.length! > 0;
+  const hasMeasure = chartState.measureSlot?.content?.length! > 0;
   const isEmptyState = !data.length || !hasCategory || !hasMeasure;
 
   // Prepare data for visualization
@@ -319,8 +486,11 @@ export const render = ({
     setupEmptyState(container);
   } else {
     // Process real data
-    const groupSlot = slots.find((s) => s.name === 'legend');
-    chartData = preProcessData(data, measureSlot!, groupSlot!);
+    chartData = preProcessData(
+      data,
+      chartState.measureSlot!,
+      chartState.groupSlot!
+    );
   }
 
   // Set up dimensions
