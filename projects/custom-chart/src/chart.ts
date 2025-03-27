@@ -142,6 +142,7 @@ export const render = ({
     chartData = preProcessData(
       data,
       chartState.measureSlot!,
+      chartState.categorySlot!,
       chartState.groupSlot!
     );
   }
@@ -596,40 +597,66 @@ function setupEmptyState(container: HTMLElement): void {
   container.appendChild(emptyState);
 }
 
-function preProcessData(data: any[][], measureSlot: Slot, groupSlot: Slot) {
-  const formatValue = measureSlot?.content[0]
-    ? formatter(measureSlot.content[0])
-    : (val: any) => val.toString();
+function preProcessData(
+  data: any[][],
+  measureSlot: Slot,
+  categorySlot: Slot,
+  groupSlot: Slot
+): ChartDataItem[] {
+  // Create formatters for each slot
+  const formatters = {
+    category: categorySlot?.content[0]
+      ? formatter(categorySlot.content[0], {
+          level: categorySlot.content[0].level || 9
+        })
+      : (val: any) => String(val),
+    group: groupSlot?.content[0]
+      ? formatter(groupSlot.content[0], {
+          level: groupSlot.content[0].level || 9
+        })
+      : (val: any) => String(val),
+    measure: measureSlot?.content[0]
+      ? formatter(measureSlot.content[0])
+      : (val: any) => String(val)
+  };
+
   const hasGroup = groupSlot?.content?.length! > 0;
+  const indices = {
+    category: 0,
+    group: hasGroup ? 1 : -1,
+    measure: hasGroup ? 2 : 1
+  };
 
   return data.map((row) => {
-    const categoryIndex = 0;
-    const groupIndex = hasGroup ? 1 : -1;
-    const measureIndex = hasGroup ? 2 : 1;
+    // Extract and format values
+    const categoryValue =
+      row[indices.category]?.name?.en || row[indices.category] || 'Unknown';
+    const category = formatters.category(
+      categorySlot.content[0].type === 'datetime'
+        ? new Date(categoryValue)
+        : categoryValue
+    );
 
-    // Extract data based on slot positions
-    const category =
-      row[categoryIndex]?.name?.en || row[categoryIndex] || 'Unknown';
+    const groupValue =
+      row[indices.group]?.name?.en || row[indices.group] || 'Default';
     const group = hasGroup
-      ? row[groupIndex]?.name?.en || row[groupIndex] || 'Default'
+      ? formatters.group(
+          groupSlot.content[0].type === 'datetime'
+            ? new Date(groupValue)
+            : groupValue
+        )
       : 'Default';
 
-    // Convert value to number for calculations
-    const rawValue =
-      typeof row[measureIndex] === 'number'
-        ? row[measureIndex]
-        : Number(row[measureIndex]) || 0;
-
-    // Format the value as a string
-    const formattedValue = formatValue(rawValue);
+    const rawValue = Number(row[indices.measure]) || 0;
+    const formattedValue = formatters.measure(rawValue);
 
     return {
-      category: typeof category === 'string' ? category : String(category),
-      group: typeof group === 'string' ? group : String(group),
-      value: formattedValue, // Formatted string value
-      rawValue: rawValue, // Raw number for calculations
-      columnId: row[measureIndex]?.columnId,
-      datasetId: row[measureIndex]?.datasetId
+      category: String(category),
+      group: String(group),
+      value: formattedValue,
+      rawValue,
+      columnId: row[indices.measure]?.columnId,
+      datasetId: row[indices.measure]?.datasetId
     };
   });
 }

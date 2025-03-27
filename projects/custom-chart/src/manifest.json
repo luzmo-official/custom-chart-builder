@@ -10,7 +10,7 @@
         "areDatetimeOptionsEnabled": true
       },
       "isRequired": true,
-      "acceptableColumnTypes": ["hierarchy"]
+      "acceptableColumnTypes": ["hierarchy", "datetime"]
     },
     {
       "name": "measure",
@@ -32,7 +32,7 @@
         "isBinningDisabled": true
       },
       "isRequired": false,
-      "acceptableColumnTypes": ["hierarchy"]
+      "acceptableColumnTypes": ["hierarchy", "datetime"]
     }
   ]
 }
