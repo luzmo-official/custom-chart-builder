@@ -176,9 +176,7 @@ export function resize({
 
 #### 3. buildQuery() Function (Optional)
 
-The `buildQuery()` function creates the data query that fetches the appropriate data from the server.
-
-> **This function is optional:** The `buildQuery()` method is not required to get the chart working. If your chart does not require a custom data query, you can omit this function entirely.
+> **IMPORTANT:** The `buildQuery()` method is completely optional. If you don't implement this method, Luzmo will automatically generate and run the appropriate query for your chart based on the slots configuration. You only need to implement this method if you want to customize the query behavior.
 
 Example implementation:
 
@@ -238,6 +236,8 @@ export function buildQuery({
   };
 }
 ```
+
+For more information about the query syntax and available options, see the [Luzmo Query Syntax Documentation](https://developer.luzmo.com/guide/interacting-with-data--querying-data#api-query-syntax).
 
 ### Configuring manifest.json
 
@@ -359,8 +359,6 @@ The `chart.css` file allows you to add custom styles to your chart elements. The
 ```
 
 Your CSS will be minified during the build process and included in the final chart package.
-
-
 
 ## Building and Packaging
 
