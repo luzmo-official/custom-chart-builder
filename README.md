@@ -51,6 +51,11 @@ This command launches:
 
 Your development environment will be available at [http://localhost:4200](http://localhost:4200)
 
+
+When you first access the development environment, you'll be presented with a login page. You'll need to log in with your Luzmo account credentials
+
+After successful authentication, you'll be redirected to the chart builder environment where you can access and use your Luzmo datasets to test your custom chart
+
 ## Project Structure
 
 ```
@@ -462,4 +467,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - [Luzmo Documentation](https://developer.luzmo.com)
 - [Custom Chart API Reference](https://developer.luzmo.com)
-- [D3.js Documentation](https://d3js.org)
