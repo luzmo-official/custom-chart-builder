@@ -239,6 +239,51 @@ export function buildQuery({
 
 For more information about the query syntax and available options, see the [Luzmo Query Syntax Documentation](https://developer.luzmo.com/guide/interacting-with-data--querying-data#api-query-syntax).
 
+### Data Formatting
+
+Luzmo provides a powerful formatter utility that helps format your data consistently with the rest of the dashboard. You can import it from `@luzmo/analytics-components-kit/utils`:
+
+```typescript
+import { formatter } from '@luzmo/analytics-components-kit/utils';
+```
+
+The formatter automatically handles:
+- Number formatting (thousands separators, decimal places)
+- Date/time formatting
+- Currency formatting
+- Percentage formatting
+
+Example usage in your chart:
+
+```typescript
+import { formatter } from '@luzmo/analytics-components-kit/utils';
+
+export function render({ data, slots }: ChartParams): void {
+  // Create formatters for your slots
+  const measureFormatter = slots.find(s => s.name === 'measure')?.content[0]
+    ? formatter(slots.find(s => s.name === 'measure')!.content[0])
+    : (val: any) => String(val);
+
+  const categoryFormatter = slots.find(s => s.name === 'category')?.content[0]
+    ? formatter(slots.find(s => s.name === 'category')!.content[0])
+    : (val: any) => String(val);
+
+  const categoryValue = row[0]?.name?.en || row[0] || 'Unknown';
+  
+  const formattedCategory = categoryFormatter(
+    categorySlot.content[0].type === 'datetime'
+      ? new Date(categoryValue)
+      : categoryValue
+  );
+
+  // Use the formatters
+  const formattedData = data.map(row => ({
+    category: formattedCategory,
+    value: measureFormatter(row[1])
+  }));
+}
+```
+
 ### Configuring manifest.json
 
 The `manifest.json` file defines the data slots that users can drag and drop in the dashboard. This file is validated against a Zod schema to ensure compatibility with the Luzmo platform.

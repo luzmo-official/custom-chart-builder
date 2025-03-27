@@ -69,6 +69,9 @@ const chartState: ChartState = {
  * Helper function to send custom events to the parent window
  * @param eventType Type of event
  * @param data Data to send with the event
+ *
+ * NOTE: This is a helper method for internal use. You can implement your own event handling
+ * directly in the render/resize methods if needed.
  */
 function sendCustomEvent(eventType: string, data: any): void {
   const eventData: CustomEventData = {
@@ -80,6 +83,13 @@ function sendCustomEvent(eventType: string, data: any): void {
   window.parent.postMessage(eventData, '*');
 }
 
+/**
+ * Helper function to send filter events to the parent window
+ * @param filters Array of filters to send
+ *
+ * NOTE: This is a helper method for internal use. You can implement your own filter handling
+ * directly in the render/resize methods if needed.
+ */
 function sendFilterEvent(filters: ItemFilter[]): void {
   const eventData: FilterEventData = {
     type: 'setFilter',
@@ -289,10 +299,13 @@ export const buildQuery = ({
 };
 
 /**
- * Generate sample data for empty state visualization
+ * Helper function to generate sample data for empty state visualization
  * @param numCategories Number of categories to generate
  * @param numGroups Number of groups to generate
  * @returns Array of sample data items
+ *
+ * NOTE: This is a helper method for internal use. You can implement your own empty state
+ * handling directly in the render method if needed.
  */
 function generateSampleData(numCategories = 5, numGroups = 3): ChartDataItem[] {
   const categories = [
@@ -324,6 +337,9 @@ function generateSampleData(numCategories = 5, numGroups = 3): ChartDataItem[] {
 
 /**
  * Helper function to render chart with given data and dimensions
+ *
+ * NOTE: This is a helper method for internal use. You can implement your own chart rendering
+ * logic directly in the render/resize methods if needed.
  */
 function renderChart(
   chartContainer: HTMLElement,
@@ -548,8 +564,11 @@ function renderChart(
 }
 
 /**
- * Set up chart container
+ * Helper function to set up chart container
  * @param container Container element
+ *
+ * NOTE: This is a helper method for internal use. You can implement your own container setup
+ * directly in the render/resize methods if needed.
  */
 function setupContainer(container: HTMLElement): HTMLElement {
   // Clear container
@@ -580,8 +599,11 @@ function setupContainer(container: HTMLElement): HTMLElement {
 }
 
 /**
- * Set up empty state overlay
+ * Helper function to set up empty state overlay
  * @param container Container element
+ *
+ * NOTE: This is a helper method for internal use. You can implement your own empty state
+ * handling directly in the render method if needed.
  */
 function setupEmptyState(container: HTMLElement): void {
   // Add empty state overlay
@@ -597,6 +619,17 @@ function setupEmptyState(container: HTMLElement): void {
   container.appendChild(emptyState);
 }
 
+/**
+ * Helper function to preprocess data for visualization
+ * @param data Raw data array
+ * @param measureSlot Measure slot configuration
+ * @param categorySlot Category slot configuration
+ * @param groupSlot Group slot configuration
+ * @returns Processed data array
+ *
+ * NOTE: This is a helper method for internal use. You can implement your own data processing
+ * directly in the render method if needed.
+ */
 function preProcessData(
   data: any[][],
   measureSlot: Slot,
