@@ -64,8 +64,6 @@ custom-chart-builder/
 ├── projects/
 │   ├── builder/               # Angular application for the chart builder UI
 │   └── custom-chart/          # Custom chart implementation
-│       ├── scripts/           # Build and utility scripts
-|       |-- utils/             # Utilities and models
 │       └── src/
 │           ├── chart.ts       # Main chart rendering logic
 │           ├── chart.css      # Chart styles
@@ -348,6 +346,72 @@ Valid slot configuration options include:
   - **isBinningDisabled**: Disable binning for categorical fields
   - **areDatetimeOptionsEnabled**: Enable date formatting options
   - **isAggregationDisabled**: Disable aggregation functions
+
+### Theme Configuration
+
+The chart builder supports theme customization through the `ThemeConfig` interface. This allows your chart to adapt to different visual styles and color schemes.
+
+#### ThemeConfig Interface
+
+The `ThemeConfig` interface is available from the `@luzmo/dashboard-contents-types` library.
+
+Some important properties in the ThemeConfig interface are:
+
+```typescript
+interface ThemeConfig {
+  darkOrLight: 'dark' | 'light';  // Theme mode
+  background: string;              // Background color (hex, rgb, or named color)
+  mainColor: string;               // Primary color for chart elements
+  baseFontSize: number;            // Base font size in pixels
+  itemsBackground?: string;        // Optional background for chart items
+}
+```
+For a full overview of all available ThemeConfig properties, see the [Theme Documentation](https://developer.luzmo.com/api/searchTheme).
+
+#### Example Theme Usage
+
+```typescript
+import { ThemeConfig } from '@luzmo/dashboard-contents-types';
+
+// In your chart.ts file
+export function render({
+  container,
+  data = [],
+  slots = [],
+  slotConfigurations = [],
+  options = {},
+  language = 'en',
+  dimensions: { width = 600, height = 400 } = {}
+}: ChartParams): void {
+  // Extract theme from options
+  const theme: ThemeConfig = options.theme || {
+    darkOrLight: 'light',
+    background: '#ffffff',
+    mainColor: '#7b90ff',
+    baseFontSize: 13
+  };
+  
+  // Apply theme to chart elements
+  const isDarkMode = theme.darkOrLight === 'dark';
+  
+  // Use theme properties for styling
+  const textColor = isDarkMode ? '#fff' : '#333';
+  const axisColor = isDarkMode ? '#666' : '#ccc';
+  const backgroundColor = theme.background;
+  const fontSize = theme.baseFontSize;
+  const primaryColor = theme.mainColor;
+  
+  // Apply these theme properties to your chart elements
+  // For example:
+  // - Set background color of the chart container
+  // - Apply text color to labels and titles
+  // - Use primary color for data elements
+  // - Set font size for text elements
+  // - Adjust contrast for better readability in dark/light modes
+  
+  // ... rest of your chart rendering code
+}
+```
 
 ### Styling with chart.css
 
