@@ -36,10 +36,20 @@
       </div>
       @if (region === 'custom') {
       <div class="form-group">
-        <label for="login-email">VPC base URL</label>
+        <label for="login-email">VPC App Server URL</label>
         <input type="text"
           autocomplete="off"
-          [placeholder]="'https://<app-baseurl>'">
+          [value]="vpcAppUrl"
+          (change)="onVpcAppUrlChanged($any($event))"
+          [placeholder]="'https://app.luzmo.com'">
+      </div>
+      <div class="form-group">
+        <label for="login-email">VPC API Host URL</label>
+        <input type="text"
+          autocomplete="off"
+          [value]="vpcApiUrl"
+          (change)="onVpcApiUrlChanged($any($event))"
+          [placeholder]="'https://api.luzmo.com'">
       </div>
       }
       <div class="form-group">
