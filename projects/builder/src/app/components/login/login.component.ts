@@ -39,6 +39,8 @@ export class LoginComponent implements OnInit {
   private formBuilder = inject(FormBuilder);
 
   region: 'europe' | 'us' | 'custom' = 'europe';
+  vpcAppUrl: string = '';
+  vpcApiUrl: string = '';
   mode: 'login' | '2FA' = 'login';
   logInForm!: FormGroup<LogInForm>;
   twoFAForm!: FormGroup<TwoFAForm>;
@@ -161,6 +163,24 @@ export class LoginComponent implements OnInit {
     } else if (region === 'custom') {
       this.region = 'custom';
       // TODO: set custom app and api urls
+    }
+  }
+
+  onVpcAppUrlChanged(event: Event): void {
+    const vpcAppUrl = (event.target as HTMLInputElement).value;
+
+    if (vpcAppUrl) {
+      this.vpcAppUrl = vpcAppUrl;
+      this.authService.setAppUrl(vpcAppUrl);
+    }
+  }
+
+  onVpcApiUrlChanged(event: Event): void {
+    const vpcApiUrl = (event.target as HTMLInputElement).value;
+
+    if (vpcApiUrl) {
+      this.vpcApiUrl = vpcApiUrl;
+      this.authService.setApiUrl(vpcApiUrl);
     }
   }
 
