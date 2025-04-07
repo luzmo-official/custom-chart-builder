@@ -1,5 +1,3 @@
-const eslintPluginPrettier = require('eslint-plugin-prettier');
-const prettierConfig = require('eslint-config-prettier');
 const typescriptEslint = require('@typescript-eslint/eslint-plugin');
 const typescriptParser = require('@typescript-eslint/parser');
 const angularEslint = require('@angular-eslint/eslint-plugin');
@@ -18,13 +16,9 @@ module.exports = [
     },
     plugins: {
       '@typescript-eslint': typescriptEslint,
-      '@angular-eslint': angularEslint,
-      prettier: eslintPluginPrettier
+      '@angular-eslint': angularEslint
     },
     rules: {
-      // ✅ Let Prettier handle indentation — turn off ESLint formatting conflicts
-      ...prettierConfig.rules,
-
       'quotes': ['error', 'single'],
       'brace-style': ['error', '1tbs', { allowSingleLine: true }],
       'semi': ['error', 'always'],
@@ -39,10 +33,7 @@ module.exports = [
 
       // Angular Rules
       '@angular-eslint/component-selector': ['error', { type: 'element', prefix: 'app', style: 'kebab-case' }],
-      '@angular-eslint/directive-selector': ['error', { type: 'attribute', prefix: 'app', style: 'camelCase' }],
-
-      // ✅ Prettier Integration (No Trailing Commas, Fix Indentation)
-      'prettier/prettier': ['error', { singleQuote: true, semi: true, trailingComma: 'none', tabWidth: 2 }]
+      '@angular-eslint/directive-selector': ['error', { type: 'attribute', prefix: 'app', style: 'camelCase' }]
     }
   },
   {

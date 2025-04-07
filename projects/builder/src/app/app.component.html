@@ -120,6 +120,18 @@
       <section class="column right-column">
         <div class="column-header">
           <p class="column-header-label">Chart visualization</p>
+          <luzmo-picker
+            [options]="chartThemes"
+            [value]="selectedTheme"
+            (change)="onChartThemeChange($any($event))">
+            @for (theme of chartThemes; track theme.name) {
+              <luzmo-menu-item [value]="theme.name">
+                <div class="dataset-info">
+                  <span>{{ theme.label }}</span>
+                </div>
+              </luzmo-menu-item>
+            }
+          </luzmo-picker>
         </div>
         <div class="column-content">
           <div class="visualization-container">

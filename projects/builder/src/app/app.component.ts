@@ -16,6 +16,7 @@ import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/draggable-data-item';
 import '@luzmo/analytics-components-kit/droppable-slot';
 import '@luzmo/lucero/progress-circle';
+import '@luzmo/lucero/picker';
 import type { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
@@ -28,6 +29,7 @@ import {
   map,
   shareReplay,
   switchMap,
+  take,
   tap
 } from 'rxjs/operators';
 import manifestJson from '../../../custom-chart/src/manifest.json';
@@ -194,8 +196,103 @@ export class AppComponent implements OnInit, OnDestroy {
   );
 
   chartData$!: Observable<any>;
-
   displayedChartData$!: Observable<any>;
+
+  // Theme picker properties
+  chartThemes = [
+    {
+      name: 'light',
+      label: 'Default (light)',
+      theme: {
+        background: 'rgb(245,245,245)',
+        itemsBackground: 'rgb(255,255,255)',
+        boxShadow: { size: 'none', color: 'rgb(0, 0, 0)' },
+        title: { align: 'left', bold: false, italic: false, underline: false, border: false },
+        font: { fontFamily: 'Lato', 'font-style': 'normal', 'font-weight': 400, fontSize: 15 },
+        colors: ['rgb(68,52,255)', 'rgb(143,133,255)', 'rgb(218,214,255)', 'rgb(191,5,184)', 'rgb(217,105,212)', 'rgb(242,205,241)', 'rgb(248,194,12)', 'rgb(251,218,109)', 'rgb(254,243,206)', 'rgb(9,203,120)', 'rgb(107,224,174)', 'rgb(206,245,228)', 'rgb(122,112,112)', 'rgb(175,169,169)', 'rgb(228,226,226)'],
+        borders: {
+          'border-color': 'rgba(216,216,216,1)',
+          'border-style': 'none',
+          'border-radius': '12px',
+          'border-top-width': '0px',
+          'border-left-width': '0px',
+          'border-right-width': '0px',
+          'border-bottom-width': '0px'
+        },
+        margins: [16, 16],
+        mainColor: 'rgb(68,52,255)',
+        axis: {},
+        legend: { type: 'circle' },
+        tooltip: { background: 'rgb(38,38,38)' },
+        itemSpecific: { rounding: 8, padding: 4 }
+      }
+    },
+    {
+      name: 'dark',
+      label: 'Default (dark)',
+      theme: {
+        background: 'rgb(61,61,61)',
+        itemsBackground: 'rgb(38,38,38)',
+        boxShadow: { size: 'none', color: 'rgb(0, 0, 0)' },
+        title: { align: 'left', bold: false, italic: false, underline: false, border: false },
+        font: { fontFamily: 'Lato', 'font-style': 'normal', 'font-weight': 400, fontSize: 15 },
+        colors: ['rgb(48,36,179)', 'rgb(105,93,255)', 'rgb(199,194,255)', 'rgb(134,4,129)', 'rgb(204,55,198)', 'rgb(236,180,234)', 'rgb(220,141,0)', 'rgb(249,206,61)', 'rgb(253,237,182)', 'rgb(6,142,84)', 'rgb(58,213,147)', 'rgb(181,239,215)', 'rgb(85,78,78)', 'rgb(149,141,141)', 'rgb(215,212,212)'],
+        borders: {
+          'border-color': 'rgba(216,216,216,1)',
+          'border-style': 'none',
+          'border-radius': '12px',
+          'border-top-width': '0px',
+          'border-left-width': '0px',
+          'border-right-width': '0px',
+          'border-bottom-width': '0px'
+        },
+        margins: [16, 16],
+        mainColor: 'rgb(123,144,255)',
+        axis: {},
+        legend: { type: 'circle' },
+        tooltip: { background: 'rgb(248,248,248)' },
+        itemSpecific: { rounding: 8, padding: 4 }
+      }
+    },
+    {
+      name: 'royale',
+      label: 'Royale',
+      theme: {
+        background: '#0A2747',
+        itemsBackground: '#111e2f',
+        boxShadow: { size: 'S', color: 'rgb(0,0,0)' },
+        title: { align: 'center', bold: false, italic: false, underline: false, border: true },
+        borders: { 'border-radius': '3px' },
+        margins: [10, 10],
+        mainColor: '#f4a92c',
+        axis: {},
+        legend: { type: 'circle' },
+        tooltip: {},
+        colors: ['#feeaa1', '#e6cc85', '#ceaf6a', '#b79350', '#9f7738', '#885d20', '#704308'],
+        font: { fontFamily: 'Exo', fontSize: 13 }
+      }
+    },
+    {
+      name: 'urban',
+      label: 'Urban',
+      theme: {
+        background: '#42403c',
+        itemsBackground: '#e4dbcd',
+        boxShadow: { size: 'none', color: 'rgb(0,0,0)' },
+        title: { align: 'center', bold: false, italic: false, underline: false, border: true },
+        borders: {},
+        margins: [5, 5],
+        mainColor: '#33b59e',
+        axis: {},
+        legend: { type: 'circle' },
+        tooltip: {},
+        colors: ['#33b59e', '#453d30', '#ffffff', '#237869', '#165e4e', '#b89f76', '#7a6138', '#543c13', '#8a9c98', '#44524f'],
+        font: { fontFamily: 'Open Sans', fontSize: 13 }
+      }
+    }
+  ];
+  
+  selectedTheme = 'light';
 
   @ViewChild('chartContainer') container!: ElementRef;
 
@@ -478,11 +575,16 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Find the selected theme object from the options array
+    const selectedTheme = this.chartThemes.find(t => t.name === this.selectedTheme);
+    
     const renderData = {
       data: data,
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
-      options: {},
+      options: {
+        theme: selectedTheme?.theme || this.chartThemes[0].theme // Fallback to first theme if not found
+      },
       language: 'en',
       dimensions: this.getContainerDimensions()
     };
@@ -524,10 +626,15 @@ export class AppComponent implements OnInit, OnDestroy {
       cancelAnimationFrame(this.resizeAnimationFrame);
     }
 
+    // Find the selected theme object from the options array
+    const selectedThemeObj = this.chartThemes.find(t => t.name === this.selectedTheme);
+
     const resizeData = {
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
-      options: {},
+      options: {
+        theme: selectedThemeObj?.theme || this.chartThemes[0].theme
+      },
       language: 'en',
       dimensions: this.getContainerDimensions()
     };
@@ -596,7 +703,6 @@ export class AppComponent implements OnInit, OnDestroy {
         .replaceAll('\\', '\\\\') // Escape backslashes first
         .replaceAll('`', '\\`') // Escape backticks
         .replaceAll('$', String.raw`\$`) // Escape dollar signs
-        // eslint-disable-next-line prettier/prettier
         .replaceAll('\'', String.raw`\'`) // Escape single quotes
         .replaceAll('"', String.raw`\"`)
     );
@@ -732,6 +838,16 @@ export class AppComponent implements OnInit, OnDestroy {
     if (dataset) {
       this.selectedDatasetId = datasetId;
       this.selectedDatasetName = dataset.localizedName;
+    }
+  }
+
+  onChartThemeChange(event: CustomEvent<string>): void {
+    this.selectedTheme = event.detail;
+    // Re-render with the new theme
+    if (this.moduleLoaded) {
+      this.chartData$
+        .pipe(take(1))
+        .subscribe((data) => this.performRender(data));
     }
   }
 

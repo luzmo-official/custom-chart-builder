@@ -7,8 +7,7 @@
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "plugin:@angular-eslint/recommended", // Add Angular-specific rules
-    "plugin:prettier/recommended" // Ensure compatibility with Prettier
+    "plugin:@angular-eslint/recommended" // Add Angular-specific rules
   ],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
@@ -18,8 +17,7 @@
   },
   "plugins": [
     "@typescript-eslint",
-    "@angular-eslint",
-    "prettier"
+    "@angular-eslint"
   ],
   "rules": {
     // TypeScript Rules
@@ -38,9 +36,6 @@
     "brace-style": ["error", "1tbs", { "allowSingleLine": false }],
     "semi": ["error", "always"],
     "eqeqeq": ["error", "smart"],
-    "no-console": "warn",
-
-    // Prettier Integration
-    "prettier/prettier": ["error", { "singleQuote": true, "semi": true }]
+    "no-console": "warn"
   }
 }
