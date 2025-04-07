@@ -1,12 +1,41 @@
 # Luzmo Custom Chart Builder
 
-A powerful development environment for creating, testing, and packaging custom chart components for Luzmo dashboards.
+A powerful development environment for creating, testing, and packaging custom charts for Luzmo dashboards.
 
-![Luzmo Custom Chart Builder](https://img.shields.io/badge/Luzmo-Custom%20Chart-blue)
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick start](#quick-start)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Development](#development)
+- [Project structure](#project-structure)
+- [Creating your own Custom Chart](#creating-your-own-custom-chart)
+  - [Defining the slot configuration in manifest.json](#defining-the-slot-configuration-in-manifestjson)
+    - [Required properties](#required-properties)
+    - [Optional properties](#optional-properties)
+    - [Slot options properties](#slot-options-properties)
+  - [Implementing your chart in chart.ts](#implementing-your-chart-in-chartts)
+    - [render() function](#render-function)
+    - [resize() function](#resize-function)
+    - [buildQuery() function (optional)](#buildquery-function-optional)
+  - [Data formatting](#data-formatting)
+  - [Chart styling](#chart-styling)
+    - [Using the dashboard or chart theme](#using-the-dashboard-or-chart-theme)
+    - [Styling with chart.css](#styling-with-chartcss)
+- [Adding third party libraries](#adding-third-party-libraries)
+- [Building and packaging](#building-and-packaging)
+  - [Production package](#production-package)
+  - [Validation only](#validation-only)
+- [Troubleshooting](#troubleshooting)
+  - [Common issues](#common-issues)
+  - [Logs and debugging](#logs-and-debugging)
+- [License](#license)
+- [Resources](#resources)
 
 ## Overview
 
-The Luzmo Custom Chart Builder provides a complete workflow for developing custom chart visualizations. This toolkit includes:
+This Luzmo Custom Chart Builder provides a complete workflow for developing custom Luzmo visualizations. This toolkit includes:
 
 - An interactive development environment with live preview
 - Configurable data slots for chart customization
@@ -14,7 +43,7 @@ The Luzmo Custom Chart Builder provides a complete workflow for developing custo
 - Schema validation for chart configuration
 - Production-ready packaging tools
 
-## Quick Start
+## Quick start
 
 ### Prerequisites
 
@@ -56,7 +85,7 @@ When you first access the development environment, you'll be presented with a lo
 
 After successful authentication, you'll be redirected to the chart builder environment where you can access and use your Luzmo datasets to test your custom chart
 
-## Project Structure
+## Project structure
 
 ```
 custom-chart-builder/
@@ -72,27 +101,106 @@ custom-chart-builder/
 │           └── index.ts       # Entry point
 ```
 
-## Creating Your Own Custom Chart
-
-### Key Files to Modify
+## Creating your own Custom Chart
 
 To create your own chart, you'll primarily need to edit these three files:
 
-1. **chart.ts** - This is where you'll implement the chart rendering logic
-2. **manifest.json** - Define your chart's data slots and configuration
-3. **chart.css** - Add styles for your chart's visual appearance
+1. **manifest.json** - define your chart's data slots and configuration.
+2. **chart.ts** - this is where you'll implement the chart rendering logic.
+3. **chart.css** - add styles for your chart's visual appearance.
 
-### Implementing Your Chart in chart.ts
+### Defining the slot configuration in manifest.json
+
+The `manifest.json` file defines the data slots of your custom chart. A data slot can receive one or multiple columns from your datasets. These slot definitions determine what type of columns are accepted by your chart and how these options are displayed in Luzmo's dashboard editor.
+
+When a user adds a column to one of the data slots in the chart, Luzmo will automatically query the aggregated data, respecting any applied filters.
+
+This manifest file is validated against a Zod schema to ensure compatibility with the Luzmo platform.
+
+#### Required properties
+
+| Parameter | Description |
+|----------|-------------|
+| **`name`**<br>`STRING` | **Internal identifier for the slot**. Must be one of: `x-axis`, `y-axis`, `category`, `measure`, `coordinates`, `legend`, `geo`, `image`, `color`, `levels`, `slidermetric`, `dimension`, `destination`, `source`, `time`, `identifier`, `target`, `size`, `name`, `columns`, `column`, `row`, `evolution`, `close`, `open`, `low`, `high`, `order`, `route` |
+| **`label`**<br>`STRING` | **User-facing name displayed in the interface**. Can be a string or a record object for localization. |
+
+#### Optional properties
+
+| Parameter | Description |
+|----------|-------------|
+| **`description`**<br>`STRING` | Short explanation of the slot's purpose. |
+| **`position`**<br>`STRING` | Position of the slot in the chart overlay in the dashboard editor. Must be one of: `top-left`, `top`, `top-right`, `right`, `bottom-right`, `bottom`, `bottom-left`, `left`, `middle`. |
+| **`type`**<br>`STRING` | Data type. Must be one of: `'numeric'`, `'categorical'`, `'mixed'`. |
+| **`rotate`**<br>`BOOLEAN` | Whether the axis should be rotated. |
+| **`order`**<br>`NUMBER` | Display order in the interface. |
+| **`isRequired`**<br>`BOOLEAN` | Whether the slot must be filled. |
+| **`acceptableColumnTypes`**<br>`ARRAY` | Array of allowed column types. |
+| **`acceptableColumnSubtypes`**<br>`ARRAY` | Array of specific column subtypes. |
+| **`canAcceptFormula`**<br>`BOOLEAN` | Whether this slot can accept a formula-based column. |
+| **`canAcceptMultipleColumns`**<br>`BOOLEAN` | Whether multiple columns can be placed in this slot. |
+| **`requiredMinimumColumnsCount`**<br>`NUMBER` | Minimum number of columns required. |
+| **`isHidden`**<br>`BOOLEAN` | If true, this slot won't appear in the UI. |
+| **`noMultipleIfSlotsFilled`**<br>`ARRAY` | Array of slot names that prevent multiple columns when filled. |
+| **`options`**<br>`OBJECT` | Additional options for the slot. See Slot options properties below. |
+
+#### Slot options properties
+
+| Parameter | Description |
+|----------|-------------|
+| **`isBinningDisabled`**<br>`BOOLEAN` | Disable binning for categorical fields. |
+| **`areDatetimeOptionsEnabled`**<br>`BOOLEAN` | Enable date/time-based options. |
+| **`isAggregationDisabled`**<br>`BOOLEAN` | Disable aggregation functions. |
+| **`areGrandTotalsEnabled`**<br>`BOOLEAN` | Enable grand totals. |
+| **`showOnlyFirstSlotGrandTotals`**<br>`BOOLEAN` | Only show grand totals for first slot. |
+| **`isCumulativeSumEnabled`**<br>`BOOLEAN` | Enable cumulative sum calculations. |
+| **`showOnlyFirstSlotContentOptions`**<br>`BOOLEAN` | Only apply content options to first slot. |
+
+Example configuration of a custom chart with two slots, Category and Measure:
+
+```json
+{
+  "slots": [
+    {
+      "name": "category",
+      "rotate": false,
+      "label": "Category",
+      "type": "categorical",
+      "order": 1,
+      "options": { 
+        "isBinningDisabled": true,
+        "areDatetimeOptionsEnabled": true 
+      },
+      "isRequired": true,
+      "position": "bottom"
+    },
+    {
+      "name": "measure",
+      "rotate": false,
+      "label": "Measure",
+      "type": "numeric",
+      "order": 2,
+      "options": {
+        "isAggregationDisabled": false
+      },
+      "isRequired": true,
+      "position": "middle"
+    }
+  ]
+}
+```
+
+
+### Implementing your chart in chart.ts
 
 The `chart.ts` file contains the core logic for your chart. You need to implement three main functions:
 
-#### 1. render() Function
+#### render() function
 
 The `render()` function creates and draws your chart:
 
 ```typescript
 // Import required types
-import { Slot, SlotConfig, ItemQuery, ItemQueryDimension, ItemQueryMeasure } from '@luzmo/dashboard-contents-types';
+import { Slot, SlotConfig, ItemQuery, ItemQueryDimension, ItemQueryMeasure, ThemeConfig } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
 
 // Define the complete interface for chart parameters
@@ -101,9 +209,9 @@ interface ChartParams {
   data: any[][];                    // The data rows from the server
   slots: Slot[];                    // The filled slots with column mappings
   slotConfigurations: SlotConfig[]; // The configuration of available slots
-  options: Record<string, any>;     // Additional options passed to the chart
+  options: Record<string, any> & { theme: ThemeConfig };     // Additional options passed to the chart
   language: string;                 // Current language code (e.g., 'en')
-  dimensions: {                     // Available dimensions for rendering
+  dimensions: {                     // Width and height of the chart container in pixels
     width: number;
     height: number;
   };
@@ -137,14 +245,14 @@ export function render({
     .attr('width', width)
     .attr('height', height);
   
-  // 5. Add your chart elements here
+  // 5. Add your chart elements here...
   
   // 6. Store state for resize
   (container as any).__chartData = chartData;
 }
 ```
 
-#### 2. resize() Function
+#### resize() function
 
 The `resize()` function handles responsive behavior when the chart container changes size:
 
@@ -177,7 +285,7 @@ export function resize({
 }
 ```
 
-#### 3. buildQuery() Function (Optional)
+#### buildQuery() function (optional)
 
 > **IMPORTANT:** The `buildQuery()` method is completely optional. If you don't implement this method, Luzmo will automatically generate and run the appropriate query for your chart based on the slots configuration. You only need to implement this method if you want to customize the query behavior.
 
@@ -242,15 +350,17 @@ export function buildQuery({
 
 For more information about the query syntax and available options, see the [Luzmo Query Syntax Documentation](https://developer.luzmo.com/guide/interacting-with-data--querying-data#api-query-syntax).
 
-### Data Formatting
+### Data formatting
 
-Luzmo provides a powerful formatter utility that helps format your data consistently with the rest of the dashboard. You can import it from `@luzmo/analytics-components-kit/utils`:
+Luzmo provides a powerful formatter utility that helps format your data based on the format configured for the column (which can be changed by the user in the dashboard editor). You can import this utility from `@luzmo/analytics-components-kit/utils`:
 
 ```typescript
 import { formatter } from '@luzmo/analytics-components-kit/utils';
 ```
 
-The formatter automatically handles:
+It takes a slot content (i.e. a column) as an argument and returns a function that formats the data based on the format configured for the column.
+
+The formatter function automatically handles:
 - Number formatting (thousands separators, decimal places)
 - Date/time formatting
 - Currency formatting
@@ -287,89 +397,68 @@ export function render({ data, slots }: ChartParams): void {
 }
 ```
 
-### Configuring manifest.json
+### Chart styling
 
-The `manifest.json` file defines the data slots that users can drag and drop in the dashboard. This file is validated against a Zod schema to ensure compatibility with the Luzmo platform.
+#### Using the dashboard or chart theme
 
-Example configuration:
+Your custom chart can be styled dynamically based on the chart or dashboard theme configured by the user. The `options` object passed to the `render()` function always contains a `theme` property that you can use to customize the chart's appearance. 
 
-```json
-{
-  "slots": [
-    {
-      "name": "category",
-      "rotate": false,
-      "label": "Category",
-      "type": "categorical",
-      "order": 1,
-      "options": { 
-        "isBinningDisabled": true,
-        "areDatetimeOptionsEnabled": true 
-      },
-      "isRequired": true
-    },
-    {
-      "name": "measure",
-      "rotate": true,
-      "label": "Value",
-      "type": "numeric",
-      "order": 2,
-      "options": {
-        "isAggregationDisabled": false
-      },
-      "isRequired": true
-    },
-    {
-      "name": "legend",
-      "rotate": false,
-      "label": "Legend",
-      "type": "categorical",
-      "order": 3,
-      "options": {
-        "isBinningDisabled": true
-      },
-      "isRequired": false
-    }
-  ]
-}
-```
-
-Valid slot configuration options include:
-
-- **name**: Internal identifier for the slot (required)
-- **label**: User-facing name displayed in the interface (required)
-- **type**: Data type - 'categorical', 'numeric', or 'datetime' (required)
-- **rotate**: Whether the axis should be rotated (boolean)
-- **order**: Display order in the interface (number)
-- **isRequired**: Whether this slot must be filled (boolean)
-- **options**: Additional configuration options
-  - **isBinningDisabled**: Disable binning for categorical fields
-  - **areDatetimeOptionsEnabled**: Enable date formatting options
-  - **isAggregationDisabled**: Disable aggregation functions
-
-### Theme Configuration
-
-The chart builder supports theme customization through the `ThemeConfig` interface. This allows your chart to adapt to different visual styles and color schemes.
-
-#### ThemeConfig Interface
-
-The `ThemeConfig` interface is available from the `@luzmo/dashboard-contents-types` library.
-
-Some important properties in the ThemeConfig interface are:
+This `theme` property is of type `ThemeConfig` (available from the `@luzmo/dashboard-contents-types` library) and contains following properties.
 
 ```typescript
 interface ThemeConfig {
-  darkOrLight: 'dark' | 'light';  // Theme mode
-  background: string;              // Background color (hex, rgb, or named color)
-  mainColor: string;               // Primary color for chart elements
-  baseFontSize: number;            // Base font size in pixels
-  itemsBackground?: string;        // Optional background for chart items
+  axis?: Record<'fontSize', number> // Font size of the axis labels.
+  background?: string; // Background color of the dashboard canvas.
+  borders?: { 
+    'border-color'?: string; // Color of the border
+    'border-radius'?: string; // Radius of the border
+    'border-style'?: string; // Style of the border
+    'border-top-width'?: string; // Top width of the border
+    'border-right-width'?: string; // Right width of the border
+    'border-bottom-width'?: string; // Bottom width of the border
+    'border-left-width'?: string; // Left width of the border
+  }; // Border styling.
+  boxShadow?: { 
+    size?: 'S' | 'M' | 'L' | 'none'; // Size of the boxshadow.
+    color?: string; // Color of the boxshadow.
+  }; // Box shadow styling.
+  colors?: string[]; // Custom color palette, an array of colors used when a chart needs multiple colors (e.g. donut chart).
+  font?: { 
+    fontFamily?: string; // Font family used in the chart.
+    fontSize?: number; // Font size in px.
+    'font-weight'?: number; // Font weight.
+    'font-style'?: 'normal'; // Font style.
+  }; // Font styling.
+  itemsBackground?: string; // Background color of the chart.
+  itemSpecific?: { 
+    rounding?: number; // Rounding of elements in the chart.
+    padding?: number; // Padding between elements in the chart.
+  };
+  legend?: { 
+    type?: 'normal' | 'line' | 'circle'; // Display type of the legend.
+    fontSize?: number; // Font size of the legend in px.
+    lineHeight?: number; // Line height of the legend in px.
+  }; // Legend styling, applied if a legend is displayed.
+  mainColor?: string; // Main color of the theme.
+  title?: { 
+    align?: 'left' | 'center' | 'right'; // Alignment of the title
+    bold?: boolean; // Whether the title is bold
+    border?: boolean; // Whether the title has a bottom border
+    fontSize?: number; // Font size of the title in px
+    italic?: boolean; // Whether the title is italic
+    lineHeight?: number; // Line height of the title in px
+    underline?: boolean; // Whether the title is underlined
+  }; // Title styling, applied if a title is displayed.
+  tooltip?: { 
+    fontSize?: number; // Font size of the tooltip in px
+    background?: string; // Background color of the tooltip
+    lineHeight?: number; // Line height of the tooltip in px
+    opacity?: number; // Opacity of the tooltip
+  }; // Tooltip styling, applied if a tooltip is displayed (e.g. on hover over a bar in a bar chart).
 }
 ```
-For a full overview of all available ThemeConfig properties, see the [Theme Documentation](https://developer.luzmo.com/api/searchTheme).
 
-#### Example Theme Usage
-
+Example usage:
 ```typescript
 import { ThemeConfig } from '@luzmo/dashboard-contents-types';
 
@@ -384,55 +473,46 @@ export function render({
   dimensions: { width = 600, height = 400 } = {}
 }: ChartParams): void {
   // Extract theme from options
-  const theme: ThemeConfig = options.theme || {
-    darkOrLight: 'light',
-    background: '#ffffff',
-    mainColor: '#7b90ff',
-    baseFontSize: 13
-  };
-  
-  // Apply theme to chart elements
-  const isDarkMode = theme.darkOrLight === 'dark';
-  
-  // Use theme properties for styling
-  const textColor = isDarkMode ? '#fff' : '#333';
-  const axisColor = isDarkMode ? '#666' : '#ccc';
-  const backgroundColor = theme.background;
-  const fontSize = theme.baseFontSize;
-  const primaryColor = theme.mainColor;
-  
-  // Apply these theme properties to your chart elements
-  // For example:
-  // - Set background color of the chart container
-  // - Apply text color to labels and titles
-  // - Use primary color for data elements
-  // - Set font size for text elements
-  // - Adjust contrast for better readability in dark/light modes
-  
-  // ... rest of your chart rendering code
+  const theme: ThemeConfig = options.theme;
+    
+  // Clear container and set background
+  container.innerHTML = '';
+  container.style.backgroundColor = theme.itemsBackground;
+
+  // Create main chart container with dynamic theme properties
+  const chartContainer = document.createElement('div');
+  chartContainer.className = 'chart-container';
+  chartContainer.style.fontFamily = theme.font?.fontFamily || 'system-ui, sans-serif';
+  chartContainer.style.fontSize = (theme.font?.fontSize || 13) + 'px';
+
+  // Add a title that uses mainColor
+  const titleElement = document.createElement('h2');
+  titleElement.textContent = 'Chart Title';
+  titleElement.style.color = theme.mainColor;
+
+  chartContainer.appendChild(titleElement);
 }
 ```
 
-### Styling with chart.css
+#### Styling with chart.css
 
-The `chart.css` file allows you to add custom styles to your chart elements. The CSS is bundled with your chart and isolated from the dashboard styles:
+The `chart.css` file allows you to add custom styles to your chart elements. The CSS is bundled with your chart and isolated from the dashboard styles.
+
+Example:
 
 ```css
-/* Container styles */
 .bar-chart-container {
   width: 100%;
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Chart title styles */
 .chart-title {
   font-size: 16px;
   font-weight: 600;
   text-align: center;
 }
 
-/* Axis styles */
 .axis path,
 .axis line {
   stroke: #e0e0e0;
@@ -443,7 +523,6 @@ The `chart.css` file allows you to add custom styles to your chart elements. The
   fill: #666;
 }
 
-/* Bar styles */
 .bar {
   transition: opacity 0.2s;
 }
@@ -452,33 +531,31 @@ The `chart.css` file allows you to add custom styles to your chart elements. The
   opacity: 0.8;
 }
 
-/* Legend styles */
 .legend-item {
   display: inline-flex;
   align-items: center;
   margin-right: 10px;
   font-size: 12px;
 }
-
-/* Empty state styles */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #666;
-  text-align: center;
-}
 ```
 
 Your CSS will be minified during the build process and included in the final chart package.
 
-## Building and Packaging
+## Adding third party libraries
 
-### Production Package
+You can install and use third party libraries in your chart. Add them to the package.json file of the custom-chart project and import them in your chart.ts file to start using them.
 
-To create a distribution-ready package:
+For example, interesting libraries you can use to develop your chart are:
+- D3.js
+- Chart.js
+- Tanstack Table
+- ...
+
+## Building and packaging
+
+### Production package
+
+To create a distribution-ready package that can be uploaded to Luzmo:
 
 ```bash
 npm run build
@@ -487,9 +564,9 @@ npm run build
 This command:
 1. Builds the chart
 2. Validates the manifest.json against the schema
-3. Creates a ZIP archive (bundle.zip) ready for distribution
+3. Creates a ZIP archive (bundle.zip) containing all required files, ready for upload to Luzmo
 
-### Validation Only
+### Validation only
 
 To validate your manifest.json without building:
 
@@ -497,27 +574,15 @@ To validate your manifest.json without building:
 npm run validate
 ```
 
-## Adding Custom Libraries
-
-You can use any JavaScript visualization libraries:
-
-- D3.js (included by default)
-- Chart.js
-- Highcharts
-- ECharts
-- Plain SVG or Canvas
-
-Add them to the custom-chart package.json and import them in your chart.ts file.
-
 ## Troubleshooting
 
-### Common Issues
+### Common issues
 
 - **Manifest validation errors**: Check your slot configuration against the schema
 - **Chart not rendering**: Verify your data structure matches what your render function expects
 - **Build errors**: Check the console for detailed error messages
 
-### Logs and Debugging
+### Logs and debugging
 
 - Builder logs appear with the [ANGULAR] prefix
 - Bundle server logs appear with the [BUNDLE] prefix
@@ -529,5 +594,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Resources
 
-- [Luzmo Documentation](https://developer.luzmo.com)
-- [Custom Chart API Reference](https://developer.luzmo.com)
+- [Developer Guide](https://developer.luzmo.com/guide/embedding--custom-charts)
+- [Custom Charts Academy Article](https://academy.luzmo.com/article/xtau1755)
