@@ -16,8 +16,6 @@
         </div>
         <div class="column-content">
           <app-dataset-picker
-            [datasets$]="datasets$"
-            [loadingDatasets$]="loadingAllDatasets$"
             (datasetSelected)="onDatasetSelected($event)"
           ></app-dataset-picker>
 

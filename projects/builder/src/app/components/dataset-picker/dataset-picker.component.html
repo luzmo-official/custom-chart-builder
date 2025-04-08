@@ -69,7 +69,15 @@
         </div>
       </div>
       <div class="dropdown-items-container">
-        @if (filteredDatasets.length > 0) {
+        @if (!isLoadingDatasets && datasets.length === 0) {
+          <div class="no-results">
+            No datasets available
+          </div>
+        } @else if (!isLoadingDatasets && datasets.length > 0 && filteredDatasets.length === 0 && searchQuery) {
+          <div class="no-results">
+            No matching datasets found for "{{ searchQuery }}"
+          </div>
+        } @else {
           <cdk-virtual-scroll-viewport class="virtual-scroll-viewport" itemSize="44" minBufferPx="200" maxBufferPx="400">
             @for (dataset of filteredDatasets; track trackById(0, dataset)) {
               <button 
@@ -83,10 +91,6 @@
               </button>
             }
           </cdk-virtual-scroll-viewport>
-        } @else {
-          <div class="no-results">
-            No matching datasets found
-          </div>
         }
       </div>
     </div>

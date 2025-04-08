@@ -25,6 +25,8 @@ interface TwoFAForm {
   errorMsg: FormControl<string>;
 }
 
+type RegionType = 'europe' | 'us' | 'custom';
+
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
@@ -38,14 +40,22 @@ export class LoginComponent implements OnInit {
   private httpClient = inject(HttpClient);
   private formBuilder = inject(FormBuilder);
 
-  region: 'europe' | 'us' | 'custom' = 'europe';
-  vpcAppUrl: string = '';
-  vpcApiUrl: string = '';
+  region: RegionType = 'europe';
+  vpcAppUrl = '';
+  vpcApiUrl = '';
   mode: 'login' | '2FA' = 'login';
   logInForm!: FormGroup<LogInForm>;
   twoFAForm!: FormGroup<TwoFAForm>;
 
   ngOnInit(): void {
+    this.initForms();
+    this.setRegionUrls('europe');
+  }
+
+  /**
+   * Initialize the login and 2FA forms
+   */
+  private initForms(): void {
     this.logInForm = this.formBuilder.nonNullable.group({
       email: ['', [Validators.email, Validators.required]],
       password: ['', [Validators.required]],
@@ -60,127 +70,155 @@ export class LoginComponent implements OnInit {
     });
   }
 
+  /**
+   * Attempt to log in with email and password
+   */
   attemptLogin(email: string, password: string): void {
     this.logInForm.controls.busy.setValue(true);
-    this.httpClient
-      .post<AuthResponse>(
-        `${this.authService.getAppUrl()}/auth/vi`,
-        { email, password },
-        { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
-      )
+    this.logInForm.controls.errorMsg.setValue('');
+
+    this.authenticateUser(email, password).subscribe({
+      next: (user) => {
+        this.logInForm.controls.busy.setValue(false);
+        if (user && !isString(user)) {
+          this.loginUser(user);
+        }
+      },
+      error: (error: HttpErrorResponse) => {
+        this.handleLoginError(error);
+      }
+    });
+  }
+
+  /**
+   * Authenticate with the server
+   */
+  private authenticateUser(email: string, password: string, token?: string) {
+    const appUrl = this.authService.getAppUrl();
+    const requestBody = token
+      ? { email, password, token, useRecoveryCode: false }
+      : { email, password };
+
+    return this.httpClient
+      .post<AuthResponse>(`${appUrl}/auth/vi`, requestBody, {
+        headers: new HttpHeaders({ 'Content-Type': 'application/json' })
+      })
       .pipe(
         take(1),
         switchMap((response: AuthResponse) => {
           if (isEmpty(response)) {
             return EMPTY;
-          } else {
-            if (response.user.twoFactorAuthentication) {
-              this.mode = '2FA';
-              return of('2FA');
-            } else {
-              this.authService.setAuthenticated(true, response.user);
-              return this.authService.loadUser(response.user.id);
-            }
           }
-        })
-      )
-      .subscribe({
-        next: (user) => {
-          this.logInForm.controls.busy.setValue(false);
 
-          if (user && !isString(user)) {
-            this.loginUser(user);
+          if (!token && response.user.twoFactorAuthentication) {
+            this.mode = '2FA';
+            return of('2FA');
           }
-        },
-        error: (error: HttpErrorResponse) => {
-          console.error('error', error);
-          this.logInForm.controls.busy.setValue(false);
-          this.logInForm.controls.errorMsg.setValue(
-            this.getErrorMessage(error, 'login')
-          );
+
+          // Ensure we clear previous state before setting new one
           this.authService.setAuthenticated(false);
-        }
-      });
+          this.authService.setAuthenticated(true, response.user);
+          return this.authService.loadUser(response.user.id);
+        })
+      );
   }
 
+  /**
+   * Submit 2FA verification
+   */
   submit2FA(email: string, password: string, token: string): void {
     this.twoFAForm.controls.busy.setValue(true);
     this.twoFAForm.controls.errorMsg.setValue('');
 
-    this.httpClient
-      .post<AuthResponse>(
-        `${this.authService.getAppUrl()}/auth/vi`,
-        { email, password, token, useRecoveryCode: false },
-        { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
-      )
-      .pipe(
-        take(1),
-        switchMap((response: AuthResponse) => {
-          if (isEmpty(response)) {
-            return EMPTY;
-          }
-
-          this.authService.setAuthenticated(true, response.user);
-          return this.authService.loadUser(response.user.id);
-        })
-      )
-      .subscribe({
-        next: (user) => {
-          this.twoFAForm.controls.busy.setValue(false);
-
-          if (user && !isString(user)) {
-            this.loginUser(user);
-          }
-        },
-        error: (error: HttpErrorResponse) => {
-          this.twoFAForm.controls.totp.setValue('');
-          this.twoFAForm.controls.busy.setValue(false);
-          this.logInForm.controls.errorMsg.setValue(
-            this.getErrorMessage(error.error, 'login')
-          );
-          this.mode = 'login';
+    this.authenticateUser(email, password, token).subscribe({
+      next: (user) => {
+        this.twoFAForm.controls.busy.setValue(false);
+        if (user && !isString(user)) {
+          this.loginUser(user);
         }
-      });
+      },
+      error: (error: HttpErrorResponse) => {
+        this.handle2FAError(error);
+      }
+    });
   }
 
+  /**
+   * Handle 2FA form errors
+   */
+  private handle2FAError(error: HttpErrorResponse): void {
+    this.twoFAForm.controls.totp.setValue('');
+    this.twoFAForm.controls.busy.setValue(false);
+    this.logInForm.controls.errorMsg.setValue(
+      this.getErrorMessage(error.error, 'login')
+    );
+    this.mode = 'login';
+  }
+
+  /**
+   * Handle login form errors
+   */
+  private handleLoginError(error: HttpErrorResponse): void {
+    this.logInForm.controls.busy.setValue(false);
+    this.logInForm.controls.errorMsg.setValue(
+      this.getErrorMessage(error, 'login')
+    );
+    this.authService.setAuthenticated(false);
+  }
+
+  /**
+   * Cancel 2FA verification
+   */
   cancel2FA(): void {
     this.mode = 'login';
     this.logInForm.controls.password.setValue('');
     this.logInForm.controls.busy.setValue(false);
   }
 
-  onRegionChanged(event: CustomEvent<typeof this.region>): void {
-    const region = event.detail;
+  /**
+   * Handle region change
+   */
+  onRegionChanged(event: CustomEvent<RegionType>): void {
+    this.setRegionUrls(event.detail);
+  }
+
+  /**
+   * Set URLs based on the selected region
+   */
+  private setRegionUrls(region: RegionType): void {
+    this.region = region;
 
     if (region === 'us') {
-      this.region = 'us';
-      this.authService.setAppUrl('https://app.us.luzmo.com');
-      this.authService.setApiUrl('https://api.us.luzmo.com');
+      this.authService.setRegion('US');
+      this.vpcAppUrl = '';
+      this.vpcApiUrl = '';
     } else if (region === 'europe') {
-      this.region = 'europe';
-      this.authService.setAppUrl('https://app.luzmo.com');
-      this.authService.setApiUrl('https://api.luzmo.com');
-    } else if (region === 'custom') {
-      this.region = 'custom';
-      // TODO: set custom app and api urls
+      this.authService.setRegion('Europe');
+      this.vpcAppUrl = '';
+      this.vpcApiUrl = '';
     }
+    // 'custom' region URLs are set via the input fields
+  }
+
+  private removeTrailingSlash(url: string): string {
+    return url.endsWith('/') ? url.slice(0, -1) : url;
   }
 
   onVpcAppUrlChanged(event: Event): void {
-    const vpcAppUrl = (event.target as HTMLInputElement).value;
-
-    if (vpcAppUrl) {
-      this.vpcAppUrl = vpcAppUrl;
-      this.authService.setAppUrl(vpcAppUrl);
+    const url = (event.target as HTMLInputElement).value?.trim();
+    if (url) {
+      const cleanUrl = this.removeTrailingSlash(url);
+      this.vpcAppUrl = cleanUrl;
+      this.authService.setAppUrl(cleanUrl);
     }
   }
 
   onVpcApiUrlChanged(event: Event): void {
-    const vpcApiUrl = (event.target as HTMLInputElement).value;
-
-    if (vpcApiUrl) {
-      this.vpcApiUrl = vpcApiUrl;
-      this.authService.setApiUrl(vpcApiUrl);
+    const url = (event.target as HTMLInputElement).value?.trim();
+    if (url) {
+      const cleanUrl = this.removeTrailingSlash(url);
+      this.vpcApiUrl = cleanUrl;
+      this.authService.setApiUrl(cleanUrl);
     }
   }
 
@@ -208,6 +246,6 @@ export class LoginComponent implements OnInit {
       return error.error;
     }
 
-    return 'Oops, unable to ' + action + '!';
+    return `Oops, unable to ${action}!`;
   }
 }

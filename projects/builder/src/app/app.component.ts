@@ -20,7 +20,7 @@ import '@luzmo/lucero/picker';
 import type { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
-import type { Observable, Subscription } from 'rxjs';
+import type { Observable } from 'rxjs';
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import {
   debounceTime,
@@ -110,21 +110,7 @@ export class AppComponent implements OnInit, OnDestroy {
   @ViewChild('datasetDropdown') datasetDropdown!: NgbDropdown;
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
 
-  // State properties
-  searchQuery = '';
-  sortOption: 'name' | 'date' = 'date';
-  selectedDatasetId: string | null = null;
-  selectedDatasetName: string | null = null;
-  isLoadingDatasets = false;
-  datasets: any[] = [];
-  filteredDatasets: any[] = [];
-
-  // Subscriptions
-  private datasetsSubscription: Subscription | null = null;
-  private loadingSubscription: Subscription | null = null;
-
   // Loading state indicators
-  loadingAllDatasets$ = new BehaviorSubject<boolean>(false);
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
   queryingData$ = new BehaviorSubject<boolean>(false);
 
@@ -143,22 +129,6 @@ export class AppComponent implements OnInit, OnDestroy {
   currentUser$ = this.authService.isAuthenticated$.pipe(
     filter((isAuthenticated) => isAuthenticated),
     switchMap(() => this.authService.getOrLoadUser())
-  );
-
-  datasets$ = this.authService.isAuthenticated$.pipe(
-    untilDestroyed(this),
-    filter((isAuthenticated) => isAuthenticated),
-    tap(() => setTimeout(() => this.loadingAllDatasets$.next(true), 0)),
-    filter(() => !this.loadingAllDatasets$.value),
-    switchMap(() => this.luzmoAPIService.loadAllDatasets()),
-    map((result) =>
-      result.rows.map((dataset: any) => {
-        dataset.localizedName =
-          dataset.name['en'] || dataset.name[Object.keys(dataset.name)[0]];
-        return dataset;
-      })
-    ),
-    tap(() => setTimeout(() => this.loadingAllDatasets$.next(false), 0))
   );
 
   private datasetState: DatasetState = {
@@ -724,16 +694,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.initializeSlotConfigs();
     window.addEventListener('message', this.handleMessage);
 
-    this.loadingSubscription = this.loadingAllDatasets$.subscribe(
-      (isLoading) => {
-        this.isLoadingDatasets = isLoading;
-      }
-    );
-
-    this.datasetsSubscription = this.datasets$.subscribe((datasets) => {
-      this.datasets = datasets || [];
-    });
-
     this.authService.isAuthenticated$
       .pipe(
         filter((isAuthenticated) => isAuthenticated),
@@ -765,14 +725,6 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.blobUrl) {
       URL.revokeObjectURL(this.blobUrl);
       this.blobUrl = null;
-    }
-
-    if (this.datasetsSubscription) {
-      this.datasetsSubscription.unsubscribe();
-    }
-
-    if (this.loadingSubscription) {
-      this.loadingSubscription.unsubscribe();
     }
   }
 
@@ -832,13 +784,6 @@ export class AppComponent implements OnInit, OnDestroy {
    */
   onDatasetSelected(datasetId: string): void {
     this.selectedDatasetIdSubject.next(datasetId);
-
-    // Find the dataset to update the name
-    const dataset = this.datasets.find((d) => d.id === datasetId);
-    if (dataset) {
-      this.selectedDatasetId = datasetId;
-      this.selectedDatasetName = dataset.localizedName;
-    }
   }
 
   onChartThemeChange(event: CustomEvent<string>): void {
