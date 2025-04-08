@@ -23,6 +23,9 @@ A powerful development environment for creating, testing, and packaging custom c
   - [Chart styling](#chart-styling)
     - [Using the dashboard or chart theme](#using-the-dashboard-or-chart-theme)
     - [Styling with chart.css](#styling-with-chartcss)
+  - [Interacting with the dashboard](#interacting-with-the-dashboard)
+    - [Filter event (setFilter)](#filter-event-setfilter)
+    - [Custom event (customEvent)](#custom-event-customevent)
 - [Adding third party libraries](#adding-third-party-libraries)
 - [Building and packaging](#building-and-packaging)
   - [Production package](#production-package)
@@ -540,6 +543,99 @@ Example:
 ```
 
 Your CSS will be minified during the build process and included in the final chart package.
+
+### Interacting with the Dashboard
+
+Your custom chart can interact with other items in the dashboard by sending events to the parent window. There are two main types of events you can send:
+
+#### Filter event (setFilter)
+
+Filter events allow your chart to filter data in other dashboard items. The filter structure must match the `ItemFilter` type from the `@luzmo/dashboard-contents-types` library.
+
+```typescript
+import { ItemFilter } from '@luzmo/dashboard-contents-types';
+
+// Example of sending a filter event
+function sendFilterEvent(filters: ItemFilter[]): void {
+  const eventData = {
+    type: 'setFilter',  // Must always be 'setFilter'
+    filters: filters
+  };
+  
+  // Post message to parent window
+  window.parent.postMessage(eventData, '*');
+}
+
+// Example usage in a click handler
+function onBarClick(category: string, value: number): void {
+  const filters: ItemFilter[] = [
+    {
+      expression: '? = ?',  // Filter expression
+      parameters: [
+        {
+          columnId: 'category-column-id',  // Column to filter on
+          datasetId: 'dataset-id'          // Dataset containing the column
+        },
+        category  // Value to filter by
+      ]
+    }
+  ];
+  
+  sendFilterEvent(filters);
+}
+```
+
+The `ItemFilter` interface has the following structure:
+
+```typescript
+interface ItemFilter {
+  // Filter expression from a predefined list
+  expression: '? = ?' | '? != ?' | '? in ?' | '? not in ?' | '? like ?' | '? not like ?' | 
+              '? starts with ?' | '? not starts with ?' | '? ends with ?' | '? not ends with ?' | 
+              '? < ?' | '? <= ?' | '? > ?' | '? >= ?' | '? between ?' | '? is null' | '? is not null';
+  
+  // Filter parameters
+  parameters: [
+    {
+      columnId?: string;    // Column to filter on
+      datasetId?: string;   // Dataset containing the column
+      level?: number;       // Optional level for hierarchical or datetime data
+    },
+    any                     // Value to filter by
+  ];
+}
+```
+
+#### Custom event (customEvent)
+
+Custom events allow your chart to send any data from your chart to the dashboard for custom handling. This custom event can then further travel from the dashboard to your own application (if the dashboard is embedded), allowing you to create flexible and powerful workflows in your own application. 
+
+The event type must always be 'customEvent', but you can include any data structure you need.
+
+```typescript
+// Example of sending a custom event
+function sendCustomEvent(eventType: string, data: any): void {
+  const eventData = {
+    type: 'customEvent',  // Must always be 'customEvent'
+    data: {
+      eventType: eventType,  // Your custom event type
+      ...data                // Any additional data you want to send
+    }
+  };
+  
+  // Post message to parent window
+  window.parent.postMessage(eventData, '*');
+}
+
+// Example usage in a click handler
+function onDataPointClick(category: string, value: number): void {
+  sendCustomEvent('dataPointSelected', {
+    category: category,
+    value: value,
+    timestamp: new Date().toISOString()
+  });
+}
+```
 
 ## Adding third party libraries
 
