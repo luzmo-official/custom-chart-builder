@@ -125,7 +125,7 @@ This manifest file is validated against a Zod schema to ensure compatibility wit
 | Parameter | Description |
 |----------|-------------|
 | **`name`**<br>`STRING` | **Internal identifier for the slot**. Must be one of: `x-axis`, `y-axis`, `category`, `measure`, `coordinates`, `legend`, `geo`, `image`, `color`, `levels`, `slidermetric`, `dimension`, `destination`, `source`, `time`, `identifier`, `target`, `size`, `name`, `columns`, `column`, `row`, `evolution`, `close`, `open`, `low`, `high`, `order`, `route` |
-| **`label`**<br>`STRING` | **User-facing name displayed in the interface**. Can be a string or a record object for localization. |
+| **`label`**<br>`STRING` | **User-facing name displayed in the interface**. Can be a string or a localized string. |
 
 #### Optional properties
 
