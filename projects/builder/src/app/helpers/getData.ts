@@ -1,11 +1,11 @@
-import type { ItemQueryDimension, Slot } from '@luzmo/dashboard-contents-types';
+import type { GenericSlotContent, ItemQueryDimension, Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import type { ItemQuery, ItemQueryMeasure } from './types';
 
-function generateMetadataFromSlot(
-  slots: Slot[],
-  slotName: string,
-  name: string
-) {
+interface SlotMetadata {
+  [key: string]: GenericSlotContent[] | boolean;
+}
+
+function generateMetadataFromSlot(slots: Slot[], slotName: string, name: string): SlotMetadata {
   const slot = slots.find((s) => s.name === slotName) || { content: [] };
   const content = slot.content || [];
 
@@ -15,88 +15,63 @@ function generateMetadataFromSlot(
   };
 }
 
-export function buildLuzmoQuery(slots: Slot[]): ItemQuery {
-  // Generate metadata from slots
-  const dateDef = generateMetadataFromSlot(slots, 'date', 'Date');
-  const orderDef = generateMetadataFromSlot(slots, 'order', 'Order');
-  const categoryDef = generateMetadataFromSlot(slots, 'category', 'Category');
-  const measureDef = generateMetadataFromSlot(slots, 'measure', 'Measure');
+export function buildLuzmoQuery(slots: Slot[], slotConfigurations: SlotConfig[]): ItemQuery {
+  // Create metadata definitions dynamically from slotConfigurations
+  const slotDefs: Record<string, SlotMetadata> = {};
+
+  slotConfigurations.map(slotConfig => {
+    const capitalizedName = slotConfig.name.charAt(0).toUpperCase() + slotConfig.name.slice(1);
+
+    slotDefs[slotConfig.name] = generateMetadataFromSlot(slots, slotConfig.name, capitalizedName);
+  });
+
   const dimensions: ItemQueryDimension[] = [];
   const measures: ItemQueryMeasure[] = [];
 
-  console.log(dateDef, categoryDef, measureDef);
+  // Add dimensions and measures dynamically based on slot configurations
+  for (const slotConfig of slotConfigurations) {
+    const slotDef = slotDefs[slotConfig.name];
+    const capitalizedName = slotConfig.name.charAt(0).toUpperCase() + slotConfig.name.slice(1);
+    const hasKey = `has${capitalizedName}`;
+    const contentKey = `content${capitalizedName}`;
 
-  // Add dimensions and measures
-  if (dateDef['hasDate']) {
-    for (const date of (dateDef as any)['contentDate']) {
-      dimensions.push({
-        dataset_id: date.datasetId,
-        column_id: date.columnId
-      });
-    }
-  }
-  if (orderDef['hasOrder']) {
-    for (const order of (orderDef as any)['contentOrder']) {
-      dimensions.push({
-        dataset_id: order.datasetId,
-        column_id: order.columnId
-      });
-    }
-  }
-  if (categoryDef['hasCategory']) {
-    for (const category of (categoryDef as any)['contentCategory']) {
-      dimensions.push({
-        dataset_id: category.datasetId,
-        column_id: category.columnId
-      });
-    }
-  }
-  if (measureDef['hasMeasure']) {
-    for (const measure of (measureDef as any)['contentMeasure']) {
-      measures.push({
-        dataset_id: measure.datasetId,
-        column_id: measure.columnId
-      });
-    }
-  }
-
-  if (dimensions.length === 0 && measures.length === 0) {
-    const xSlot = slots.find((slot) => (slot.name as any) === 'x');
-    const ySlot = slots.find((slot) => (slot.name as any) === 'y');
-
-    // Add dimensions and measures
-    if (
-      xSlot &&
-      xSlot?.content?.length > 0 &&
-      ySlot &&
-      ySlot?.content?.length > 0
-    ) {
-      dimensions.push({
-        dataset_id: xSlot.content[0].datasetId,
-        column_id: xSlot.content[0].columnId
-      });
-      dimensions.push({
-        dataset_id: ySlot.content[0].datasetId,
-        column_id: ySlot.content[0].columnId
-      });
+    if (slotDef[hasKey] as boolean) {
+      for (const item of slotDef[contentKey] as GenericSlotContent[]) {
+        // Determine if this should be a dimension or measure based, on slot type
+        if (slotConfig.type === 'numeric') {
+          if (item.aggregationFunc) {
+            measures.push({
+              dataset_id: item.datasetId,
+              column_id: item.columnId,
+              aggregation: { type: item.aggregationFunc }
+            });
+          }
+          else {
+            measures.push({
+              dataset_id: item.datasetId,
+              column_id: item.columnId
+            });
+          }
+        }
+        else {
+          dimensions.push({
+            dataset_id: item.datasetId,
+            column_id: item.columnId
+          });
+        }
+      }
     }
   }
 
-  console.log('QQ', dimensions, measures);
-
-  // Build query object
   const query: ItemQuery = {
     dimensions,
     measures,
     limit: { by: 60000 },
     options: {
       locale_id: 'en',
-      timezone_id: 'UTC',
-      rollup_data: false
+      timezone_id: 'UTC'
     }
   };
-
-  console.log(query);
 
   return query;
 }

@@ -419,7 +419,7 @@ export class AppComponent implements OnInit, OnDestroy {
       return this.queryReady$.pipe(
         switchMap((query) => {
           // If no custom query is available yet, use the default
-          const finalQuery = query || buildLuzmoQuery(slots);
+          const finalQuery = query || buildLuzmoQuery(slots, this.slotConfigs);
           console.log('Fetching data with query', finalQuery);
           this.queryingData$.next(true);
 
