@@ -1,30 +1,12 @@
+import { formatter } from '@luzmo/analytics-components-kit/utils';
 import type {
+  ItemData,
+  ItemFilter,
+  ItemThemeConfig,
   Slot,
-  SlotConfig,
-  ItemQueryDimension,
-  ItemQueryMeasure,
-  ItemQuery
+  SlotConfig
 } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
-import { formatter } from '@luzmo/analytics-components-kit/utils';
-
-// Filter related interfaces
-interface ItemFilter {
-  expression: '? = ?' | '? in ?';
-  parameters: [
-    {
-      column_id?: string;
-      dataset_id?: string;
-      level?: number;
-    },
-    any
-  ];
-  properties?: {
-    origin: 'filterFromVizItem';
-    type: 'where';
-    itemId?: string;
-  };
-}
 
 interface ChartDataItem {
   category: string;
@@ -72,9 +54,9 @@ const chartState: ChartState = {
  * NOTE: This is a helper method for internal use. You can implement your own event handling
  * directly in the render/resize methods if needed.
  */
-function sendCustomEvent(eventType: string, data: any): void {
+function sendCustomEvent(data: any): void {
   const eventData: CustomEventData = {
-    type: eventType,
+    type: 'customEvent',
     data
   };
 
@@ -94,24 +76,20 @@ function sendFilterEvent(filters: ItemFilter[]): void {
     type: 'setFilter',
     filters
   };
-  window.parent.postMessage(eventData, '*');
-}
 
-// Define types for chart configuration
-interface ChartDimensions {
-  width: number;
-  height: number;
+  // Post message to parent window
+  window.parent.postMessage(eventData, '*');
 }
 
 // Define parameter types for render and resize functions
 interface ChartParams {
   container: HTMLElement;
-  data: any[][];
+  data: ItemData['data'];
   slots: Slot[];
   slotConfigurations: SlotConfig[];
-  options: Record<string, any>;
+  options: Record<string, any> & { theme?: ItemThemeConfig };
   language: string;
-  dimensions: ChartDimensions;
+  dimensions: { width: number; height: number };
 }
 
 /**
@@ -134,19 +112,36 @@ export const render = ({
   chartState.measureSlot = slots.find((s) => s.name === 'measure');
   chartState.groupSlot = slots.find((s) => s.name === 'legend');
 
-  // Check if we have actual data or need sample data
   const hasCategory = chartState.categorySlot?.content?.length! > 0;
   const hasMeasure = chartState.measureSlot?.content?.length! > 0;
-  const isEmptyState = !data.length || !hasCategory || !hasMeasure;
 
   // Prepare data for visualization
   let chartData: ChartDataItem[] = [];
 
-  if (isEmptyState) {
+  // Check if we have actual data or need sample data
+  if (!data.length || !hasCategory || !hasMeasure) {
     // Generate sample data for empty state
-    chartData = generateSampleData();
-    setupEmptyState(container);
-  } else {
+    const categories = ['Product A', 'Product B', 'Product C', 'Product D', 'Product E'];
+    const groups = ['Region 1', 'Region 2', 'Region 3'];
+    const sampleData = [];
+
+    for (let i = 0; i < categories.length; i++) {
+      for (let j = 0; j < groups.length; j++) {
+        const rawValue = Math.floor(Math.random() * 800) + 200;
+        sampleData.push({
+          category: categories[i],
+          group: groups[j],
+          value: rawValue.toString(), // Convert to string for sample data
+          rawValue: rawValue, // Store the raw value
+          columnId: `column_${i}_${j}`,
+          datasetId: `dataset_${i}_${j}`
+        });
+      }
+    }
+
+    chartData = sampleData;
+  }
+  else {
     // Process real data
     chartData = preProcessData(
       data,
@@ -169,13 +164,11 @@ export const render = ({
     height,
     margin,
     innerWidth,
-    innerHeight,
-    isEmptyState
+    innerHeight
   );
 
   // Store the chart data on the container for reference during resize
   (container as any).__chartData = chartData;
-  (container as any).__isEmptyState = isEmptyState;
 };
 
 /**
@@ -192,8 +185,6 @@ export const resize = ({
 }: ChartParams): void => {
   // Get the existing state
   const chartData = (container as any).__chartData || [];
-  const isEmptyState = (container as any).__isEmptyState || false;
-
   const newChartContainer = setupContainer(container);
 
   // Set up dimensions
@@ -209,25 +200,20 @@ export const resize = ({
     height,
     margin,
     innerWidth,
-    innerHeight,
-    isEmptyState
+    innerHeight
   );
-
-  // Re-add empty state overlay if needed
-  if (isEmptyState) {
-    setupEmptyState(container);
-  }
 
   // Maintain state for future resizes
   (container as any).__chartData = chartData;
-  (container as any).__isEmptyState = isEmptyState;
 };
 
 /**
  * Build query for data retrieval
+ * NOTE: This method is OPTIONAL to implement. If not implemented, Luzmo will automatically build a query based on the slot configurations. For more advanced use cases, you can implement this method to build a custom query (e.g. if you need your query to return row-level data instead of aggregated data).
  * @param params Object containing slots and slot configurations
  * @returns Query object for data retrieval
  */
+/*
 export const buildQuery = ({
   slots,
   slotConfigurations
@@ -235,104 +221,17 @@ export const buildQuery = ({
   slots: Slot[];
   slotConfigurations: SlotConfig[];
 }): ItemQuery => {
-  const dimensions: ItemQueryDimension[] = [];
-  const measures: ItemQueryMeasure[] = [];
-
-  // Add category dimension
-  const categorySlot = slots.find((s) => s.name === 'category');
-  if (categorySlot?.content.length! > 0) {
-    const category = categorySlot!.content[0];
-    dimensions.push({
-      dataset_id: category.datasetId || category.set,
-      column_id: category.columnId || category.column,
-      level: category.level || 1
-    });
-  }
-
-  // Add group by dimension (if available)
-  const groupSlot = slots.find((s) => s.name === 'legend');
-  if (groupSlot?.content.length! > 0) {
-    const group = groupSlot!.content[0];
-    dimensions.push({
-      dataset_id: group.datasetId || group.set,
-      column_id: group.columnId || group.column,
-      level: group.level || 1
-    });
-  }
-
-  // Add measure
-  const measureSlot = slots.find((s) => s.name === 'measure');
-  if (measureSlot?.content.length! > 0) {
-    const measure = measureSlot!.content[0];
-
-    // Handle different types of measures
-    if (
-      measure.aggregationFunc &&
-      ['sum', 'average', 'min', 'max', 'count', 'distinct'].includes(
-        measure.aggregationFunc
-      )
-    ) {
-      measures.push({
-        dataset_id: measure.datasetId || measure.set,
-        column_id: measure.columnId || measure.column,
-        aggregation: { type: measure.aggregationFunc }
-      });
-    } else {
-      measures.push({
-        dataset_id: measure.datasetId || measure.set,
-        column_id: measure.columnId || measure.column
-      });
-    }
-  }
-
   return {
-    dimensions,
-    measures,
-    limit: { by: 100 }, // Limit to 100 rows for performance
+    dimensions: [],
+    measures: [],
+    limit: { by: 100000 },
     options: {
       locale_id: 'en',
-      timezone_id: 'UTC',
-      rollup_data: true
+      timezone_id: 'UTC'
     }
   };
 };
-
-/**
- * Helper function to generate sample data for empty state visualization
- * @param numCategories Number of categories to generate
- * @param numGroups Number of groups to generate
- * @returns Array of sample data items
- *
- * NOTE: This is a helper method for internal use. You can implement your own empty state
- * handling directly in the render method if needed.
- */
-function generateSampleData(numCategories = 5, numGroups = 3): ChartDataItem[] {
-  const categories = [
-    'Product A',
-    'Product B',
-    'Product C',
-    'Product D',
-    'Product E'
-  ];
-  const groups = ['Region 1', 'Region 2', 'Region 3'];
-
-  const data = [];
-  for (let i = 0; i < numCategories; i++) {
-    for (let j = 0; j < numGroups; j++) {
-      const rawValue = Math.floor(Math.random() * 800) + 200;
-      data.push({
-        category: categories[i],
-        group: groups[j],
-        value: rawValue.toString(), // Convert to string for sample data
-        rawValue: rawValue, // Store the raw value
-        columnId: `column_${i}_${j}`,
-        datasetId: `dataset_${i}_${j}`
-      });
-    }
-  }
-
-  return data;
-}
+*/
 
 /**
  * Helper function to render chart with given data and dimensions
@@ -347,8 +246,7 @@ function renderChart(
   height: number,
   margin: { top: number; right: number; bottom: number; left: number },
   innerWidth: number,
-  innerHeight: number,
-  isEmptyState: boolean = false
+  innerHeight: number
 ): void {
   // Create SVG
   const svg: d3.Selection<SVGSVGElement, unknown, null, undefined> = d3
@@ -361,15 +259,6 @@ function renderChart(
   const chart = svg
     .append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`);
-
-  // Add title
-  svg
-    .append('text')
-    .attr('class', 'chart-title')
-    .attr('x', width / 2)
-    .attr('y', 20)
-    .attr('text-anchor', 'middle')
-    .text(isEmptyState ? 'Sample Column Chart' : 'Column Chart');
 
   // Group data by category and group
   const nestedData: d3.InternMap<string, ChartDataItem[]> = d3.group(
@@ -521,7 +410,7 @@ function renderChart(
             // Send setFilter event
             sendFilterEvent(filters);
 
-            sendCustomEvent('customEvent', {
+            sendCustomEvent({
               category: category,
               group: group,
               value: groupData[0].value,
@@ -598,27 +487,6 @@ function setupContainer(container: HTMLElement): HTMLElement {
 }
 
 /**
- * Helper function to set up empty state overlay
- * @param container Container element
- *
- * NOTE: This is a helper method for internal use. You can implement your own empty state
- * handling directly in the render method if needed.
- */
-function setupEmptyState(container: HTMLElement): void {
-  // Add empty state overlay
-  const emptyState = document.createElement('div');
-  emptyState.className = 'empty-state';
-  emptyState.innerHTML = `
-    <div class="empty-state-icon">📊</div>
-    <div class="empty-state-title">No Data Available</div>
-    <div class="empty-state-message">
-      Add data to the Category and Measure slots to create your visualization.
-    </div>
-  `;
-  container.appendChild(emptyState);
-}
-
-/**
  * Helper function to preprocess data for visualization
  * @param data Raw data array
  * @param measureSlot Measure slot configuration
@@ -630,7 +498,7 @@ function setupEmptyState(container: HTMLElement): void {
  * directly in the render method if needed.
  */
 function preProcessData(
-  data: any[][],
+  data: ItemData['data'],
   measureSlot: Slot,
   categorySlot: Slot,
   groupSlot: Slot
@@ -639,13 +507,13 @@ function preProcessData(
   const formatters = {
     category: categorySlot?.content[0]
       ? formatter(categorySlot.content[0], {
-          level: categorySlot.content[0].level || 9
-        })
+        level: categorySlot.content[0].level || 9
+      })
       : (val: any) => String(val),
     group: groupSlot?.content[0]
       ? formatter(groupSlot.content[0], {
-          level: groupSlot.content[0].level || 9
-        })
+        level: groupSlot.content[0].level || 9
+      })
       : (val: any) => String(val),
     measure: measureSlot?.content[0]
       ? formatter(measureSlot.content[0])
@@ -659,7 +527,7 @@ function preProcessData(
     measure: hasGroup ? 2 : 1
   };
 
-  return data.map((row) => {
+  return (data ?? []).map((row) => {
     // Extract and format values
     const categoryValue =
       row[indices.category]?.name?.en || row[indices.category] || 'Unknown';
@@ -673,10 +541,10 @@ function preProcessData(
       row[indices.group]?.name?.en || row[indices.group] || 'Default';
     const group = hasGroup
       ? formatters.group(
-          groupSlot.content[0].type === 'datetime'
-            ? new Date(groupValue)
-            : groupValue
-        )
+        groupSlot.content[0].type === 'datetime'
+          ? new Date(groupValue)
+          : groupValue
+      )
       : 'Default';
 
     const rawValue = Number(row[indices.measure]) || 0;

@@ -134,11 +134,19 @@
                 static-color="var(--primary)"
                 size="m">
               </luzmo-progress-circle>
-              <p>Loading chart...</p>
+              <span>Loading chart...</span>
             </div>
             }
-            <div id="chartContainer"
-              #chartContainer></div>
+            @if (chartData$ | async; as chartData) {
+            @if (chartData.length === 0) {
+            <div class="empty-state">
+              <div class="empty-state-message">
+                Add data to all required chart slots to render your chart.
+              </div>
+            </div>
+            }
+            <div #chartContainer id="chartContainer" [class.empty]="chartData.length === 0"></div>
+            }
           </div>
         </div>
       </div>
