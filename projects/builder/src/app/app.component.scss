@@ -189,6 +189,40 @@ $transition-speed: 0.15s; // Shortened transition speed
       margin-top: 0.5rem;
       font-style: italic;
     }
+
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      border-radius: $border-radius;
+      background-color: #fff8f8;
+      border: 0.0625rem solid #ffcdd2;
+      text-align: center;
+
+      .error-state-header {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+
+      .error-icon {
+        font-size: 1rem;
+      }
+
+      .error-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #d32f2f;
+        margin-bottom: 0.5rem;
+      }
+
+      .error-state-message {
+        color: #d32f2f;
+        font-size: 0.875rem;
+        margin: 0;
+      }
+    }
   }
 }
 

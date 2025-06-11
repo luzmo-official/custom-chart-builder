@@ -79,6 +79,14 @@
             </luzmo-progress-circle>
             <p>Querying data...</p>
           </div>
+          } @else if (queryError$ | async) {
+          <div class="error-state">
+            <div class="error-state-header">
+              <div class="error-icon">❌</div>
+              <div class="error-title">Query Error</div>
+            </div>
+            <p class="error-state-message" [innerHTML]="queryError$ | async"></p>
+          </div>
           } @else {
           @if (chartData$ | async; as chartData) {
           @if (chartData.length > 0) {

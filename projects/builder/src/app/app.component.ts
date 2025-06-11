@@ -30,7 +30,8 @@ import {
   shareReplay,
   switchMap,
   take,
-  tap
+  tap,
+  catchError
 } from 'rxjs/operators';
 import manifestJson from '../../../custom-chart/src/manifest.json';
 import {
@@ -113,6 +114,7 @@ export class AppComponent implements OnInit, OnDestroy {
   // Loading state indicators
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
   queryingData$ = new BehaviorSubject<boolean>(false);
+  queryError$ = new BehaviorSubject<string | null>(null);
 
   slotConfigs: SlotConfig[] = [];
   manifestValidationError: string | null = null;
@@ -326,11 +328,17 @@ export class AppComponent implements OnInit, OnDestroy {
         const fullSlots = this.slotsSubject.getValue();
         return this.fetchChartData(fullSlots);
       }),
-      // Render when data arrives
+      // Render when data arrives (only if no error occurred)
       tap((data) => {
-        if (this.moduleLoaded) {
+        if (this.moduleLoaded && this.queryError$.getValue() === null) {
           this.performRender(data);
         }
+      }),
+      catchError((error) => {
+        console.error('Chart data stream error:', error);
+        this.queryingData$.next(false); // Ensure loader is hidden
+        this.queryError$.next('An unexpected error occurred while loading chart data.');
+        return of([]); // Return empty data to keep stream alive
       }),
       // Cache the last result to avoid redundant processing
       shareReplay(1)
@@ -422,14 +430,35 @@ export class AppComponent implements OnInit, OnDestroy {
           const finalQuery = query || buildLuzmoQuery(slots, this.slotConfigs);
           console.log('Fetching data with query', finalQuery);
           this.queryingData$.next(true);
+          this.queryError$.next(null);
 
           return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
-            tap(() => this.queryingData$.next(false)),
-            map((result) => result.data)
+            tap(() => {
+              this.queryingData$.next(false);
+              this.queryError$.next(null); // Clear error on success
+            }),
+            map((result) => result.data),
+            catchError((error) => {
+              console.error('Chart data query failed:', error);
+              this.queryingData$.next(false); // Hide loader
+              this.queryError$.next(`
+                <p>Failed to load chart data. Please check if your query is valid and try again.</p>
+                <p><b>Query:</b> ${JSON.stringify(finalQuery, null, 2)}</p>
+              `); // Set error message
+              return of([]); // Return empty data on error
+            })
           );
+        }),
+        catchError((error) => {
+          console.error('Query preparation failed:', error);
+          this.queryingData$.next(false); // Hide loader
+          this.queryError$.next('Failed to prepare query. Please check your configuration.');
+          return of([]); // Return empty data on error
         })
       );
-    } else {
+    }
+    else {
+      this.queryError$.next(null);
       return of([]);
     }
   }
