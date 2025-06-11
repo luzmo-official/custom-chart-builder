@@ -1,5 +1,5 @@
-import type { NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
-import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
+// import type { NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
+// import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { AsyncPipe } from '@angular/common';
 import type { ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
@@ -73,7 +73,7 @@ interface DatasetState {
     NgxJsonViewerModule,
     LoginComponent,
     AsyncPipe,
-    NgbDropdownModule,
+    // NgbDropdownModule,
     FormsModule,
     ScrollingModule,
     DatasetPickerComponent
@@ -107,7 +107,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private querySubject = new Subject<ItemQuery | null>();
   private queryReady$ = this.querySubject.asObservable();
 
-  @ViewChild('datasetDropdown') datasetDropdown!: NgbDropdown;
+  // @ViewChild('datasetDropdown') datasetDropdown!: NgbDropdown;
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
 
   // Loading state indicators
