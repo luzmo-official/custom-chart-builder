@@ -27,8 +27,19 @@
             </div>
           }
           @else {
+             @if (datasetColumns.length > 0) {
+              <div class="column-search">
+                <input
+                  type="text"
+                  class="search-input"
+                  placeholder="Search columns..."
+                  [(ngModel)]="columnSearchTerm"
+                  autocomplete="off"
+                />
+              </div>
+            }            
             <div class="column-list">
-              @for (column of datasetColumns; track column.columnId) {
+              @for (column of filteredDatasetColumns; track column.columnId) {
                 <luzmo-draggable-data-item variant="highlight"
                   size="m"
                   [data]="column"

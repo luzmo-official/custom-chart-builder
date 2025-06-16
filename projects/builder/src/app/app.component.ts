@@ -108,7 +108,6 @@ export class AppComponent implements OnInit, OnDestroy {
   private querySubject = new Subject<ItemQuery | null>();
   private queryReady$ = this.querySubject.asObservable();
 
-  // @ViewChild('datasetDropdown') datasetDropdown!: NgbDropdown;
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
 
   // Loading state indicators
@@ -124,10 +123,10 @@ export class AppComponent implements OnInit, OnDestroy {
     []
   );
 
-  // User and dataset state
   private selectedDatasetIdSubject = new Subject<string>();
 
-  // Observable streams
+  columnSearchTerm = '';
+
   currentUser$ = this.authService.isAuthenticated$.pipe(
     filter((isAuthenticated) => isAuthenticated),
     switchMap(() => this.authService.getOrLoadUser())
@@ -138,7 +137,6 @@ export class AppComponent implements OnInit, OnDestroy {
     columns: []
   };
 
-  // Expose getters for the template
   get isLoadingDataset(): boolean {
     return this.datasetState.loading;
   }
@@ -147,7 +145,25 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.datasetState.columns;
   }
 
-  // Then modify your observable chain
+  // Filtered columns based on search term
+  get filteredDatasetColumns(): any[] {
+    if (!this.columnSearchTerm.trim()) {
+      return this.datasetColumns;
+    }
+    
+    const searchTerm = this.columnSearchTerm.toLowerCase().trim();
+    return this.datasetColumns.filter(column => {
+      // Search across all language values in the i18n label object
+      if (column.label && typeof column.label === 'object') {
+        return Object.values(column.label).some((labelValue: any) => 
+          labelValue && labelValue.toString().toLowerCase().includes(searchTerm)
+        );
+      }
+      // Fallback for non-i18n labels
+      return true;
+    });
+  }
+
   columns$ = this.selectedDatasetIdSubject.pipe(
     untilDestroyed(this),
     tap(() => {
@@ -164,6 +180,7 @@ export class AppComponent implements OnInit, OnDestroy {
       // Update state with results
       this.datasetState.columns = columns;
       this.datasetState.loading = false;
+      this.columnSearchTerm = '';
     })
   );
 
