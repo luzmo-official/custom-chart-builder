@@ -38,6 +38,7 @@ export const SlotsConfigSchema = z
       'order',
       'route'
     ]),
+    position: z.enum(['top-left', 'top', 'top-right', 'right', 'bottom-right', 'bottom', 'bottom-left', 'left', 'middle']).optional(),
     label: z.union([z.string(), z.record(z.string(), z.string())]).optional(),
     description: z.string().optional(),
     type: z.enum(['numeric', 'categorical', 'mixed']).optional(),

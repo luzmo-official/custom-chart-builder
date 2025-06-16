@@ -284,11 +284,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
         // Use an empty array for slots to avoid further errors
         this.slotConfigs = [];
-      } else {
+      }
+      else {
         this.slotConfigs = validationResult.data as SlotConfig[];
         this.manifestValidationError = null;
       }
-    } catch (error) {
+    }
+    catch (error) {
       this.manifestValidationError = `Failed to load slot configurations from manifest: ${error instanceof Error ? error.message : String(error)}`;
       console.error(this.manifestValidationError, error);
 
@@ -656,9 +658,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private async loadBundle(): Promise<void> {
     try {
       // Load script content
-      const scriptResponse = await fetch(
-        '/custom-chart/index.js?t=' + Date.now()
-      );
+      const scriptResponse = await fetch('/custom-chart/index.js?t=' + Date.now());
       this.scriptContent = await scriptResponse.text();
 
       // Escape special characters in script content
@@ -674,6 +674,8 @@ export class AppComponent implements OnInit, OnDestroy {
         console.warn('No styles found, continuing without styles');
         this.styleContent = '';
       }
+
+      console.log(this.container);
 
       // Setup iframe
       const chartContainer = this.container.nativeElement;
