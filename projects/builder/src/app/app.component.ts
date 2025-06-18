@@ -692,8 +692,6 @@ export class AppComponent implements OnInit, OnDestroy {
         this.styleContent = '';
       }
 
-      console.log(this.container);
-
       // Setup iframe
       const chartContainer = this.container.nativeElement;
       chartContainer.innerHTML = '';
