@@ -24,9 +24,10 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
      <meta
         http-equiv="Content-Security-Policy"
         content="default-src 'self' blob:;
-        img-src *;
-        style-src 'self' 'unsafe-inline';
-        script-src 'self' 'unsafe-inline' blob:;
+        img-src * data:;
+        style-src 'self' 'unsafe-inline' https://*.bing.com;
+        script-src 'self' 'unsafe-inline' blob: https://*.bing.com;
+        connect-src 'self' https://*.bing.com;
         form-action 'none';
         base-uri 'none'"
       >
