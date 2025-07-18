@@ -124,7 +124,7 @@ This manifest file is validated against a Zod schema to ensure compatibility wit
 
 | Parameter | Description |
 |----------|-------------|
-| **`name`**<br>`STRING` | **Internal identifier for the slot**. Must be one of: `x-axis`, `y-axis`, `category`, `measure`, `coordinates`, `legend`, `geo`, `image`, `color`, `levels`, `slidermetric`, `dimension`, `destination`, `source`, `time`, `identifier`, `target`, `size`, `name`, `columns`, `column`, `row`, `evolution`, `close`, `open`, `low`, `high`, `order`, `route` |
+| **`name`**<br>`STRING` | **Internal identifier for the slot**. **Note**: within one chart, all slots must have unique names! Must be one of: `x-axis`, `y-axis`, `category`, `measure`, `coordinates`, `legend`, `geo`, `image`, `color`, `levels`, `slidermetric`, `dimension`, `destination`, `source`, `time`, `identifier`, `target`, `size`, `name`, `columns`, `column`, `row`, `evolution`, `close`, `open`, `low`, `high`, `order`, `route` |
 | **`label`**<br>`STRING` | **User-facing name displayed in the interface**. Can be a string or a localized string. |
 
 #### Optional properties
@@ -133,16 +133,15 @@ This manifest file is validated against a Zod schema to ensure compatibility wit
 |----------|-------------|
 | **`description`**<br>`STRING` | Short explanation of the slot's purpose. |
 | **`position`**<br>`STRING` | Position of the slot in the chart overlay in the dashboard editor. Must be one of: `top-left`, `top`, `top-right`, `right`, `bottom-right`, `bottom`, `bottom-left`, `left`, `middle`. |
-| **`type`**<br>`STRING` | Data type. Must be one of: `'numeric'`, `'categorical'`, `'mixed'`. |
+| **`type`**<br>`STRING` | Data type. Must be one of: `'numeric'`, `'categorical'`. |
 | **`rotate`**<br>`BOOLEAN` | Whether the axis should be rotated. |
 | **`order`**<br>`NUMBER` | Display order in the interface. |
 | **`isRequired`**<br>`BOOLEAN` | Whether the slot must be filled. |
-| **`acceptableColumnTypes`**<br>`ARRAY` | Array of allowed column types. |
-| **`acceptableColumnSubtypes`**<br>`ARRAY` | Array of specific column subtypes. |
+| **`acceptableColumnTypes`**<br>`ARRAY` | Array of allowed column types. Must be one of: `'numeric'`, `'hierarchy'`, `'datetime'`, `'spatial'`. |
+| **`acceptableColumnSubtypes`**<br>`ARRAY` | Array of specific column subtypes. Must be one of: `'duration'`, `'currency'`, `'coordinates'`, `'topography'`. |
 | **`canAcceptFormula`**<br>`BOOLEAN` | Whether this slot can accept a formula-based column. |
 | **`canAcceptMultipleColumns`**<br>`BOOLEAN` | Whether multiple columns can be placed in this slot. |
 | **`requiredMinimumColumnsCount`**<br>`NUMBER` | Minimum number of columns required. |
-| **`isHidden`**<br>`BOOLEAN` | If true, this slot won't appear in the UI. |
 | **`noMultipleIfSlotsFilled`**<br>`ARRAY` | Array of slot names that prevent multiple columns when filled. |
 | **`options`**<br>`OBJECT` | Additional options for the slot. See Slot options properties below. |
 
