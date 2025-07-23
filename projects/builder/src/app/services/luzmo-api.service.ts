@@ -1,12 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { AuthService } from '@builder/services/auth.service';
-import type {
-  ItemData,
-  ItemQuery,
-  RowsData,
-  Securable
-} from '../helpers/types';
+import { ItemQuery, ItemQueryResponse, Securable, RowsData, User } from '../helpers/types';
 
 @Injectable({
   providedIn: 'root'
@@ -89,7 +84,7 @@ export class LuzmoApiService {
   }
 
   queryLuzmoDataset(queries: ItemQuery[]) {
-    return this.httpClient.post<ItemData>(
+    return this.httpClient.post<ItemQueryResponse>(
       `${this.authService.getApiUrl()}/0.1.0/data`,
       {
         action: 'get',

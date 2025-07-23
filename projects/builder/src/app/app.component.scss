@@ -229,12 +229,10 @@ $transition-speed: 0.15s; // Shortened transition speed
     .error-state {
       display: flex;
       flex-direction: column;
-      align-items: center;
       padding: 1rem;
       border-radius: var(--border-radius);
       background-color: #fff8f8;
       border: 0.0625rem solid #ffcdd2;
-      text-align: center;
 
       .error-state-header {
         display: flex;

@@ -91,6 +91,30 @@ export type ItemData = {
   query_id: string;
 };
 
+// Add error response type
+export type ItemErrorResponse = {
+  error: {
+    message: string;
+    type: {
+      code: number;
+      description: string;
+    };
+  };
+};
+
+// Union type for API responses
+export type ItemQueryResponse = ItemData | ItemErrorResponse;
+
+// Type guard function to check if response contains an error
+export function isErrorResponse(response: ItemQueryResponse): response is ItemErrorResponse {
+  return 'error' in response && response.error !== undefined;
+}
+
+// Type guard function to check if response contains data
+export function isDataResponse(response: ItemQueryResponse): response is ItemData {
+  return 'data' in response && !('error' in response);
+}
+
 export type ItemQueryMeasure = {
   dataset_id?: string;
   column_id?: string;

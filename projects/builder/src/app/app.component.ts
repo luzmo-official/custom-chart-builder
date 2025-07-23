@@ -39,6 +39,7 @@ import {
   setUpSecureIframe
 } from './helpers/iframe.utils';
 import type { ItemData, ItemQuery } from './helpers/types';
+import { isErrorResponse, isDataResponse, ItemQueryResponse, Securable } from './helpers/types';
 
 import { SlotsConfigSchema } from './slot-schema';
 import { FormsModule } from '@angular/forms';
@@ -456,7 +457,19 @@ export class AppComponent implements OnInit, OnDestroy {
               this.queryingData$.next(false);
               this.queryError$.next(null); // Clear error on success
             }),
-            map((result) => result.data),
+            map((result) => {
+              if (isErrorResponse(result)) {
+                this.queryError$.next(result.error.message);
+                return [];
+              }
+
+              if (isDataResponse(result)) {
+                console.log('Query result:', result);
+                return result.data;
+              }
+
+              return [];
+            }),
             catchError((error) => {
               console.error('Chart data query failed:', error);
               this.queryingData$.next(false); // Hide loader
