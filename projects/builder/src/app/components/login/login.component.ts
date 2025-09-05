@@ -94,13 +94,13 @@ export class LoginComponent implements OnInit {
    * Authenticate with the server
    */
   private authenticateUser(email: string, password: string, token?: string) {
-    const appUrl = this.authService.getAppUrl();
+    const apiUrl = this.authService.getApiUrl();
     const requestBody = token
       ? { email, password, token, useRecoveryCode: false }
       : { email, password };
 
     return this.httpClient
-      .post<AuthResponse>(`${appUrl}/auth/vi`, requestBody, {
+      .post<AuthResponse>(`${apiUrl}/auth/vi`, requestBody, {
         headers: new HttpHeaders({ 'Content-Type': 'application/json' })
       })
       .pipe(
