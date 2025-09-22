@@ -133,7 +133,7 @@ This manifest file is validated against a Zod schema to ensure compatibility wit
 |----------|-------------|
 | **`description`**<br>`STRING` | Short explanation of the slot's purpose. |
 | **`position`**<br>`STRING` | Position of the slot in the chart overlay in the dashboard editor. Must be one of: `top-left`, `top`, `top-right`, `right`, `bottom-right`, `bottom`, `bottom-left`, `left`, `middle`. |
-| **`type`**<br>`STRING` | Data type. Must be one of: `'numeric'`, `'categorical'`. |
+| **`type`**<br>`STRING` | Data type. Must be  `'categorical'` or `'numeric'`. If set to `'categorical'`, columns in this slot will be added to the `dimensions` part of the query. If set to `'numeric'`, columns in this slot will be added to the `measures` part of the query. This is used to determine how data is aggregated. |
 | **`rotate`**<br>`BOOLEAN` | Whether the axis should be rotated. |
 | **`order`**<br>`NUMBER` | Display order in the interface. |
 | **`isRequired`**<br>`BOOLEAN` | Whether the slot must be filled. |
