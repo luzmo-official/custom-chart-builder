@@ -345,15 +345,24 @@ export function buildQuery({
     }
   }
 
+  // Add order/sorting by category if it is filled
+  const order = categoryContent?.[0] 
+  ? 
+    [{
+      dataset_id: categoryContent[0].datasetId, 
+      column_id: categoryContent[0].columnId, 
+      order: 'asc' 
+    }] 
+  : [];
+
   return {
     dimensions,
     measures,
-    order: categoryContent?.[0] ? [{ dataset_id: categoryContent[0].datasetId, column_id: categoryContent[0].columnId, order: 'asc' }] : [],
+    order,
     limit,
     options: {
       locale_id: 'en',
-      timezone_id: 'UTC',
-      rollup_data: true
+      timezone_id: 'UTC'
     }
   };
 }
@@ -361,7 +370,7 @@ export function buildQuery({
 
 For more information about the query syntax and available options, see the [Luzmo Query Syntax Documentation](https://developer.luzmo.com/guide/interacting-with-data--querying-data#api-query-syntax).
 
-You can notify the dashboard that the query has been built by sending a `queryLoaded` event to the parent window:
+You can notify the dashboard that the query has been updated by sending a `queryLoaded` event to the parent window. More information about this event can be found in the [Query loaded event](#query-loaded-event-queryloaded) section.
 
 ```typescript
 window.parent.postMessage({ type: 'queryLoaded', query }, '*');
