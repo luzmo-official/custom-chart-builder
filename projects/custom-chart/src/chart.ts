@@ -209,22 +209,25 @@ export const resize = ({
 
 /**
  * Build query for data retrieval
- * NOTE: This method is OPTIONAL to implement. If not implemented, Luzmo will automatically build a query based on the slot configurations. For more advanced use cases, you can implement this method to build a custom query (e.g. if you need your query to return row-level data instead of aggregated data).
- * @param params Object containing slots and slot configurations
+ * NOTE: This method is OPTIONAL to implement. If not implemented, Luzmo will automatically build a query based on the slot configurations. For more advanced use cases, you can implement this method to build a custom query (e.g. if you need your query to return row-level data instead of aggregated data or if you want to implement ordering or pagination in your chart).
+ * @param params Object containing slots, slot configurations and limit.
  * @returns Query object for data retrieval
  */
 /*
 export const buildQuery = ({
-  slots,
-  slotConfigurations
+  slots = [],
+  slotConfigurations = [],
+  limit = { by: 100000, offset: 0 }
 }: {
   slots: Slot[];
   slotConfigurations: SlotConfig[];
+  limit?: ItemQuery['limit'];
 }): ItemQuery => {
   return {
     dimensions: [],
     measures: [],
-    limit: { by: 100000 },
+    order: [],
+    limit: limit,
     options: {
       locale_id: 'en',
       timezone_id: 'UTC'
