@@ -131,22 +131,22 @@ export type ItemQueryMeasure = {
 };
 
 export type ItemQuerySort = {
-  dataset_id?: string;
+  dataset_id: string;
   column_id?: string;
-  order?: 'asc' | 'desc';
   formula_id?: string;
+  order: 'asc' | 'desc';
   expression?: string;
+  aggregation?: { type: string };
 };
 
 export type ItemQuery = {
   dimensions: ItemQueryDimension[];
   measures: ItemQueryMeasure[];
-  limit?: { by: number };
+  limit?: { by: number, offset?: number };
   order?: Partial<ItemQuerySort>[];
   where?: any[];
   having?: any[];
-  options: any;
-  context?: any;
+  options?: { rollup_data?: boolean, locale_id?: string, timezone_id?: string };
 };
 
 export interface User {

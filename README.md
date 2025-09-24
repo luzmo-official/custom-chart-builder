@@ -26,6 +26,7 @@ A powerful development environment for creating, testing, and packaging custom c
   - [Interacting with the dashboard](#interacting-with-the-dashboard)
     - [Filter event (setFilter)](#filter-event-setfilter)
     - [Custom event (customEvent)](#custom-event-customevent)
+    - [Query loaded event (queryLoaded)](#query-loaded-event-queryloaded)
 - [Adding third party libraries](#adding-third-party-libraries)
 - [Building and packaging](#building-and-packaging)
   - [Production package](#production-package)
@@ -297,50 +298,58 @@ Example implementation:
 interface BuildQueryParams {
   slots: Slot[];
   slotConfigurations: SlotConfig[];
+  limit?: ItemQuery['limit'];
 }
 
 export function buildQuery({
   slots = [],
-  slotConfigurations = []
+  slotConfigurations = [],
+  limit = { by: 100000, offset: 0 }
 }: BuildQueryParams): ItemQuery {
   const dimensions: ItemQueryDimension[] = [];
   const measures: ItemQueryMeasure[] = [];
   
   // Extract category dimension
-  const categorySlot = slots.find(s => s.name === 'category');
-  if (categorySlot?.content.length! > 0) {
-    const category = categorySlot!.content[0];
+  const categorySlot = slots.find(slot => slot.name === 'category');
+  const categoryContent = categorySlot?.content;
+
+  if (categoryContent?.length > 0) {
+    const [category] = categoryContent;
     dimensions.push({
-      dataset_id: category.datasetId || category.set,
-      column_id: category.columnId || category.column,
+      dataset_id: category.datasetId,
+      column_id: category.columnId,
       level: category.level || 1
     });
   }
-  
+
   // Extract measure
-  const measureSlot = slots.find(s => s.name === 'measure');
-  if (measureSlot?.content.length! > 0) {
-    const measure = measureSlot!.content[0];
-    
+  const measureSlot = slots.find(slot => slot.name === 'measure');
+  const measureContent = measureSlot?.content;
+
+  if (measureContent?.length > 0) {
+    const [measure] = measureContent;
+
     // Handle different types of measures
     if (measure.aggregationFunc && ['sum', 'average', 'min', 'max', 'count'].includes(measure.aggregationFunc)) {
       measures.push({
-        dataset_id: measure.datasetId || measure.set,
-        column_id: measure.columnId || measure.column,
+        dataset_id: measure.datasetId,
+        column_id: measure.columnId,
         aggregation: { type: measure.aggregationFunc }
       });
-    } else {
+    }
+    else {
       measures.push({
-        dataset_id: measure.datasetId || measure.set,
-        column_id: measure.columnId || measure.column
+        dataset_id: measure.datasetId,
+        column_id: measure.columnId
       });
     }
   }
-  
+
   return {
     dimensions,
     measures,
-    limit: { by: 100 }, // Limit to 100 rows for performance
+    order: categoryContent?.[0] ? [{ dataset_id: categoryContent[0].datasetId, column_id: categoryContent[0].columnId, order: 'asc' }] : [],
+    limit,
     options: {
       locale_id: 'en',
       timezone_id: 'UTC',
@@ -351,6 +360,12 @@ export function buildQuery({
 ```
 
 For more information about the query syntax and available options, see the [Luzmo Query Syntax Documentation](https://developer.luzmo.com/guide/interacting-with-data--querying-data#api-query-syntax).
+
+You can notify the dashboard that the query has been built by sending a `queryLoaded` event to the parent window:
+
+```typescript
+window.parent.postMessage({ type: 'queryLoaded', query }, '*');
+```
 
 ### Data formatting
 
@@ -545,9 +560,9 @@ Your CSS will be minified during the build process and included in the final cha
 
 ### Interacting with the Dashboard
 
-Your custom chart can interact with other items in the dashboard by sending events to the parent window. There are two main types of events you can send:
+Your custom chart can interact with the dashboard and other items in the dashboard by sending events to the parent window. There are three types of events you can send:
 
-#### Filter event (setFilter)
+#### Filter event (`setFilter`)
 
 Filter events allow your chart to filter data in other dashboard items. The filter structure must match the `ItemFilter` type from the `@luzmo/dashboard-contents-types` library.
 
@@ -605,7 +620,7 @@ interface ItemFilter {
 }
 ```
 
-#### Custom event (customEvent)
+#### Custom event (`customEvent`)
 
 Custom events allow your chart to send any data from your chart to the dashboard for custom handling. This custom event can then further travel from the dashboard to your own application (if the dashboard is embedded), allowing you to create flexible and powerful workflows in your own application. 
 
@@ -635,6 +650,21 @@ function onDataPointClick(category: string, value: number): void {
   });
 }
 ```
+
+#### Query loaded event (`queryLoaded`)
+
+Notify the dashboard that the query of the custom chart has been updated by sending a `queryLoaded` event to the parent window.
+
+The dashboard will then use the updated query to refetch the data and rerender the chart.
+
+```typescript
+window.parent.postMessage({ type: 'queryLoaded', query }, '*');
+```
+
+You can use the `buildQuery()` function to build the query. See the [Implementing your chart in chart.ts](#buildquery-function-optional) section for more information.
+The query must be sent as an object of type `ItemQuery` (available from the `@luzmo/dashboard-contents-types` library).
+
+This is useful if you want to update the query dynamically, for example if the users **sorts data** in an interactive chart or when you want to implement **pagination** in a custom table.
 
 ## Adding third party libraries
 

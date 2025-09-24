@@ -5,6 +5,8 @@ interface SlotMetadata {
   [key: string]: GenericSlotContent[] | boolean;
 }
 
+const DEFAULT_LIMIT = { by: 100000, offset: 0 };
+
 function generateMetadataFromSlot(slots: Slot[], slotName: string, name: string): SlotMetadata {
   const slot = slots.find((s) => s.name === slotName) || { content: [] };
   const content = slot.content || [];
@@ -15,7 +17,11 @@ function generateMetadataFromSlot(slots: Slot[], slotName: string, name: string)
   };
 }
 
-export function buildLuzmoQuery(slots: Slot[], slotConfigurations: SlotConfig[]): ItemQuery {
+export function buildLuzmoQuery(
+  slots: Slot[],
+  slotConfigurations: SlotConfig[],
+  limit?: ItemQuery['limit']
+): ItemQuery {
   // Create metadata definitions dynamically from slotConfigurations
   const slotDefs: Record<string, SlotMetadata> = {};
 
@@ -27,6 +33,7 @@ export function buildLuzmoQuery(slots: Slot[], slotConfigurations: SlotConfig[])
 
   const dimensions: ItemQueryDimension[] = [];
   const measures: ItemQueryMeasure[] = [];
+  const order: ItemQuery['order'] = [];
 
   // Add dimensions and measures dynamically based on slot configurations
   for (const slotConfig of slotConfigurations) {
@@ -66,7 +73,8 @@ export function buildLuzmoQuery(slots: Slot[], slotConfigurations: SlotConfig[])
   const query: ItemQuery = {
     dimensions,
     measures,
-    limit: { by: 60000 },
+    order,
+    limit: limit ? limit : DEFAULT_LIMIT,
     options: {
       locale_id: 'en',
       timezone_id: 'UTC'
