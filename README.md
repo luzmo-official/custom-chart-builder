@@ -298,13 +298,11 @@ Example implementation:
 interface BuildQueryParams {
   slots: Slot[];
   slotConfigurations: SlotConfig[];
-  limit?: ItemQuery['limit'];
 }
 
 export function buildQuery({
   slots = [],
-  slotConfigurations = [],
-  limit = { by: 100000, offset: 0 }
+  slotConfigurations = []
 }: BuildQueryParams): ItemQuery {
   const dimensions: ItemQueryDimension[] = [];
   const measures: ItemQueryMeasure[] = [];
@@ -345,26 +343,27 @@ export function buildQuery({
     }
   }
 
-  // Add order/sorting by category if it is filled
-  const order = categoryContent?.[0] 
-  ? 
-    [{
-      dataset_id: categoryContent[0].datasetId, 
-      column_id: categoryContent[0].columnId, 
-      order: 'asc' 
-    }] 
-  : [];
+  // Add ordering by category, if category slot is filled.
+  const order = categoryContent?.[0]
+    ? 
+      [{
+        dataset_id: categoryContent[0].datasetId, 
+        column_id: categoryContent[0].columnId, 
+        order: 'asc' 
+      }] 
+    : [];
+  
+  // Add default limit of 10000 rows for performance reasons.
+  const limit = { by: 10000, offset: 0 };
 
-  return {
+  const query: ItemQuery = {
     dimensions,
     measures,
     order,
-    limit,
-    options: {
-      locale_id: 'en',
-      timezone_id: 'UTC'
-    }
+    limit
   };
+
+  return query;
 }
 ```
 

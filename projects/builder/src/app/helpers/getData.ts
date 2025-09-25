@@ -5,7 +5,7 @@ interface SlotMetadata {
   [key: string]: GenericSlotContent[] | boolean;
 }
 
-const DEFAULT_LIMIT = { by: 100000, offset: 0 };
+const DEFAULT_QUERY_LIMIT = { by: 100000, offset: 0 };
 
 function generateMetadataFromSlot(slots: Slot[], slotName: string, name: string): SlotMetadata {
   const slot = slots.find((s) => s.name === slotName) || { content: [] };
@@ -74,7 +74,7 @@ export function buildLuzmoQuery(
     dimensions,
     measures,
     order,
-    limit: limit ? limit : DEFAULT_LIMIT,
+    limit: limit ? limit : DEFAULT_QUERY_LIMIT,
     options: {
       locale_id: 'en',
       timezone_id: 'UTC'
