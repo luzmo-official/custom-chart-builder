@@ -1,5 +1,3 @@
-// import type { NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
-// import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
 import { AsyncPipe } from '@angular/common';
 import type { ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
@@ -15,14 +13,15 @@ import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/draggable-data-item';
 import '@luzmo/analytics-components-kit/droppable-slot';
-import '@luzmo/lucero/progress-circle';
-import '@luzmo/lucero/picker';
 import type { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
+import '@luzmo/lucero/picker';
+import '@luzmo/lucero/progress-circle';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import type { Observable } from 'rxjs';
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import {
+  catchError,
   debounceTime,
   distinctUntilChanged,
   filter,
@@ -30,8 +29,7 @@ import {
   shareReplay,
   switchMap,
   take,
-  tap,
-  catchError
+  tap
 } from 'rxjs/operators';
 import manifestJson from '../../../custom-chart/src/manifest.json';
 import {
@@ -39,15 +37,15 @@ import {
   setUpSecureIframe
 } from './helpers/iframe.utils';
 import type { ItemData, ItemQuery } from './helpers/types';
-import { isErrorResponse, isDataResponse, ItemQueryResponse, Securable } from './helpers/types';
+import { isDataResponse, isErrorResponse } from './helpers/types';
 
-import { SlotsConfigSchema } from './slot-schema';
-import { FormsModule } from '@angular/forms';
 import {
   CdkVirtualScrollViewport,
   ScrollingModule
 } from '@angular/cdk/scrolling';
+import { FormsModule } from '@angular/forms';
 import { DatasetPickerComponent } from './components/dataset-picker/dataset-picker.component';
+import { SlotsConfigSchema } from './slot-schema';
 
 // Interface to track query-relevant slot properties without format
 interface SlotQuerySignature {
