@@ -1,4 +1,4 @@
-import type { GenericSlotContent, ItemQueryDimension, ItemQueryMeasure, ItemQuerySort, Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
+import type { GenericSlotContent, ItemQueryDimension, ItemQueryMeasure, Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import type { ItemQuery } from './types';
 
 interface SlotMetadata {
@@ -63,7 +63,8 @@ export function buildLuzmoQuery(
         else {
           dimensions.push({
             dataset_id: item.datasetId,
-            column_id: item.columnId
+            column_id: item.columnId,
+            ...(item.level !== undefined && item.level !== null && { level: item.level })
           });
         }
       }
