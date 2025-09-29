@@ -1,4 +1,4 @@
-@if (authService.isAuthenticated$ | async) {
+﻿@if (authService.isAuthenticated$ | async) {
   <div class="app-container">
     <header class="header">
       <div class="header-title">Luzmo Custom Chart Builder</div>
@@ -84,17 +84,21 @@
 
             <!-- Query result section -->
             <div class="query-result">
-              @if (queryingData$ | async) {
-                <div class="loading-state">
-                  <luzmo-progress-circle indeterminate
-                    static-color="var(--primary)"
-                    size="m">
-                  </luzmo-progress-circle>
-                  <p>Querying data...</p>
+              @let isQuerying = queryingData$ | async;
+              @let queryError = queryError$ | async;
+              @let queryInfo = queryResultInfo$ | async;
+              @let chartData = chartData$ | async;
+
+              @if (isQuerying) {
+                <div class="query-loader">
+                  <div class="query-loader-label">Fetching data...</div>
+                  <div class="query-loader-track">
+                    <div class="query-loader-pulse"></div>
+                  </div>
                 </div>
               }
               @else {
-                @if (queryError$ | async; as queryError) {
+                @if (queryError) {
                   <div class="error-state">
                     <div class="error-state-header">
                       <div class="error-icon">❌</div>
@@ -104,22 +108,22 @@
                   </div>
                 }
                 @else {
-                  @if (chartData$ | async; as chartData) {
-                    @if (chartData.length > 0) {
-                      <p class="result-header">Query result ({{ chartData.length }} rows):</p>
-                      <ngx-json-viewer [json]="displayedChartData$ | async" [expanded]="false"></ngx-json-viewer>
-                      @if (chartData.length > 25) {
-                        <p class="remaining-rows">... and {{ chartData.length - 25 }} more rows.</p>
-                      }
+                  @if (queryInfo) {
+                    <p class="query-summary">Queried {{ queryInfo.rowCount }} rows in {{ queryInfo.durationInSeconds }} seconds:</p>
+                  }
+                  @if (chartData?.length > 0) {
+                    <ngx-json-viewer [json]="displayedChartData$ | async" [expanded]="false"></ngx-json-viewer>
+                    @if (chartData.length > 25) {
+                      <p class="remaining-rows">... and {{ chartData.length - 25 }} more rows.</p>
                     }
-                    @else {
-                      <div class="empty-state">
-                        <div class="empty-state-message">
-                          <p>Drag and drop columns from the left side to your chart slots above.</p>
-                          <p>Once all required slots are filled, a query will be launched and your chart will be rendered.</p>
-                        </div>
+                  }
+                  @else {
+                    <div class="empty-state">
+                      <div class="empty-state-message">
+                        <p>Drag and drop columns from the left side to your chart slots above.</p>
+                        <p>Once all required slots are filled, a query will be launched and your chart will be rendered.</p>
                       </div>
-                    }
+                    </div>
                   }
                 }
               }

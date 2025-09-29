@@ -89,6 +89,13 @@ export type ItemData = {
   cached: boolean;
   data: any[][];
   query_id: string;
+  performance: {
+    preparing: number;
+    processing: number;
+    querying: number;
+    queuing: number;
+    validating: number;
+  };
 };
 
 // Add error response type

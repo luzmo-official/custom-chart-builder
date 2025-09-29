@@ -62,6 +62,11 @@ interface DatasetState {
   columns: any[];
 }
 
+interface QueryResultInfo {
+  rowCount: number;
+  durationInSeconds: number;
+}
+
 /**
  * Main component for the Luzmo Custom Chart Builder application
  * Provides dataset selection, chart configuration, and visualization
@@ -113,6 +118,8 @@ export class AppComponent implements OnInit, OnDestroy {
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
   queryingData$ = new BehaviorSubject<boolean>(false);
   queryError$ = new BehaviorSubject<string | null>(null);
+  private queryResultInfoSubject = new BehaviorSubject<QueryResultInfo | null>(null);
+  queryResultInfo$ = this.queryResultInfoSubject.asObservable();
 
   slotConfigs: SlotConfig[] = [];
   manifestValidationError: string | null = null;
@@ -429,6 +436,29 @@ export class AppComponent implements OnInit, OnDestroy {
     }));
   }
 
+  private calculateQueryDuration(performance?: Record<string, unknown> | null): number {
+    if (!performance || typeof performance !== 'object') {
+      return 0;
+    }
+
+    const values = Object.entries(performance)
+      .filter(([key]) => key !== 'rows')
+      .map(([, value]) => value)
+      .filter((value) => typeof value === 'number') as number[];
+
+    if (values.length === 0) {
+      return 0;
+    }
+
+    const total = (performance as Record<string, unknown>)['total'];
+
+    if (typeof total === 'number') {
+      return Math.max(total, 0) / 1000;
+    }
+
+    return (values.reduce((sum, value) => sum + value, 0) / 1000);
+  }
+
   /**
    * Fetches chart data based on the current slot configuration
    */
@@ -449,6 +479,7 @@ export class AppComponent implements OnInit, OnDestroy {
           console.log('Fetching data with query', finalQuery);
           this.queryingData$.next(true);
           this.queryError$.next(null);
+          this.queryResultInfoSubject.next(null);
 
           return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
             tap(() => {
@@ -458,11 +489,17 @@ export class AppComponent implements OnInit, OnDestroy {
             map((result) => {
               if (isErrorResponse(result)) {
                 this.queryError$.next(result.error.message);
+                this.queryResultInfoSubject.next(null);
                 return [];
               }
 
               if (isDataResponse(result)) {
                 console.log('Query result:', result);
+
+                const durationInSeconds = this.calculateQueryDuration(result.performance ?? null);
+                const rowCount = Array.isArray(result.data) ? result.data.length : 0;
+                this.queryResultInfoSubject.next({ rowCount, durationInSeconds });
+
                 return result.data;
               }
 
@@ -475,6 +512,8 @@ export class AppComponent implements OnInit, OnDestroy {
                 <p>Failed to load chart data. Please check if your query is valid and try again.</p>
                 <p><b>Query:</b> ${JSON.stringify(finalQuery, null, 2)}</p>
               `); // Set error message
+              this.queryResultInfoSubject.next(null);
+
               return of([]); // Return empty data on error
             })
           );
@@ -483,12 +522,16 @@ export class AppComponent implements OnInit, OnDestroy {
           console.error('Query preparation failed:', error);
           this.queryingData$.next(false); // Hide loader
           this.queryError$.next('Failed to prepare query. Please check your configuration.');
+          this.queryResultInfoSubject.next(null);
+
           return of([]); // Return empty data on error
         })
       );
     }
     else {
       this.queryError$.next(null);
+      this.queryResultInfoSubject.next(null);
+
       return of([]);
     }
   }
