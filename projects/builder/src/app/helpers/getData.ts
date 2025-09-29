@@ -1,5 +1,5 @@
-import type { GenericSlotContent, ItemQueryDimension, Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
-import type { ItemQuery, ItemQueryMeasure } from './types';
+import type { GenericSlotContent, ItemQueryDimension, ItemQueryMeasure, ItemQuerySort, Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
+import type { ItemQuery } from './types';
 
 interface SlotMetadata {
   [key: string]: GenericSlotContent[] | boolean;

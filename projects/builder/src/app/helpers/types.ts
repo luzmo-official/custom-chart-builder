@@ -1,4 +1,4 @@
-import type { ItemQueryDimension } from '@luzmo/dashboard-contents-types';
+import type { ItemQueryDimension, ItemQueryMeasure, ItemQuerySort } from '@luzmo/dashboard-contents-types';
 
 type PublicConnector =
   | 'amazonathena'
@@ -114,30 +114,6 @@ export function isErrorResponse(response: ItemQueryResponse): response is ItemEr
 export function isDataResponse(response: ItemQueryResponse): response is ItemData {
   return 'data' in response && !('error' in response);
 }
-
-export type ItemQueryMeasure = {
-  dataset_id?: string;
-  column_id?: string;
-  formula_id?: string;
-  formula?: string;
-  aggregation?: {
-    type: string;
-    dataset_id?: string;
-    column_id?: string;
-    expression?: string;
-    level?: number;
-    discretization?: { type: 'none' | 'linear'; bins?: number };
-  };
-};
-
-export type ItemQuerySort = {
-  dataset_id: string;
-  column_id?: string;
-  formula_id?: string;
-  order: 'asc' | 'desc';
-  expression?: string;
-  aggregation?: { type: string };
-};
 
 export type ItemQuery = {
   dimensions: ItemQueryDimension[];
