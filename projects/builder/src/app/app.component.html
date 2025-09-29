@@ -1,7 +1,10 @@
 ﻿@if (authService.isAuthenticated$ | async) {
   <div class="app-container">
     <header class="header">
-      <div class="header-title">Luzmo Custom Chart Builder</div>
+      <div class="header-title">
+        <img class="header-title-icon" src="assets/logos/logo-small.svg" alt="Luzmo Logo" >
+        <span class="header-title-text">Luzmo Custom Chart Builder</span>
+      </div>
       <div class="header-user-info">
         <div>Logged in as {{ (currentUser$ | async)?.name }}.</div>
         <div (click)="logout()"
