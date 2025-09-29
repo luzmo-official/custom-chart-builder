@@ -314,8 +314,8 @@ export function buildQuery({
   if (categoryContent?.length > 0) {
     const [category] = categoryContent;
     dimensions.push({
-      dataset_id: category.datasetId,
-      column_id: category.columnId,
+      dataset_id: category.datasetId || category.set,
+      column_id: category.columnId || category.column,
       level: category.level || 1
     });
   }
@@ -330,15 +330,15 @@ export function buildQuery({
     // Handle different types of measures
     if (measure.aggregationFunc && ['sum', 'average', 'min', 'max', 'count'].includes(measure.aggregationFunc)) {
       measures.push({
-        dataset_id: measure.datasetId,
-        column_id: measure.columnId,
+        dataset_id: measure.datasetId || measure.set,
+        column_id: measure.columnId || measure.column,
         aggregation: { type: measure.aggregationFunc }
       });
     }
     else {
       measures.push({
-        dataset_id: measure.datasetId,
-        column_id: measure.columnId
+        dataset_id: measure.datasetId || measure.set,
+        column_id: measure.columnId || measure.column
       });
     }
   }
@@ -347,8 +347,8 @@ export function buildQuery({
   const order = categoryContent?.[0]
     ? 
       [{
-        dataset_id: categoryContent[0].datasetId, 
-        column_id: categoryContent[0].columnId, 
+        dataset_id: categoryContent[0].datasetId || categoryContent[0].set, 
+        column_id: categoryContent[0].columnId || categoryContent[0].column, 
         order: 'asc' 
       }] 
     : [];
