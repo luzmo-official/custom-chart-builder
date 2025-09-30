@@ -12,7 +12,6 @@
   font-size: 0.875rem;
   color: var(--color-text);
   padding: 0 0.75rem;
-  box-shadow: 0 0.0625rem 0.1875rem var(--color-shadow-light);
   position: relative;
   line-height: 1.5;
   
@@ -23,7 +22,6 @@
   }
   
   &:focus:not(:disabled) {
-    box-shadow: 0 0 0 0.125rem rgba(var(--color-primary-rgb), 0.15);
     outline: none;
   }
   
