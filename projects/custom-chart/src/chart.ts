@@ -227,6 +227,25 @@ interface ChartParams {
 }
 
 /**
+ * Calculate the height needed for the legend based on number of items and available width
+ * @param groups Array of group names
+ * @param totalWidth Total width available for the chart
+ * @returns Height needed for the legend
+ */
+function calculateLegendHeight(groups: string[], totalWidth: number): number {
+  const itemWidth = 140; // Width per legend item including spacing
+  const rowHeight = 24; // Height per row including spacing
+  const leftMargin = 60; // Chart left margin
+  const rightMargin = 30; // Chart right margin
+  const availableWidth = totalWidth - leftMargin - rightMargin;
+  
+  const itemsPerRow = Math.max(1, Math.floor(availableWidth / itemWidth));
+  const numberOfRows = Math.ceil(groups.length / itemsPerRow);
+  
+  return numberOfRows * rowHeight;
+}
+
+/**
  * Main render function for the column chart
  * @param params Chart rendering parameters
  */
@@ -293,8 +312,13 @@ export const render = ({
     );
   }
 
-  // Set up dimensions
-  const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+  // Calculate legend height first to adjust margins
+  const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
+  const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
+  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+
+  // Set up dimensions with dynamic top margin based on legend height
+  const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
@@ -337,8 +361,13 @@ export const resize = ({
     : (value: number) => new Intl.NumberFormat(language).format(value);
   const newChartContainer = setupContainer(container, themeContext);
 
-  // Set up dimensions
-  const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+  // Calculate legend height first to adjust margins
+  const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
+  const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
+  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+
+  // Set up dimensions with dynamic top margin based on legend height
+  const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
@@ -662,16 +691,24 @@ function renderChart(
   const shouldRenderLegend = hasMultipleGroups;
 
   if (shouldRenderLegend) {
+    const itemWidth = 140; // Width per legend item including spacing
+    const rowHeight = 24; // Height per row including spacing
+    const availableWidth = innerWidth;
+    const itemsPerRow = Math.max(1, Math.floor(availableWidth / itemWidth));
+
     const legend = svg
       .append('g')
       .attr('class', 'legend')
-      .attr('transform', `translate(${margin.left}, ${Math.max(16, margin.top / 2)})`);
+      .attr('transform', `translate(${margin.left}, ${Math.max(16, 20)})`);
 
     groups.forEach((group, index) => {
+      const row = Math.floor(index / itemsPerRow);
+      const col = index % itemsPerRow;
+      
       const legendItem = legend
         .append('g')
         .attr('class', 'legend-item')
-        .attr('transform', `translate(${index * 140}, 0)`);
+        .attr('transform', `translate(${col * itemWidth}, ${row * rowHeight})`);
 
       legendItem
         .append('rect')
