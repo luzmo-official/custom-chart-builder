@@ -911,6 +911,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
 
     this.updateDocumentTheme(mode);
+    this.updateChartTheme();
   }
 
   private updateDocumentTheme(mode: AppearanceMode): void {
@@ -925,6 +926,35 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     } else {
       root.setAttribute('data-theme', mode);
     }
+  }
+
+  private updateChartTheme(): void {
+    const effectiveTheme = this.getEffectiveTheme();
+    this.selectedTheme = effectiveTheme;
+    
+    // Re-render chart if module is loaded and we have data
+    if (this.moduleLoaded) {
+      this.chartData$
+        .pipe(take(1))
+        .subscribe((data) => this.performRender(data));
+    }
+  }
+
+  private getEffectiveTheme(): 'light' | 'dark' {
+    if (this.appearanceMode === 'dark') {
+      return 'dark';
+    }
+    
+    if (this.appearanceMode === 'light') {
+      return 'light';
+    }
+    
+    // For 'auto' mode, check system preference
+    if (this.prefersDarkMedia?.matches) {
+      return 'dark';
+    }
+    
+    return 'light';
   }
 
   private attachSystemThemeListener(): void {
