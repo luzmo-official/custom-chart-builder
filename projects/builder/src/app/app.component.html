@@ -69,7 +69,7 @@
               </div>
             }
 
-            <div class="column-list">
+            <div class="column-list" [class.has-scrollbar]="hasScrollbar" #columnListContainer>
               @for (column of filteredDatasetColumns; track column.columnId) {
                 <luzmo-draggable-data-item
                   variant="highlight"

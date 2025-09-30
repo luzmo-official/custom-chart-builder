@@ -29,7 +29,7 @@
     font-weight: 500;
     font-size: 1.25rem;
     line-height: 1.25rem;
-    color: var(--color-primary);
+    color: var(--color-text-active);
     display: flex;
     align-items: anchor-center;
     gap: 0.75rem;
@@ -135,6 +135,10 @@
     flex-direction: column;
     gap: 0.5rem;
     margin-top: 1rem;
+
+    &.has-scrollbar {
+      padding-right: 0.5rem;
+    }
   }
 
   .column-search {

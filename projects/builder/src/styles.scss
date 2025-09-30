@@ -214,3 +214,15 @@ body {
 :root[data-theme="dark"] {
   @include dark-theme-colors();
 }
+
+::-webkit-scrollbar {
+  width: 0.375rem;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-alt-2);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-disabled);
+  border-radius: 0.1875rem;
+}

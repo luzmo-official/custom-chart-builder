@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common';
-import type { ElementRef, OnDestroy, OnInit } from '@angular/core';
+import type { AfterViewChecked, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
   Component,
   CUSTOM_ELEMENTS_SCHEMA,
@@ -88,7 +88,7 @@ const APPEARANCE_MODE_STORAGE_KEY = 'luzmo-builder-appearance-mode';
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Services
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
@@ -113,6 +113,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private queryReady$ = this.querySubject.asObservable();
 
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
+  @ViewChild('columnListContainer') columnListContainer?: ElementRef<HTMLDivElement>;
 
   // Loading state indicators
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
@@ -132,6 +133,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private selectedDatasetIdSubject = new Subject<string>();
 
   columnSearchTerm = '';
+  hasScrollbar = false;
 
   currentUser$ = this.authService.isAuthenticated$.pipe(
     filter((isAuthenticated) => isAuthenticated),
@@ -1014,6 +1016,16 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.blobUrl) {
       URL.revokeObjectURL(this.blobUrl);
       this.blobUrl = null;
+    }
+  }
+
+  ngAfterViewChecked(): void {
+    if (this.columnListContainer) {
+      const element = this.columnListContainer.nativeElement;
+      const hasScrollbar = element.scrollHeight > element.clientHeight;
+      if (this.hasScrollbar !== hasScrollbar) {
+        this.hasScrollbar = hasScrollbar;
+      }
     }
   }
 

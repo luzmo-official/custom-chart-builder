@@ -10,7 +10,7 @@
   background-color: var(--color-surface);
   border-radius: var(--border-radius-small);
   font-size: 0.875rem;
-  color: var(--color-text-active);
+  color: var(--color-text);
   padding: 0 0.75rem;
   box-shadow: 0 0.0625rem 0.1875rem var(--color-shadow-light);
   position: relative;
@@ -19,6 +19,7 @@
   &:hover:not(:disabled) {
     border-color: var(--luzmo-picker-border-color-hover);
     background-color: var(--color-surface-alt-1);
+    color: var(--color-text-active);
   }
   
   &:focus:not(:disabled) {
@@ -175,19 +176,6 @@
   max-height: unset;
   overflow-y: unset;
   background-color: var(--color-surface);
-  
-  &::-webkit-scrollbar {
-    width: 0.375rem;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: var(--color-surface-alt-2);
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: var(--color-disabled);
-    border-radius: 0.1875rem;
-  }
 }
 
 // Dataset items
