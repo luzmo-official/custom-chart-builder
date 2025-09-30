@@ -538,13 +538,25 @@ function renderChart(
             .attr('fill', hoverFill)
             .style('filter', `drop-shadow(0 12px 20px ${theme.hoverShadow})`);
 
+          // Calculate tooltip position based on cursor location
+          // If cursor is in right half (50-100%), position tooltip to the left
+          // If cursor is in left half (0-50%), position tooltip to the right
+          const halfWidth = width / 2;
+          const tooltipOffset = 16;
+          const estimatedTooltipWidth = 200; // Estimated tooltip width
+          
+          const isRightHalf = event.offsetX >= halfWidth;
+          const tooltipLeft = isRightHalf 
+            ? Math.max(0, event.offsetX - estimatedTooltipWidth - tooltipOffset)
+            : event.offsetX + tooltipOffset;
+
           tooltip
             .interrupt()
             .style('opacity', 1)
             .html(
               `<div class="tooltip-title">${category}</div><div class="tooltip-row"><span>${group}</span><span>${datum.value}</span></div>`
             )
-            .style('left', `${event.offsetX + 16}px`)
+            .style('left', `${tooltipLeft}px`)
             .style('top', `${Math.max(0, event.offsetY - 56)}px`);
         })
         .on('mouseout', function () {

@@ -191,7 +191,7 @@
       flex-direction: column;
       align-items: center;
       gap: 0.75rem;
-      color: var(--font-color-active);
+      color: var(--color-text-active);
       font-size: 0.875rem;
     }
 
@@ -224,14 +224,9 @@
 
     .query-summary {
       margin: 0 0 0.75rem 0;
-      font-weight: 500;
-      color: var(--font-color-active);
-    }
-
-    .rows-label {
-      margin: 0 0 0.5rem 0;
-      font-weight: 500;
-      color: var(--font-color-active);
+      font-weight: 400;
+      color: var(--color-text-active);
+      font-size: 0.875rem;
     }
 
     .empty-state {
