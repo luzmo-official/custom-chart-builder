@@ -1,33 +1,63 @@
-@if (authService.isAuthenticated$ | async) {
+﻿@if (authService.isAuthenticated$ | async) {
   <div class="app-container">
     <header class="header">
-      <div class="header-title">Luzmo Custom Chart Builder</div>
-      <div class="header-user-info">
-        <div>Logged in as {{ (currentUser$ | async)?.name }}.</div>
-        <div (click)="logout()"
-          class="logout-button">Log out</div>
+      <div class="header-title">
+        <img
+          class="header-title-icon"
+          src="assets/logos/logo-small.svg"
+          alt="Luzmo Logo"
+        />
+
+        <span class="header-title-text">Luzmo Custom Chart Builder</span>
+      </div>
+
+      <div class="header-actions">
+        <luzmo-picker
+          class="theme-mode-picker"
+          [options]="appearanceOptions"
+          [value]="appearanceMode"
+          (change)="onAppearanceModeChange($any($event))"
+        >
+          @for (option of appearanceOptions; track option.value) {
+            <luzmo-menu-item [value]="option.value">
+              {{ option.label }}
+            </luzmo-menu-item>
+          }
+        </luzmo-picker>
+
+        <div class="header-user-info">
+          <div>Logged in as {{ (currentUser$ | async)?.name }}.</div>
+
+          <div (click)="logout()" class="logout-button">Log out</div>
+        </div>
       </div>
     </header>
 
     <div class="custom-chart-editor">
       <!-- Left column: Dataset selection and columns listing -->
+
       <section class="column left-column">
         <div class="column-header">
           <p class="column-header-label">Dataset</p>
         </div>
+
         <div class="column-content">
-          <app-dataset-picker (datasetSelected)="onDatasetSelected($event)"></app-dataset-picker>
+          <app-dataset-picker
+            (datasetSelected)="onDatasetSelected($event)"
+          ></app-dataset-picker>
 
           @if (isLoadingDataset) {
             <div class="loading-container">
-              <luzmo-progress-circle indeterminate
-                static-color="var(--primary)"
-                size="m">
+              <luzmo-progress-circle
+                indeterminate
+                static-color="var(--color-primary)"
+                size="m"
+              >
               </luzmo-progress-circle>
             </div>
-          }
-          @else {
-             @if (datasetColumns.length > 0) {
+
+          } @else {
+            @if (datasetColumns.length > 0) {
               <div class="column-search">
                 <input
                   type="text"
@@ -37,13 +67,16 @@
                   autocomplete="off"
                 />
               </div>
-            }            
-            <div class="column-list">
+            }
+
+            <div class="column-list" [class.has-scrollbar]="hasScrollbar" #columnListContainer>
               @for (column of filteredDatasetColumns; track column.columnId) {
-                <luzmo-draggable-data-item variant="highlight"
+                <luzmo-draggable-data-item
+                  variant="highlight"
                   size="m"
                   [data]="column"
-                  [disabled]="false">
+                  [disabled]="false"
+                >
                 </luzmo-draggable-data-item>
               }
             </div>
@@ -52,74 +85,116 @@
       </section>
 
       <!-- Middle column: Droppable slots -->
+
       <!-- Update the Middle column section to show validation errors -->
+
       <section class="column middle-column">
         <div class="column-header">
           <p class="column-header-label">Chart slots</p>
         </div>
+
         <div class="column-content">
           @if (manifestValidationError) {
-          <div class="validation-error">
-            <div class="error-icon">⚠️</div>
-            <div class="error-title">Manifest Validation Error</div>
-            <pre class="error-message">{{ manifestValidationError }}</pre>
-            <p class="error-help">
-              Please check your manifest.json file for errors.
-            </p>
-          </div>
-          }
-          @else {
+            <div class="validation-error">
+              <div class="error-icon">⚠️</div>
+
+              <div class="error-title">Manifest Validation Error</div>
+
+              <pre class="error-message">{{ manifestValidationError }}</pre>
+
+              <p class="error-help">
+                Please check your manifest.json file for errors.
+              </p>
+            </div>
+
+          } @else {
             <div class="slot-editor">
               @for (slotConfig of slotConfigs; track slotConfig.name) {
-                <luzmo-droppable-slot data-drop-target-for-element="true"
+                <luzmo-droppable-slot
+                  data-drop-target-for-element="true"
                   [label]="slotConfig.label"
                   [type]="slotConfig.type"
                   [slotConfiguration]="slotConfig"
                   variant="highlight"
                   size="m"
-                  (slot-contents-changed)="onColumnDropped(slotConfig.name, slotConfig.type!, $any($event))">
+                  (slot-contents-changed)="
+                    onColumnDropped(
+                      slotConfig.name,
+                      slotConfig.type!,
+                      $any($event)
+                    )
+                  "
+                >
                 </luzmo-droppable-slot>
-                }
+              }
             </div>
 
             <!-- Query result section -->
+
             <div class="query-result">
-              @if (queryingData$ | async) {
-                <div class="loading-state">
-                  <luzmo-progress-circle indeterminate
-                    static-color="var(--primary)"
-                    size="m">
-                  </luzmo-progress-circle>
-                  <p>Querying data...</p>
+              @let isQuerying = queryingData$ | async;
+
+              @let queryError = queryError$ | async;
+
+              @let queryInfo = queryResultInfo$ | async;
+
+              @let chartData = chartData$ | async;
+
+              @if (isQuerying) {
+                <div class="query-loader">
+                  <div class="query-loader-label">Fetching data...</div>
+
+                  <div class="query-loader-track">
+                    <div class="query-loader-pulse"></div>
+                  </div>
                 </div>
-              }
-              @else {
-                @if (queryError$ | async; as queryError) {
+
+              } @else {
+                @if (queryError) {
                   <div class="error-state">
                     <div class="error-state-header">
                       <div class="error-icon">❌</div>
+
                       <div class="error-title">Query Error</div>
                     </div>
+
                     <p class="error-state-message" [innerHTML]="queryError"></p>
                   </div>
-                }
-                @else {
-                  @if (chartData$ | async; as chartData) {
-                    @if (chartData.length > 0) {
-                      <p class="result-header">Query result ({{ chartData.length }} rows):</p>
-                      <ngx-json-viewer [json]="displayedChartData$ | async" [expanded]="false"></ngx-json-viewer>
-                      @if (chartData.length > 25) {
-                        <p class="remaining-rows">... and {{ chartData.length - 25 }} more rows.</p>
-                      }
+
+                } @else {
+                  @if (queryInfo) {
+                    <p class="query-summary">
+                      Queried {{ queryInfo.rowCount }} rows in
+                      {{ queryInfo.durationInSeconds }} seconds:
+                    </p>
+                  }
+
+                  @if (chartData?.length > 0) {
+                    <ngx-json-viewer
+                      [json]="displayedChartData$ | async"
+                      [expanded]="false"
+                    ></ngx-json-viewer>
+
+                    @if (chartData.length > 25) {
+                      <p class="remaining-rows">
+                        ... and {{ chartData.length - 25 }} more rows.
+                      </p>
                     }
-                    @else {
-                      <div class="empty-state">
-                        <div class="empty-state-message">
-                          <p>Drag and drop columns from the left side to your chart slots above.</p>
-                          <p>Once all required slots are filled, a query will be launched and your chart will be rendered.</p>
-                        </div>
+
+                  } @else {
+                    <div class="empty-state">
+                      <div class="empty-state-message">
+                        <p>
+                          Drag and drop columns from the left side to your chart
+                          slots above.
+                        </p>
+
+                        <p>
+                          Once all required slots are filled, a query will be
+                          launched and your chart will be rendered.
+                        </p>
                       </div>
-                    }
+                    </div>
                   }
                 }
               }
@@ -129,12 +204,16 @@
       </section>
 
       <!-- Right column: Chart visualization -->
+
       <section class="column right-column">
         <div class="column-header">
           <p class="column-header-label">Chart visualization</p>
-          <luzmo-picker [options]="chartThemes"
+
+          <luzmo-picker
+            [options]="chartThemes"
             [value]="selectedTheme"
-            (change)="onChartThemeChange($any($event))">
+            (change)="onChartThemeChange($any($event))"
+          >
             @for (theme of chartThemes; track theme.name) {
               <luzmo-menu-item [value]="theme.name">
                 <div class="dataset-info">
@@ -144,19 +223,23 @@
             }
           </luzmo-picker>
         </div>
+
         <div class="column-content">
           <div class="visualization-container">
             <div class="chart-container">
               @if (!moduleLoaded) {
                 <div class="chart-loading">
-                  <luzmo-progress-circle indeterminate
-                    static-color="var(--primary)"
-                    size="m">
+                  <luzmo-progress-circle
+                    indeterminate
+                    static-color="var(--color-primary)"
+                    size="m"
+                  >
                   </luzmo-progress-circle>
+
                   <span>Loading chart...</span>
                 </div>
               }
-              
+
               <div #chartContainer id="chartContainer"></div>
             </div>
           </div>
@@ -164,8 +247,8 @@
       </section>
     </div>
   </div>
-}
-@else {
+
+} @else {
   <div class="container">
     <app-login></app-login>
   </div>

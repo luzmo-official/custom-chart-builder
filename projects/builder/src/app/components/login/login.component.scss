@@ -7,14 +7,17 @@
   height: 100%;
   display: flex;
   justify-content: center;
+  background-color: var(--color-surface);
+  color: var(--color-text);
   .login-content {
     margin: 20vh auto;
     width: 25rem;
   }
   .title {
-    color: var(--font-color-active);
+    color: var(--color-text-active);
     font-size: 1.25rem;
     font-weight: 500;
+    margin-bottom: 3rem;
   }
   .form-log-in,
   .form-2fa {
@@ -33,10 +36,10 @@
         font-size: .875rem;
         font-weight: 400;
         line-height: 1.5;
-        color: var(--font-color-active);
+        color: var(--color-text-active);
         background-color: transparent;
         background-clip: padding-box;
-        border: 0.0625rem solid var(--border-color);
+        border: 0.0625rem solid var(--color-border);
         appearance: none;
         border-radius: .375rem;
         box-shadow: none;
@@ -44,9 +47,9 @@
         height: auto;
         margin: 0;
         &:focus {
-          color: var(--font-color-active);
-          background-color: var(--background-color-alt-1);
-          border-color: var(--primary);
+          color: var(--color-text-active);
+          background-color: var(--color-surface-alt-1);
+          border-color: var(--color-primary);
           outline: 0;
         }
       }
@@ -60,7 +63,7 @@
     button {
       border-radius: 0.25rem;
       border: 0.0625rem solid transparent;
-      box-shadow: 0 0 0 var(--box-shadow-color), 0 0 0 var(--box-shadow-color);
+      box-shadow: 0 0 0 var(--color-shadow), 0 0 0 var(--color-shadow);
       cursor: pointer;
       display: inline-block;
       font-size: .875rem;
@@ -78,27 +81,27 @@
         transform: translateY(0);
       }
       &.btn-primary {
-        background-color: var(--primary);
-        border-color: var(--primary);
-        color: var(--m500-inv);
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: var(--color-primary-500-inv);
         &:hover {
-          background-color: var(--m400);
-          border-color: var(--m400);
-          color: var(--m500-inv);
+          background-color: var(--color-primary-400);
+          border-color: var(--color-primary-400);
+          color: var(--color-primary-500-inv);
         }
         &:disabled {
-          background-color: var(--primary);
-          border-color: var(--primary);
-          color: var(--m500-inv);
+          background-color: var(--color-primary);
+          border-color: var(--color-primary);
+          color: var(--color-primary-500-inv);
         }
       }
       &.btn-transparent {
         transform: translateY(0);
-        color: var(--font-color);
+        color: var(--color-text);
         box-shadow: none;
         background: none;
         &:hover {
-          color: var(--font-color-active);
+          color: var(--color-text-active);
         }
       }
     }

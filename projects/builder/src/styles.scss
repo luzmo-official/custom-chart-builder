@@ -1,91 +1,228 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap");
+
+@mixin light-theme-colors() {
+  --color-primary: rgb(68, 52, 255);
+  --color-primary-rgb: 68, 52, 255;
+  --color-primary-outline: rgba(68, 52, 255, 0.25);
+  --color-primary-05: rgba(68, 52, 255, 0.5);
+  --color-primary-50: rgb(233, 231, 255);
+  --color-primary-50-inv: #333333;
+  --color-primary-100: rgb(199, 194, 255);
+  --color-primary-100-inv: #333333;
+  --color-primary-200: rgb(162, 154, 255);
+  --color-primary-200-inv: #ffffff;
+  --color-primary-300: rgb(124, 113, 255);
+  --color-primary-300-inv: #ffffff;
+  --color-primary-400: rgb(96, 82, 255);
+  --color-primary-400-inv: #ffffff;
+  --color-primary-500: rgb(68, 52, 255);
+  --color-primary-500-inv: #ffffff;
+  --color-primary-600: rgb(66, 52, 228);
+  --color-primary-600-inv: #ffffff;
+  --color-primary-700: rgb(63, 52, 194);
+  --color-primary-700-inv: #ffffff;
+  --color-primary-800: rgb(60, 52, 161);
+  --color-primary-800-inv: #ffffff;
+  --color-primary-900: rgb(55, 51, 102);
+  --color-primary-900-inv: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-alt-1: #f8f8f8;
+  --color-surface-alt-2: #efefef;
+  --color-surface-alt-3: #f5f5f5;
+  --color-text: #5a5a5a;
+  --color-text-active: #333;
+  --color-text-dimmed: #a5a5a5;
+  --color-text-rgb: 90, 90, 90;
+  --color-text-active-rgb: 51, 51, 51;
+  --color-disabled: #ccc;
+  --color-shadow-light: rgba(0, 0, 0, 0.07);
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-shadow-hard: rgba(0, 0, 0, 0.2);
+  --color-border-light: rgba(0, 0, 0, 0.05);
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-hard: rgba(0, 0, 0, 0.2);
+}
+
+@mixin dark-theme-colors() {
+  --color-primary: rgb(143, 161, 255);
+  --color-primary-rgb: 143, 161, 255;
+  --color-primary-outline: rgba(143, 161, 255, 0.25);
+  --color-primary-05: rgba(143, 161, 255, 0.5);
+  --color-primary-50: rgb(69, 74, 102);
+  --color-primary-50-inv: #ffffff;
+  --color-primary-100: rgb(90, 101, 161);
+  --color-primary-100-inv: #ffffff;
+  --color-primary-200: rgb(101, 116, 194);
+  --color-primary-200-inv: #ffffff;
+  --color-primary-300: rgb(114, 132, 228);
+  --color-primary-300-inv: #ffffff;
+  --color-primary-400: rgb(123, 144, 255);
+  --color-primary-400-inv: #ffffff;
+  --color-primary-500: rgb(143, 161, 255);
+  --color-primary-500-inv: #ffffff;
+  --color-primary-600: rgb(163, 177, 255);
+  --color-primary-600-inv: #333333;
+  --color-primary-700: rgb(189, 200, 255);
+  --color-primary-700-inv: #333333;
+  --color-primary-800: rgb(215, 222, 255);
+  --color-primary-800-inv: #333333;
+  --color-primary-900: rgb(239, 242, 255);
+  --color-primary-900-inv: #333333;
+  --color-surface: #262626;
+  --color-surface-alt-1: #3a3a3a;
+  --color-surface-alt-2: #313131;
+  --color-surface-alt-3: #3d3d3d;
+  --color-text: #ced4da;
+  --color-text-active: #f8f9fa;
+  --color-text-dimmed: #939ea8;
+  --color-text-rgb: 206, 212, 218;
+  --color-text-active-rgb: 248, 249, 250;
+  --color-disabled: #4a4c4d;
+  --color-shadow-light: rgba(0, 0, 0, 0.1);
+  --color-shadow: rgba(0, 0, 0, 0.2);
+  --color-shadow-hard: rgba(0, 0, 0, 0.3);
+  --color-border-light: rgba(255, 255, 255, 0.05);
+  --color-border: rgba(255, 255, 255, 0.10);
+  --color-border-hard: rgba(255, 255, 255, 0.2);
+}
+
+:root {
+  // SCSS variables
+  --font-family-base: "Geist", sans-serif;
+  --font-family-mono: "Geist Mono", monospace;
+  --font-size-base: 0.875rem;
+  --border-radius-small: 0.375rem;
+  --border-radius-default: 0.5rem;
+  --border-radius-large: 0.75rem;
+  --border-radius-full: 9999px;
+
+  @include light-theme-colors();
+
+  // JSON viewer variables
+  --ngx-json-font-size: var(--font-size-base);
+  --ngx-json-font-family: var(--font-family-mono);
+  --ngx-json-string: var(--color-primary-300);
+  --ngx-json-number: var(--color-primary-300);
+  --ngx-json-boolean: var(--color-primary-700);
+  --ngx-json-date: var(--color-primary-600);
+  --ngx-json-array: var(--color-text-dimmed);
+  --ngx-json-object: var(--color-text);
+  --ngx-json-function: var(--color-primary);
+  --ngx-json-null: var(--color-text-dimmed);
+  --ngx-json-null-bg: transparent;
+  --ngx-json-undefined: var(--color-disabled);
+  --ngx-json-toggler: var(--color-text-dimmed);
+  --ngx-json-key: var(--color-text-active);
+  --ngx-json-separator: var(--color-text-dimmed);
+  --ngx-json-value: var(--color-text);
+  --ngx-json-undefined-key: var(--color-disabled);
+
+  // Luzmo
+  --luzmo-background-color: var(--color-surface);
+  --luzmo-background-color-disabled: var(--color-surface);
+  --luzmo-background-color-hover: var(--color-surface-alt-1);
+  --luzmo-background-color-down: var(--color-surface-alt-1);
+  --luzmo-background-color-focus: var(--color-surface-alt-1);
+  --luzmo-background-color-highlight: var(--color-surface);
+  --luzmo-background-color-highlight-disabled: var(--color-surface);
+  --luzmo-background-color-highlight-hover: var(--color-surface-alt-1);
+  --luzmo-background-color-highlight-down: var(--color-surface-alt-1);
+  --luzmo-background-color-highlight-focus: var(--color-surface-alt-1);
+
+  /* Borders */
+  --luzmo-border-color: var(--color-border);
+  --luzmo-border-color-hover: var(--color-border-hard);
+  --luzmo-border-radius: var(--border-radius-default);
+
+  /* Font colors */
+  --luzmo-font-family: var(--font-family-base);
+  --luzmo-font-color: var(--color-text);
+  --luzmo-font-color-hover: var(--color-text-active);
+  --luzmo-font-color-down: var(--color-text-active);
+
+  /* Primary colors */
+  --luzmo-primary: var(--color-primary);
+  --luzmo-primary-down: var(--color-primary-600);
+  --luzmo-primary-hover: var(--color-primary);
+  --luzmo-primary-focus: var(--color-primary);
+  --luzmo-primary-inverse-color: var(--color-primary-500-inv);
+  --luzmo-secondary: var(--color-primary);
+  --luzmo-secondary-down: var(--color-primary-700);
+  --luzmo-secondary-hover: var(--color-primary);
+  --luzmo-secondary-focus: var(--color-primary);
+  --luzmo-secondary-inverse-color: var(--color-primary-500-inv);
+
+  /* Text field */
+  --luzmo-text-field-border-color-hover: var(--color-primary);
+  --luzmo-text-field-text-color: var(--color-text);
+  --luzmo-text-field-text-color-hover: var(--color-text);
+  --luzmo-text-field-text-color-keyboard-focus: var(--color-text);
+
+  /* Divider */
+  --luzmo-divider-background-color: var(--color-border);
+
+  /* Droppable slot */
+  --luzmo-droppable-slot-font-color: var(--color-text);
+  --luzmo-droppable-slot-filled-color: var(--color-primary-500-inv);
+  --luzmo-droppable-slot-filled-border-color: var(--color-primary-500);
+  --luzmo-droppable-slot-height: 2.25rem;
+  --luzmo-droppable-slot-border-style: solid;
+  --luzmo-droppable-slot-background-color: var(--color-surface-alt-1);
+  --luzmo-droppable-slot-border-color: var(--color-border);
+  --luzmo-droppable-slot-controls-color: var(--color-primary-600-inv);
+
+  /* Picker */
+  --luzmo-picker-border-radius: var(--border-radius-default);
+  --luzmo-picker-border-color-default: var(--color-border);
+  --luzmo-picker-border-color-hover: var(--color-border-hard);
+  --luzmo-picker-box-shadow: none;
+  --luzmo-picker-spacing-edge-to-text: 0.75rem;
+  --luzmo-picker-spacing-edge-to-disclosure-icon: 0.75rem;
+  --luzmo-picker-border-default-open: rgba(var(--color-primary-rgb), 0.50);
+  --luzmo-menu-item-background-color-hover: rgba(var(--color-primary-rgb), 0.10);
+  --luzmo-menu-item-label-content-color-hover: var(--color-text-active);
+
+  /* Draggable data item */
+  --luzmo-draggable-data-item-level-border-color: var(--color-border);
+  --luzmo-draggable-data-item-level-background-color: var(--color-surface-alt-1);
+  --luzmo-draggable-data-item-level-background-color-hover: var(--color-surface-alt-2);
+  --luzmo-draggable-data-item-level-sublevel-background-color-hover: var(--color-surface-alt-2);
+  --luzmo-draggable-data-item-level-font-color-hover: var(--color-text-active);
+  --luzmo-draggable-data-item-level-border-color-hover: var(--color-border-hard);
+  --luzmo-animation-duration: 0.3s;
+}
+
 html,
 body {
   height: 100%;
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Open Sans, Helvetica Neue, sans-serif;
+}
 
-  // SCSS variables
-  --primary: rgb(68, 52, 255);
-  --secondary: rgb(191, 5, 184);
-  --primary-rgb: 68, 52, 255;
-  --secondary-rgb: 191, 5, 184;
-  --primary-outline: rgba(68, 52, 255, 0.25);
-  --secondary-outline: rgba(191, 5, 184, 0.25);
-  --m05: rgba(68, 52, 255, 0.5);
-  --a05: rgba(191, 5, 184, 0.5);
-  --m50: rgb(233, 231, 255);
-  --m50-inv: #333333;
-  --m100: rgb(199, 194, 255);
-  --m100-inv: #333333;
-  --m200: rgb(162, 154, 255);
-  --m200-inv: #ffffff;
-  --m300: rgb(124, 113, 255);
-  --m300-inv: #ffffff;
-  --m400: rgb(96, 82, 255);
-  --m400-inv: #ffffff;
-  --m500: rgb(68, 52, 255);
-  --m500-inv: #ffffff;
-  --m600: rgb(66, 52, 228);
-  --m600-inv: #ffffff;
-  --m700: rgb(63, 52, 194);
-  --m700-inv: #ffffff;
-  --m800: rgb(60, 52, 161);
-  --m800-inv: #ffffff;
-  --m900: rgb(55, 51, 102);
-  --m900-inv: #ffffff;
-  --a50: rgb(247, 225, 246);
-  --a50-inv: #333333;
-  --a100: rgb(236, 180, 234);
-  --a100-inv: #333333;
-  --a200: rgb(223, 130, 220);
-  --a200-inv: #ffffff;
-  --a300: rgb(210, 80, 205);
-  --a300-inv: #ffffff;
-  --a400: rgb(201, 43, 195);
-  --a400-inv: #ffffff;
-  --a500: rgb(191, 5, 184);
-  --a500-inv: #ffffff;
-  --a600: rgb(173, 11, 167);
-  --a600-inv: #ffffff;
-  --a700: rgb(149, 19, 144);
-  --a700-inv: #ffffff;
-  --a800: rgb(127, 26, 123);
-  --a800-inv: #ffffff;
-  --a900: rgb(86, 40, 84);
-  --a900-inv: #ffffff;
-  --background-color: #ffffff;
-  --background-color-alt-1: #f8f8f8;
-  --background-color-alt-2: #efefef;
-  --background-color-alt-3: #f5f5f5;
-  --font-color: #5a5a5a;
-  --font-color-active: #333;
-  --font-color-dimmed: #a5a5a5;
-  --font-color-rgb: 90, 90, 90;
-  --font-color-activergb: 51, 51, 51;
-  --disabled-color: #ccc;
-  --box-shadow-color-light: rgba(0, 0, 0, .07);
-  --box-shadow-color: rgba(0, 0, 0, .1);
-  --box-shadow-color-hard: rgba(0, 0, 0, .2);
-  --border-color-light: rgba(0, 0, 0, .05);
-  --border-color: rgba(0, 0, 0, .1);
-  --border-color-full: #e5e5e5;
-  --border-color-hard: rgba(0, 0, 0, .2);
-  --border-radius: 0.375rem;
-  // JSON viewer variables
-  --ngx-json-string: var(--m300);
-  --ngx-json-number: var(--a300);
-  --ngx-json-boolean: var(--m700);
-  --ngx-json-date: var(--m600);
-  --ngx-json-array: var(--font-color-dimmed);
-  --ngx-json-object: var(--font-color);
-  --ngx-json-function: var(--secondary);
-  --ngx-json-null: var(--font-color-dimmed);
-  --ngx-json-null-bg: transparent;
-  --ngx-json-undefined: var(--disabled-color);
-  --ngx-json-toggler: var(--font-color-dimmed);
-  --ngx-json-key: var(--font-color-active);
-  --ngx-json-separator: var(--font-color-dimmed);
-  --ngx-json-value: var(--font-color);
-  --ngx-json-undefined-key: var(--disabled-color);
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: var(--font-family-base) !important;
+  background-color: var(--color-surface) !important;
+  color: var(--color-text) !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    @include dark-theme-colors();
+  }
+}
+
+:root[data-theme="dark"] {
+  @include dark-theme-colors();
+}
+
+::-webkit-scrollbar {
+  width: 0.375rem;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-alt-2);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-disabled);
+  border-radius: 0.1875rem;
 }

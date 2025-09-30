@@ -1,4 +1,4 @@
-import { formatter } from '@luzmo/analytics-components-kit/utils';
+﻿import { formatter } from '@luzmo/analytics-components-kit/utils';
 import type {
   ItemData,
   ItemFilter,
@@ -45,6 +45,141 @@ interface ChartState {
 const chartState: ChartState = {
   selectedBars: new Set()
 };
+
+interface ThemeContext {
+  backgroundColor: string;
+  axisTextColor: string;
+  axisLineColor: string;
+  fontFamily: string;
+  basePalette: string[];
+  mainColor: string;
+  barRounding: number;
+  barPadding: number;
+  hoverShadow: string;
+  selectedShadow: string;
+  tooltipBackground: string;
+  tooltipColor: string;
+  controlBackground: string;
+  controlBorder: string;
+  controlText: string;
+  controlHoverBackground: string;
+}
+
+function toRgb(color?: string, fallback = '#ffffff'): d3.RGBColor {
+  const parsed = d3.color(color ?? fallback) ?? d3.color(fallback);
+  return d3.rgb(parsed?.toString() ?? fallback);
+}
+
+function getRelativeLuminance(color: d3.RGBColor): number {
+  const normalize = (value: number) => {
+    const channel = value / 255;
+    return channel <= 0.03928 ? channel / 12.92 : Math.pow((channel + 0.055) / 1.055, 2.4);
+  };
+
+  return 0.2126 * normalize(color.r) + 0.7152 * normalize(color.g) + 0.0722 * normalize(color.b);
+}
+
+function lightenColor(color: string, amount = 0.2): string {
+  const parsed = d3.color(color);
+  if (!parsed) {
+    return color;
+  }
+  const interpolator = d3.interpolateRgb(parsed, '#ffffff');
+  return interpolator(Math.min(1, Math.max(0, amount)));
+}
+
+function darkenColor(color: string, amount = 0.2): string {
+  const parsed = d3.color(color);
+  if (!parsed) {
+    return color;
+  }
+  const interpolator = d3.interpolateRgb(parsed, '#000000');
+  return interpolator(Math.min(1, Math.max(0, amount)));
+}
+
+function expandPalette(basePalette: string[], mainColor: string, length: number): string[] {
+  if (length <= basePalette.length) {
+    return basePalette.slice(0, length);
+  }
+
+  const palette = [...basePalette];
+  const modifiers = [0.15, -0.15, 0.3, -0.3, 0.45, -0.45, 0.6, -0.6];
+  let index = 0;
+
+  while (palette.length < length) {
+    const modifier = modifiers[index % modifiers.length];
+    const intensity = Math.min(0.85, Math.abs(modifier));
+    const color = modifier >= 0 ? lightenColor(mainColor, intensity) : darkenColor(mainColor, intensity);
+    palette.push(color);
+    index++;
+  }
+
+  return palette.slice(0, length);
+}
+
+function resolveTheme(theme?: ItemThemeConfig): ThemeContext {
+  const backgroundColor = theme?.itemsBackground || '#ffffff';
+  const backgroundRgb = toRgb(backgroundColor);
+  const luminance = getRelativeLuminance(backgroundRgb);
+  const axisTextColor = luminance < 0.45 ? '#f8fafc' : '#1f2937';
+  const axisLineReference =
+    luminance < 0.45 ? lightenColor(backgroundColor, 0.25) : darkenColor(backgroundColor, 0.15);
+  const axisLineColor = d3.color(axisLineReference)?.formatHex() ?? '#d1d5db';
+
+  const paletteFromTheme = (theme?.colors ?? []).filter(Boolean) as string[];
+  const mainColor = theme?.mainColor || paletteFromTheme[0];
+
+  const fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+
+  const barRounding = Math.max(2, Math.min(16, theme?.itemSpecific?.rounding ?? 8));
+  const paddingSetting = theme?.itemSpecific?.padding;
+  const barPadding =
+    typeof paddingSetting === 'number'
+      ? Math.max(0.05, Math.min(0.35, paddingSetting / 100))
+      : 0.18;
+
+  const hoverShadowBase = d3.color(darkenColor(mainColor, 0.55)) ?? d3.rgb(15, 23, 42);
+  const selectedShadowBase = d3.color(mainColor) ?? d3.rgb(99, 102, 241);
+  const hoverShadow = `rgba(${hoverShadowBase.r}, ${hoverShadowBase.g}, ${hoverShadowBase.b}, ${luminance < 0.45 ? 0.55 : 0.25
+    })`;
+  const selectedShadow = `rgba(${selectedShadowBase.r}, ${selectedShadowBase.g}, ${selectedShadowBase.b}, ${luminance < 0.45 ? 0.55 : 0.35
+    })`;
+
+  const tooltipBaseColor = theme?.tooltip?.background ||
+    (luminance < 0.45 ? lightenColor(backgroundColor, 0.18) : darkenColor(backgroundColor, 0.35));
+  const tooltipColorRgb = toRgb(tooltipBaseColor);
+  const tooltipBackground = `rgba(${tooltipColorRgb.r}, ${tooltipColorRgb.g}, ${tooltipColorRgb.b}, 0.70)`;
+  const tooltipColor = luminance < 0.45 ? '#0f172a' : '#f8fafc';
+
+  const controlBase =
+    luminance < 0.45 ? lightenColor(backgroundColor, 0.22) : darkenColor(backgroundColor, 0.08);
+  const controlBackground = controlBase;
+  const controlBorder =
+    luminance < 0.45 ? lightenColor(controlBase, 0.12) : darkenColor(controlBase, 0.12);
+  const controlHoverBackground =
+    luminance < 0.45 ? lightenColor(controlBase, 0.18) : darkenColor(controlBase, 0.18);
+  const controlText = axisTextColor;
+
+  return {
+    backgroundColor,
+    axisTextColor,
+    axisLineColor,
+    fontFamily,
+    basePalette: paletteFromTheme,
+    mainColor,
+    barRounding,
+    barPadding,
+    hoverShadow,
+    selectedShadow,
+    tooltipBackground,
+    tooltipColor,
+    controlBackground,
+    controlBorder,
+    controlText,
+    controlHoverBackground
+  };
+}
+
 
 /**
  * Helper function to send custom events to the parent window
@@ -93,6 +228,25 @@ interface ChartParams {
 }
 
 /**
+ * Calculate the height needed for the legend based on number of items and available width
+ * @param groups Array of group names
+ * @param totalWidth Total width available for the chart
+ * @returns Height needed for the legend
+ */
+function calculateLegendHeight(groups: string[], totalWidth: number): number {
+  const itemWidth = 140; // Width per legend item including spacing
+  const rowHeight = 24; // Height per row including spacing
+  const leftMargin = 60; // Chart left margin
+  const rightMargin = 30; // Chart right margin
+  const availableWidth = totalWidth - leftMargin - rightMargin;
+  
+  const itemsPerRow = Math.max(1, Math.floor(availableWidth / itemWidth));
+  const numberOfRows = Math.ceil(groups.length / itemsPerRow);
+  
+  return numberOfRows * rowHeight;
+}
+
+/**
  * Main render function for the column chart
  * @param params Chart rendering parameters
  */
@@ -105,12 +259,19 @@ export const render = ({
   language = 'en',
   dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
-  const chartContainer = setupContainer(container);
+  const themeContext = resolveTheme(options.theme);
+  (container as any).__themeContext = themeContext;
+  const chartContainer = setupContainer(container, themeContext);
 
   // Store slots in chart state
   chartState.categorySlot = slots.find((s) => s.name === 'category');
   chartState.measureSlot = slots.find((s) => s.name === 'measure');
   chartState.groupSlot = slots.find((s) => s.name === 'legend');
+
+  const measureFormatterFn =
+    chartState.measureSlot?.content?.[0]
+      ? formatter(chartState.measureSlot.content[0])
+      : (value: number) => new Intl.NumberFormat(language).format(value);
 
   const hasCategory = chartState.categorySlot?.content?.length! > 0;
   const hasMeasure = chartState.measureSlot?.content?.length! > 0;
@@ -131,7 +292,7 @@ export const render = ({
         sampleData.push({
           category: categories[i],
           group: groups[j],
-          value: rawValue.toString(), // Convert to string for sample data
+          value: measureFormatterFn(rawValue), // Format sample data using measure formatter
           rawValue: rawValue, // Store the raw value
           columnId: `column_${i}_${j}`,
           datasetId: `dataset_${i}_${j}`
@@ -147,12 +308,18 @@ export const render = ({
       data,
       chartState.measureSlot!,
       chartState.categorySlot!,
-      chartState.groupSlot!
+      chartState.groupSlot!,
+      measureFormatterFn
     );
   }
 
-  // Set up dimensions
-  const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+  // Calculate legend height first to adjust margins
+  const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
+  const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
+  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+
+  // Set up dimensions with dynamic top margin based on legend height
+  const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
@@ -164,7 +331,9 @@ export const render = ({
     height,
     margin,
     innerWidth,
-    innerHeight
+    innerHeight,
+    themeContext,
+    measureFormatterFn
   );
 
   // Store the chart data on the container for reference during resize
@@ -185,10 +354,21 @@ export const resize = ({
 }: ChartParams): void => {
   // Get the existing state
   const chartData = (container as any).__chartData || [];
-  const newChartContainer = setupContainer(container);
+  const previousThemeContext = (container as any).__themeContext as ThemeContext | undefined;
+  const themeContext = options.theme ? resolveTheme(options.theme) : previousThemeContext ?? resolveTheme(undefined);
+  (container as any).__themeContext = themeContext;
+  const measureFormatterFn = chartState.measureSlot?.content?.[0]
+    ? formatter(chartState.measureSlot.content[0])
+    : (value: number) => new Intl.NumberFormat(language).format(value);
+  const newChartContainer = setupContainer(container, themeContext);
 
-  // Set up dimensions
-  const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+  // Calculate legend height first to adjust margins
+  const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
+  const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
+  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+
+  // Set up dimensions with dynamic top margin based on legend height
+  const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
@@ -200,7 +380,9 @@ export const resize = ({
     height,
     margin,
     innerWidth,
-    innerHeight
+    innerHeight,
+    themeContext,
+    measureFormatterFn
   );
 
   // Maintain state for future resizes
@@ -246,209 +428,310 @@ function renderChart(
   height: number,
   margin: { top: number; right: number; bottom: number; left: number },
   innerWidth: number,
-  innerHeight: number
+  innerHeight: number,
+  theme: ThemeContext,
+  measureFormatter: (value: number) => string
 ): void {
-  // Create SVG
   const svg: d3.Selection<SVGSVGElement, unknown, null, undefined> = d3
     .select(chartContainer)
     .append('svg')
     .attr('width', width)
-    .attr('height', height);
+    .attr('height', height)
+    .attr('class', 'bar-chart-svg');
 
-  // Create chart area
-  const chart = svg
-    .append('g')
-    .attr('transform', `translate(${margin.left},${margin.top})`);
+  if (theme.fontFamily) {
+    svg.style('font-family', theme.fontFamily);
+  }
 
-  // Group data by category and group
-  const nestedData: d3.InternMap<string, ChartDataItem[]> = d3.group(
-    chartData,
-    (d) => d.category
-  );
+  const chart = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-  // Get unique categories and groups
+  const nestedData = d3.group(chartData, (d) => d.category);
   const categories: string[] = Array.from(nestedData.keys());
   const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
 
-  // Create color scale
+  const palette = expandPalette(theme.basePalette, theme.mainColor, Math.max(groups.length, 1));
   const colorScale: d3.ScaleOrdinal<string, string> = d3
     .scaleOrdinal<string>()
     .domain(groups)
-    .range(d3.schemeCategory10);
+    .range(palette);
 
-  // Create X scale
   const xScale: d3.ScaleBand<string> = d3
     .scaleBand<string>()
     .domain(categories)
     .range([0, innerWidth])
-    .padding(0.2);
+    .padding(theme.barPadding);
 
-  // Create grouped X scale
+  const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
+
   const groupedXScale: d3.ScaleBand<string> = d3
     .scaleBand<string>()
     .domain(groups)
-    .range([0, xScale.bandwidth()])
-    .padding(0.05);
+    .range([0, Math.max(xScale.bandwidth(), 0)])
+    .padding(hasMultipleGroups ? Math.min(0.35, theme.barPadding * 0.6) : 0.08);
 
-  // Create Y scale - use the rawValue for scale calculations
+  const baseBarWidth = hasMultipleGroups ? groupedXScale.bandwidth() : xScale.bandwidth();
+  const barRadius = Math.min(theme.barRounding, Math.max(baseBarWidth, 0) / 2);
+
   const maxValue: number = d3.max(chartData, (d) => d.rawValue) || 0;
   const yScale: d3.ScaleLinear<number, number> = d3
     .scaleLinear()
-    .domain([0, maxValue * 1.1]) // Add 10% padding
-    .range([innerHeight, 0]);
+    .domain([0, maxValue === 0 ? 1 : maxValue * 1.1])
+    .range([innerHeight, 0])
+    .nice();
 
-  // Create X axis
-  chart
+  const xAxis = chart
     .append('g')
     .attr('class', 'axis x-axis')
     .attr('transform', `translate(0,${innerHeight})`)
-    .call(d3.axisBottom(xScale))
-    .selectAll('text')
+    .call(d3.axisBottom(xScale).tickSizeOuter(0));
+
+  xAxis
+    .selectAll<SVGTextElement, string>('text')
     .attr('transform', 'rotate(-45)')
     .style('text-anchor', 'end')
     .attr('dx', '-.8em')
-    .attr('dy', '.15em');
+    .attr('dy', '.15em')
+    .style('fill', theme.axisTextColor);
 
-  // Create Y axis
-  chart.append('g').attr('class', 'axis y-axis').call(d3.axisLeft(yScale));
+  if (theme.fontFamily) {
+    xAxis.selectAll<SVGTextElement, string>('text').style('font-family', theme.fontFamily);
+  }
 
-  // Create tooltip
+  xAxis.selectAll<SVGLineElement, unknown>('line').attr('stroke', theme.axisLineColor);
+  xAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
+
+  const yAxisGenerator = d3
+    .axisLeft(yScale)
+    .ticks(6)
+    .tickSize(-innerWidth)
+    .tickSizeOuter(0)
+    .tickFormat((value) => measureFormatter(Number(value)));
+  const yAxis = chart.append('g').attr('class', 'axis y-axis').call(yAxisGenerator);
+
+  yAxis.selectAll<SVGTextElement, number>('text').style('fill', theme.axisTextColor);
+
+  if (theme.fontFamily) {
+    yAxis.selectAll<SVGTextElement, number>('text').style('font-family', theme.fontFamily);
+  }
+
+  yAxis
+    .selectAll<SVGLineElement, number>('line')
+    .attr('stroke', theme.axisLineColor)
+    .attr('stroke-dasharray', '2,4');
+  yAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
+
   const tooltip: d3.Selection<HTMLDivElement, unknown, null, undefined> = d3
     .select(chartContainer)
     .append('div')
     .attr('class', 'tooltip')
-    .style('opacity', 0);
+    .style('opacity', 0)
+    .style('background-color', theme.tooltipBackground)
+    .style('color', theme.tooltipColor)
+    .style('box-shadow', `0 12px 24px ${theme.hoverShadow}`);
 
-  // Create bars
   categories.forEach((category) => {
     const categoryData = chartData.filter((d) => d.category === category);
 
     groups.forEach((group) => {
-      const groupData = categoryData.filter((d) => d.group === group);
-      if (groupData.length) {
-        chart
-          .append('rect')
-          .attr('class', 'bar')
-          .attr('x', xScale(category)! + groupedXScale(group)!)
-          .attr('y', yScale(groupData[0].rawValue)) // Use raw value for positioning
-          .attr('width', groupedXScale.bandwidth())
-          .attr('height', innerHeight - yScale(groupData[0].rawValue)) // Use raw value for height
-          .attr('fill', colorScale(group))
-          .on('mouseover', function (event: MouseEvent) {
-            d3.select(this).transition().duration(200).attr('opacity', 0.8);
-            tooltip.transition().duration(200).style('opacity', 0.9);
-            tooltip
-              .html(`${category}<br>${group}<br>Value: ${groupData[0].value}`) // Display formatted value
-              .style('left', event.offsetX + 10 + 'px')
-              .style('top', event.offsetY - 28 + 'px');
-          })
-          .on('mouseout', function () {
-            d3.select(this).transition().duration(200).attr('opacity', 1);
-            tooltip.transition().duration(500).style('opacity', 0);
-          })
-          .on('click', function (event: MouseEvent) {
-            // Create unique identifier for this bar
-            const barId = `${category}-${group}`;
+      const datum = categoryData.find((d) => d.group === group);
+      if (!datum) {
+        return;
+      }
 
-            // Toggle selection state
-            if (chartState.selectedBars.has(barId)) {
-              // Remove selection
-              chartState.selectedBars.delete(barId);
-              d3.select(this).classed('bar-selected', false);
-            } else {
-              // Add selection
-              chartState.selectedBars.add(barId);
-              d3.select(this).classed('bar-selected', true);
+      const barId = `${category}-${group}`;
+      const baseFill = colorScale(group);
+      const xPosition = (xScale(category) ?? 0) + (hasMultipleGroups ? groupedXScale(group) ?? 0 : 0);
+      const barWidth = hasMultipleGroups ? groupedXScale.bandwidth() : xScale.bandwidth();
+      const barHeight = innerHeight - yScale(datum.rawValue);
+
+      const bar = chart
+        .append('rect')
+        .attr('class', 'bar')
+        .attr('data-bar-id', barId)
+        .attr('data-base-fill', baseFill)
+        .attr('x', xPosition)
+        .attr('y', yScale(datum.rawValue))
+        .attr('width', barWidth)
+        .attr('height', barHeight)
+        .attr('fill', baseFill)
+        .attr('rx', barRadius)
+        .attr('ry', barRadius);
+
+      bar
+        .on('mouseover', function (event: MouseEvent) {
+          const selection = d3.select(this as SVGRectElement);
+          const startingFill = selection.attr('data-base-fill') || baseFill;
+          const hoverFill = lightenColor(startingFill, 0.18);
+
+          selection
+            .raise()
+            .attr('fill', hoverFill)
+            .style('filter', `drop-shadow(0 12px 20px ${theme.hoverShadow})`);
+
+          // Calculate tooltip position based on cursor location
+          // If cursor is in right half (50-100%), position tooltip to the left
+          // If cursor is in left half (0-50%), position tooltip to the right
+          const halfWidth = width / 2;
+          const tooltipOffset = 16;
+          const estimatedTooltipWidth = 200; // Estimated tooltip width
+          
+          const isRightHalf = event.offsetX >= halfWidth;
+          const tooltipLeft = isRightHalf 
+            ? Math.max(0, event.offsetX - estimatedTooltipWidth - tooltipOffset)
+            : event.offsetX + tooltipOffset;
+
+          tooltip
+            .interrupt()
+            .style('opacity', 1)
+            .html(
+              `<div class="tooltip-title">${category}</div><div class="tooltip-row"><span>${group}</span><span>${datum.value}</span></div>`
+            )
+            .style('left', `${tooltipLeft}px`)
+            .style('top', `${Math.max(0, event.offsetY - 56)}px`);
+        })
+        .on('mouseout', function () {
+          const selection = d3.select(this as SVGRectElement);
+          const startingFill = selection.attr('data-base-fill') || baseFill;
+          const barKey = selection.attr('data-bar-id');
+          const isSelected = barKey ? chartState.selectedBars.has(barKey) : false;
+
+          if (isSelected) {
+            selection
+              .attr('fill', lightenColor(startingFill, 0.25))
+              .style('filter', `drop-shadow(0 18px 32px ${theme.selectedShadow})`);
+          } else {
+            selection
+              .attr('fill', startingFill)
+              .style('filter', 'none');
+          }
+
+          tooltip.transition().duration(120).style('opacity', 0);
+        })
+        .on('click', function (event: MouseEvent) {
+          event.stopPropagation();
+          const selection = d3.select(this as SVGRectElement);
+          const base = selection.attr('data-base-fill') || baseFill;
+
+          if (chartState.selectedBars.has(barId)) {
+            chartState.selectedBars.delete(barId);
+          } else {
+            chartState.selectedBars.add(barId);
+          }
+
+          const isSelectedNow = chartState.selectedBars.has(barId);
+
+          if (isSelectedNow) {
+            selection
+              .classed('bar-selected', true)
+              .attr('fill', lightenColor(base, 0.25))
+              .attr('stroke', theme.axisTextColor)
+              .attr('stroke-width', 1.25)
+              .style('filter', `drop-shadow(0 20px 36px ${theme.selectedShadow})`);
+          } else {
+            selection
+              .classed('bar-selected', false)
+              .attr('fill', base)
+              .attr('stroke', 'none')
+              .attr('stroke-width', 0)
+              .style('filter', 'none');
+          }
+
+          const clearFilterBtn = d3.select(chartContainer).select<HTMLButtonElement>('.clear-filter-btn');
+          clearFilterBtn.classed('visible', chartState.selectedBars.size > 0);
+
+          const filters: ItemFilter[] = [];
+          const groupedFilters = new Map<string, Set<string>>();
+
+          Array.from(chartState.selectedBars).forEach((selectedId) => {
+            const [selectedCategory] = selectedId.split('-');
+            const categoryContent = chartState.categorySlot?.content[0];
+            if (!categoryContent) {
+              return;
             }
+            const columnKey = `${categoryContent.columnId || (categoryContent as any).column}:${categoryContent.datasetId || (categoryContent as any).set
+              }`;
+            if (!groupedFilters.has(columnKey)) {
+              groupedFilters.set(columnKey, new Set());
+            }
+            groupedFilters.get(columnKey)?.add(selectedCategory);
+          });
 
-            // Show/hide clear filter button based on selection state
-            const clearFilterBtn = d3
-              .select(chartContainer)
-              .select('.clear-filter-btn');
-            clearFilterBtn.classed('visible', chartState.selectedBars.size > 0);
+          groupedFilters.forEach((values, key) => {
+            const [columnId, datasetId] = key.split(':');
+            const uniqueValues = Array.from(values);
 
-            // Create filters array based on selected bars
-            const filters: ItemFilter[] = [];
-
-            // Group selected bars by columnId and datasetId
-            const groupedFilters = new Map<string, Set<string>>();
-
-            Array.from(chartState.selectedBars).forEach((barId) => {
-              const [cat, grp] = barId.split('-');
-              const categoryContent = chartState.categorySlot?.content[0];
-              const key = `${categoryContent?.columnId || categoryContent?.column}:${categoryContent?.datasetId || categoryContent?.set}`;
-
-              if (!groupedFilters.has(key)) {
-                groupedFilters.set(key, new Set());
+            filters.push({
+              expression: uniqueValues.length > 1 ? '? in ?' : '? = ?',
+              parameters: [
+                {
+                  column_id: columnId,
+                  dataset_id: datasetId,
+                  level: chartState.categorySlot?.content[0]?.level || undefined
+                },
+                uniqueValues.length > 1 ? uniqueValues : uniqueValues[0]
+              ],
+              properties: {
+                origin: 'filterFromVizItem',
+                type: 'where'
               }
-              groupedFilters.get(key)?.add(cat);
-            });
-
-            // Create filters from grouped data
-            groupedFilters.forEach((values, key) => {
-              const [columnId, datasetId] = key.split(':');
-              const uniqueValues = Array.from(values);
-
-              filters.push({
-                expression: uniqueValues.length > 1 ? '? in ?' : '? = ?',
-                parameters: [
-                  {
-                    column_id: columnId,
-                    dataset_id: datasetId,
-                    level:
-                      chartState.categorySlot?.content[0]?.level || undefined
-                  },
-                  uniqueValues.length > 1 ? uniqueValues : uniqueValues[0]
-                ],
-                properties: {
-                  origin: 'filterFromVizItem',
-                  type: 'where'
-                }
-              });
-            });
-
-            // Send setFilter event
-            sendFilterEvent(filters);
-
-            sendCustomEvent({
-              category: category,
-              group: group,
-              value: groupData[0].value,
-              rawValue: groupData[0].rawValue
             });
           });
-      }
+
+          sendFilterEvent(filters);
+
+          sendCustomEvent({
+            category,
+            group,
+            value: datum.value,
+            rawValue: datum.rawValue
+          });
+        });
     });
   });
 
-  // Add Legend
-  const legend = svg
-    .append('g')
-    .attr('class', 'legend')
-    .attr('transform', `translate(${margin.left}, ${height - 25})`);
+  const shouldRenderLegend = hasMultipleGroups;
 
-  groups.forEach((group, i) => {
-    const legendItem = legend
+  if (shouldRenderLegend) {
+    const itemWidth = 140; // Width per legend item including spacing
+    const rowHeight = 24; // Height per row including spacing
+    const availableWidth = innerWidth;
+    const itemsPerRow = Math.max(1, Math.floor(availableWidth / itemWidth));
+
+    const legend = svg
       .append('g')
-      .attr('class', 'legend-item')
-      .attr('transform', `translate(${i * 100}, 0)`);
+      .attr('class', 'legend')
+      .attr('transform', `translate(${margin.left}, ${Math.max(16, 20)})`);
 
-    legendItem
-      .append('rect')
-      .attr('class', 'legend-color')
-      .attr('x', 0)
-      .attr('y', 0)
-      .attr('width', 12)
-      .attr('height', 12)
-      .attr('fill', colorScale(group));
+    groups.forEach((group, index) => {
+      const row = Math.floor(index / itemsPerRow);
+      const col = index % itemsPerRow;
+      
+      const legendItem = legend
+        .append('g')
+        .attr('class', 'legend-item')
+        .attr('transform', `translate(${col * itemWidth}, ${row * rowHeight})`);
 
-    legendItem
-      .append('text')
-      .attr('x', 18)
-      .attr('y', 10)
-      .text(group)
-      .style('font-size', '12px');
-  });
+      legendItem
+        .append('rect')
+        .attr('class', 'legend-color')
+        .attr('x', 0)
+        .attr('y', -9)
+        .attr('width', 14)
+        .attr('height', 14)
+        .attr('rx', Math.max(barRadius / 2, 2))
+        .attr('ry', Math.max(barRadius / 2, 2))
+        .attr('fill', colorScale(group));
+
+      legendItem
+        .append('text')
+        .attr('x', 20)
+        .attr('y', 2)
+        .style('fill', theme.axisTextColor)
+        .style('font-size', '12px')
+        .style('font-weight', 500)
+        .text(group);
+    });
+  }
 }
 
 /**
@@ -458,27 +741,52 @@ function renderChart(
  * NOTE: This is a helper method for internal use. You can implement your own container setup
  * directly in the render/resize methods if needed.
  */
-function setupContainer(container: HTMLElement): HTMLElement {
-  // Clear container
+function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElement {
   container.innerHTML = '';
+  container.style.background = theme.backgroundColor;
 
-  // Create chart container
   const chartContainer = document.createElement('div');
   chartContainer.className = 'bar-chart-container';
+  chartContainer.style.background = theme.backgroundColor;
+  chartContainer.style.setProperty('--chart-background', theme.backgroundColor);
+  chartContainer.style.setProperty('--axis-text-color', theme.axisTextColor);
+  chartContainer.style.setProperty('--axis-line-color', theme.axisLineColor);
+  chartContainer.style.setProperty('--control-bg', theme.controlBackground);
+  chartContainer.style.setProperty('--control-border', theme.controlBorder);
+  chartContainer.style.setProperty('--control-text', theme.controlText);
+  chartContainer.style.setProperty('--control-hover-bg', theme.controlHoverBackground);
+  chartContainer.style.setProperty('--hover-shadow', theme.hoverShadow);
+  chartContainer.style.setProperty('--selected-shadow', theme.selectedShadow);
+  chartContainer.style.setProperty('--tooltip-bg', theme.tooltipBackground);
+  chartContainer.style.setProperty('--tooltip-color', theme.tooltipColor);
+  chartContainer.style.setProperty('--bar-radius', `${theme.barRounding}px`);
+  chartContainer.style.setProperty('--chart-font-family', theme.fontFamily);
+
+  if (theme.fontFamily) {
+    chartContainer.style.fontFamily = theme.fontFamily;
+  }
+
   container.appendChild(chartContainer);
 
-  // Add clear filter button
   const clearFilterBtn = document.createElement('button');
   clearFilterBtn.className = 'clear-filter-btn';
   clearFilterBtn.textContent = 'Clear Filters';
   clearFilterBtn.onclick = () => {
-    // Clear all selected bars
     chartState.selectedBars.clear();
-    // Remove selected class from all bars
-    d3.selectAll('.bar').classed('bar-selected', false);
-    // Hide clear filter button
+    d3.selectAll<SVGRectElement, unknown>('.bar')
+      .classed('bar-selected', false)
+      .each(function () {
+        const selection = d3.select(this as SVGRectElement);
+        const baseFill = selection.attr('data-base-fill');
+        if (baseFill) {
+          selection.attr('fill', baseFill);
+        }
+        selection
+          .attr('stroke', 'none')
+          .attr('stroke-width', 0)
+          .style('filter', 'none');
+      });
     clearFilterBtn.classList.remove('visible');
-    // Send empty filters array to clear filters
     sendFilterEvent([]);
   };
   chartContainer.appendChild(clearFilterBtn);
@@ -501,7 +809,8 @@ function preProcessData(
   data: ItemData['data'],
   measureSlot: Slot,
   categorySlot: Slot,
-  groupSlot: Slot
+  groupSlot: Slot,
+  measureFormatter: (value: number) => string
 ): ChartDataItem[] {
   // Create formatters for each slot
   const formatters = {
@@ -514,9 +823,6 @@ function preProcessData(
       ? formatter(groupSlot.content[0], {
         level: groupSlot.content[0].level || 9
       })
-      : (val: any) => String(val),
-    measure: measureSlot?.content[0]
-      ? formatter(measureSlot.content[0])
       : (val: any) => String(val)
   };
 
@@ -548,7 +854,7 @@ function preProcessData(
       : 'Default';
 
     const rawValue = Number(row[indices.measure]) || 0;
-    const formattedValue = formatters.measure(rawValue);
+    const formattedValue = measureFormatter(rawValue);
 
     return {
       category: String(category),

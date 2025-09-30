@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common';
-import type { ElementRef, OnDestroy, OnInit } from '@angular/core';
+import type { AfterViewChecked, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
   Component,
   CUSTOM_ELEMENTS_SCHEMA,
@@ -38,7 +38,6 @@ import {
 } from './helpers/iframe.utils';
 import type { ItemData, ItemQuery } from './helpers/types';
 import { isDataResponse, isErrorResponse } from './helpers/types';
-
 import {
   CdkVirtualScrollViewport,
   ScrollingModule
@@ -62,6 +61,13 @@ interface DatasetState {
   columns: any[];
 }
 
+interface QueryResultInfo {
+  rowCount: number;
+  durationInSeconds: number;
+}
+
+type AppearanceMode = 'light' | 'dark' | 'auto';
+const APPEARANCE_MODE_STORAGE_KEY = 'luzmo-builder-appearance-mode';
 /**
  * Main component for the Luzmo Custom Chart Builder application
  * Provides dataset selection, chart configuration, and visualization
@@ -73,7 +79,6 @@ interface DatasetState {
     NgxJsonViewerModule,
     LoginComponent,
     AsyncPipe,
-    // NgbDropdownModule,
     FormsModule,
     ScrollingModule,
     DatasetPickerComponent
@@ -83,7 +88,7 @@ interface DatasetState {
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Services
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
@@ -108,32 +113,36 @@ export class AppComponent implements OnInit, OnDestroy {
   private queryReady$ = this.querySubject.asObservable();
 
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
+  @ViewChild('columnListContainer') columnListContainer?: ElementRef<HTMLDivElement>;
 
   // Loading state indicators
   loadingDatasetDetail$ = new BehaviorSubject<boolean>(false);
   queryingData$ = new BehaviorSubject<boolean>(false);
   queryError$ = new BehaviorSubject<string | null>(null);
+  private queryResultInfoSubject = new BehaviorSubject<QueryResultInfo | null>(null);
+  queryResultInfo$ = this.queryResultInfoSubject.asObservable();
 
   slotConfigs: SlotConfig[] = [];
   manifestValidationError: string | null = null;
 
   private slotsSubject!: BehaviorSubject<Slot[]>;
   private queryRelevantSlotsSubject = new BehaviorSubject<SlotQuerySignature[]>(
-    []
+    [],
   );
 
   private selectedDatasetIdSubject = new Subject<string>();
 
   columnSearchTerm = '';
+  hasScrollbar = false;
 
   currentUser$ = this.authService.isAuthenticated$.pipe(
     filter((isAuthenticated) => isAuthenticated),
-    switchMap(() => this.authService.getOrLoadUser())
+    switchMap(() => this.authService.getOrLoadUser()),
   );
 
   private datasetState: DatasetState = {
     loading: false,
-    columns: []
+    columns: [],
   };
 
   get isLoadingDataset(): boolean {
@@ -149,20 +158,21 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!this.columnSearchTerm.trim()) {
       return this.datasetColumns;
     }
-    
+
     const searchTerm = this.columnSearchTerm.toLowerCase().trim();
-    return this.datasetColumns.filter(column => {
+    return this.datasetColumns.filter((column) => {
       // Search across all language values in the i18n label object
       if (column.label && typeof column.label === 'object') {
-        return Object.values(column.label).some((labelValue: any) => 
-          labelValue && labelValue.toString().toLowerCase().includes(searchTerm)
+        return Object.values(column.label).some(
+          (labelValue: any) =>
+            labelValue &&
+            labelValue.toString().toLowerCase().includes(searchTerm),
         );
       }
       // Fallback for non-i18n labels
       return true;
     });
   }
-
   columns$ = this.selectedDatasetIdSubject.pipe(
     untilDestroyed(this),
     tap(() => {
@@ -171,7 +181,7 @@ export class AppComponent implements OnInit, OnDestroy {
       this.datasetState.columns = [];
     }),
     switchMap((datasetId) =>
-      this.luzmoAPIService.loadDatasetWithColumns(datasetId)
+      this.luzmoAPIService.loadDatasetWithColumns(datasetId),
     ),
     map((result) => result.rows[0]),
     map((dataset) => this.transformColumnsData(dataset)),
@@ -180,12 +190,24 @@ export class AppComponent implements OnInit, OnDestroy {
       this.datasetState.columns = columns;
       this.datasetState.loading = false;
       this.columnSearchTerm = '';
-    })
+    }),
   );
 
   chartData$!: Observable<any>;
   displayedChartData$!: Observable<any>;
-
+  appearanceOptions = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+  ];
+  appearanceMode: AppearanceMode = 'auto';
+  private prefersDarkMedia: MediaQueryList | null = null;
+  private systemThemeListenerAttached = false;
+  private readonly handleSystemThemeChange = (_event?: MediaQueryListEvent) => {
+    if (this.appearanceMode === 'auto') {
+      this.applyAppearanceMode('auto', false);
+    }
+  };
   // Theme picker properties
   chartThemes = [
     {
@@ -195,9 +217,36 @@ export class AppComponent implements OnInit, OnDestroy {
         background: 'rgb(245,245,245)',
         itemsBackground: 'rgb(255,255,255)',
         boxShadow: { size: 'none', color: 'rgb(0, 0, 0)' },
-        title: { align: 'left', bold: false, italic: false, underline: false, border: false },
-        font: { fontFamily: 'Lato', 'font-style': 'normal', 'font-weight': 400, fontSize: 15 },
-        colors: ['rgb(68,52,255)', 'rgb(143,133,255)', 'rgb(218,214,255)', 'rgb(191,5,184)', 'rgb(217,105,212)', 'rgb(242,205,241)', 'rgb(248,194,12)', 'rgb(251,218,109)', 'rgb(254,243,206)', 'rgb(9,203,120)', 'rgb(107,224,174)', 'rgb(206,245,228)', 'rgb(122,112,112)', 'rgb(175,169,169)', 'rgb(228,226,226)'],
+        title: {
+          align: 'left',
+          bold: false,
+          italic: false,
+          underline: false,
+          border: false,
+        },
+        font: {
+          fontFamily: 'Lato',
+          'font-style': 'normal',
+          'font-weight': 400,
+          fontSize: 15,
+        },
+        colors: [
+          'rgb(68,52,255)',
+          'rgb(143,133,255)',
+          'rgb(218,214,255)',
+          'rgb(191,5,184)',
+          'rgb(217,105,212)',
+          'rgb(242,205,241)',
+          'rgb(248,194,12)',
+          'rgb(251,218,109)',
+          'rgb(254,243,206)',
+          'rgb(9,203,120)',
+          'rgb(107,224,174)',
+          'rgb(206,245,228)',
+          'rgb(122,112,112)',
+          'rgb(175,169,169)',
+          'rgb(228,226,226)',
+        ],
         borders: {
           'border-color': 'rgba(216,216,216,1)',
           'border-style': 'none',
@@ -205,15 +254,15 @@ export class AppComponent implements OnInit, OnDestroy {
           'border-top-width': '0px',
           'border-left-width': '0px',
           'border-right-width': '0px',
-          'border-bottom-width': '0px'
+          'border-bottom-width': '0px',
         },
         margins: [16, 16],
         mainColor: 'rgb(68,52,255)',
         axis: {},
         legend: { type: 'circle' },
         tooltip: { background: 'rgb(38,38,38)' },
-        itemSpecific: { rounding: 8, padding: 4 }
-      }
+        itemSpecific: { rounding: 8, padding: 4 },
+      },
     },
     {
       name: 'dark',
@@ -222,9 +271,36 @@ export class AppComponent implements OnInit, OnDestroy {
         background: 'rgb(61,61,61)',
         itemsBackground: 'rgb(38,38,38)',
         boxShadow: { size: 'none', color: 'rgb(0, 0, 0)' },
-        title: { align: 'left', bold: false, italic: false, underline: false, border: false },
-        font: { fontFamily: 'Lato', 'font-style': 'normal', 'font-weight': 400, fontSize: 15 },
-        colors: ['rgb(48,36,179)', 'rgb(105,93,255)', 'rgb(199,194,255)', 'rgb(134,4,129)', 'rgb(204,55,198)', 'rgb(236,180,234)', 'rgb(220,141,0)', 'rgb(249,206,61)', 'rgb(253,237,182)', 'rgb(6,142,84)', 'rgb(58,213,147)', 'rgb(181,239,215)', 'rgb(85,78,78)', 'rgb(149,141,141)', 'rgb(215,212,212)'],
+        title: {
+          align: 'left',
+          bold: false,
+          italic: false,
+          underline: false,
+          border: false,
+        },
+        font: {
+          fontFamily: 'Lato',
+          'font-style': 'normal',
+          'font-weight': 400,
+          fontSize: 15,
+        },
+        colors: [
+          'rgb(123,144,255)',
+          'rgb(48,36,179)',
+          'rgb(199,194,255)',
+          'rgb(134,4,129)',
+          'rgb(204,55,198)',
+          'rgb(236,180,234)',
+          'rgb(220,141,0)',
+          'rgb(249,206,61)',
+          'rgb(253,237,182)',
+          'rgb(6,142,84)',
+          'rgb(58,213,147)',
+          'rgb(181,239,215)',
+          'rgb(85,78,78)',
+          'rgb(149,141,141)',
+          'rgb(215,212,212)',
+        ],
         borders: {
           'border-color': 'rgba(216,216,216,1)',
           'border-style': 'none',
@@ -232,15 +308,15 @@ export class AppComponent implements OnInit, OnDestroy {
           'border-top-width': '0px',
           'border-left-width': '0px',
           'border-right-width': '0px',
-          'border-bottom-width': '0px'
+          'border-bottom-width': '0px',
         },
         margins: [16, 16],
         mainColor: 'rgb(123,144,255)',
         axis: {},
         legend: { type: 'circle' },
         tooltip: { background: 'rgb(248,248,248)' },
-        itemSpecific: { rounding: 8, padding: 4 }
-      }
+        itemSpecific: { rounding: 8, padding: 4 },
+      },
     },
     {
       name: 'royale',
@@ -249,16 +325,30 @@ export class AppComponent implements OnInit, OnDestroy {
         background: '#0A2747',
         itemsBackground: '#111e2f',
         boxShadow: { size: 'S', color: 'rgb(0,0,0)' },
-        title: { align: 'center', bold: false, italic: false, underline: false, border: true },
+        title: {
+          align: 'center',
+          bold: false,
+          italic: false,
+          underline: false,
+          border: true,
+        },
         borders: { 'border-radius': '3px' },
         margins: [10, 10],
         mainColor: '#f4a92c',
         axis: {},
         legend: { type: 'circle' },
         tooltip: {},
-        colors: ['#feeaa1', '#e6cc85', '#ceaf6a', '#b79350', '#9f7738', '#885d20', '#704308'],
-        font: { fontFamily: 'Exo', fontSize: 13 }
-      }
+        colors: [
+          '#feeaa1',
+          '#e6cc85',
+          '#ceaf6a',
+          '#b79350',
+          '#9f7738',
+          '#885d20',
+          '#704308',
+        ],
+        font: { fontFamily: 'Exo', fontSize: 13 },
+      },
     },
     {
       name: 'urban',
@@ -267,19 +357,36 @@ export class AppComponent implements OnInit, OnDestroy {
         background: '#42403c',
         itemsBackground: '#e4dbcd',
         boxShadow: { size: 'none', color: 'rgb(0,0,0)' },
-        title: { align: 'center', bold: false, italic: false, underline: false, border: true },
+        title: {
+          align: 'center',
+          bold: false,
+          italic: false,
+          underline: false,
+          border: true,
+        },
         borders: {},
         margins: [5, 5],
         mainColor: '#33b59e',
         axis: {},
         legend: { type: 'circle' },
         tooltip: {},
-        colors: ['#33b59e', '#453d30', '#ffffff', '#237869', '#165e4e', '#b89f76', '#7a6138', '#543c13', '#8a9c98', '#44524f'],
-        font: { fontFamily: 'Open Sans', fontSize: 13 }
-      }
-    }
+        colors: [
+          '#33b59e',
+          '#453d30',
+          '#ffffff',
+          '#237869',
+          '#165e4e',
+          '#b89f76',
+          '#7a6138',
+          '#543c13',
+          '#8a9c98',
+          '#44524f',
+        ],
+        font: { fontFamily: 'Open Sans', fontSize: 13 },
+      },
+    },
   ];
-  
+
   selectedTheme = 'light';
 
   @ViewChild('chartContainer') container!: ElementRef;
@@ -318,7 +425,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.slotsSubject = new BehaviorSubject<Slot[]>(
       this.slotConfigs.map((slotConfig) => ({
         name: slotConfig.name,
-        content: []
+        content: [],
       }))
     );
 
@@ -326,7 +433,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.queryRelevantSlotsSubject.next(
       this.slotConfigs.map((slotConfig) => ({
         name: slotConfig.name,
-        content: []
+        content: [],
       }))
     );
 
@@ -380,12 +487,12 @@ export class AppComponent implements OnInit, OnDestroy {
               })
               .unsubscribe();
           }
-        })
+        }),
       )
       .subscribe();
 
     this.displayedChartData$ = this.chartData$.pipe(
-      map((data) => data.slice(0, 25))
+      map((data) => data.slice(0, 25)),
     );
   }
 
@@ -424,23 +531,42 @@ export class AppComponent implements OnInit, OnDestroy {
       content: slot.content.map((item) => ({
         columnId: item.columnId!,
         datasetId: item.datasetId!,
-        aggregationFunc: item.aggregationFunc
-      }))
+        aggregationFunc: item.aggregationFunc,
+      })),
     }));
   }
+  private calculateQueryDuration(
+    performance?: Record<string, unknown> | null,
+  ): number {
+    if (!performance || typeof performance !== 'object') {
+      return 0;
+    }
 
+    const values = Object.entries(performance)
+      .filter(([key]) => key !== 'rows')
+      .map(([, value]) => value)
+      .filter((value) => typeof value === 'number') as number[];
+    if (values.length === 0) {
+      return 0;
+    }
+
+    const total = (performance as Record<string, unknown>)['total'];
+    if (typeof total === 'number') {
+      return Math.max(total, 0) / 1000;
+    }
+
+    return values.reduce((sum, value) => sum + value, 0) / 1000;
+  }
   /**
    * Fetches chart data based on the current slot configuration
    */
   private fetchChartData(slots: Slot[]): Observable<any[]> {
     const allRequiredSlotsFilled = this.areAllRequiredSlotsFilled(slots);
-
     if (allRequiredSlotsFilled && slots.some((s) => s.content.length > 0)) {
       // Only fetch the query if we're not already doing so and module is loaded
       if (this.moduleLoaded && !this.queryInProgress) {
         this.fetchQuery();
       }
-
       // Wait for query to be available
       return this.queryReady$.pipe(
         switchMap((query) => {
@@ -449,7 +575,7 @@ export class AppComponent implements OnInit, OnDestroy {
           console.log('Fetching data with query', finalQuery);
           this.queryingData$.next(true);
           this.queryError$.next(null);
-
+          this.queryResultInfoSubject.next(null);
           return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
             tap(() => {
               this.queryingData$.next(false);
@@ -458,14 +584,23 @@ export class AppComponent implements OnInit, OnDestroy {
             map((result) => {
               if (isErrorResponse(result)) {
                 this.queryError$.next(result.error.message);
+                this.queryResultInfoSubject.next(null);
                 return [];
               }
-
               if (isDataResponse(result)) {
                 console.log('Query result:', result);
+                const durationInSeconds = this.calculateQueryDuration(
+                  result.performance ?? null,
+                );
+                const rowCount = Array.isArray(result.data)
+                  ? result.data.length
+                  : 0;
+                this.queryResultInfoSubject.next({
+                  rowCount,
+                  durationInSeconds,
+                });
                 return result.data;
               }
-
               return [];
             }),
             catchError((error) => {
@@ -475,20 +610,28 @@ export class AppComponent implements OnInit, OnDestroy {
                 <p>Failed to load chart data. Please check if your query is valid and try again.</p>
                 <p><b>Query:</b> ${JSON.stringify(finalQuery, null, 2)}</p>
               `); // Set error message
+              this.queryResultInfoSubject.next(null);
+
               return of([]); // Return empty data on error
-            })
+            }),
           );
         }),
         catchError((error) => {
           console.error('Query preparation failed:', error);
           this.queryingData$.next(false); // Hide loader
-          this.queryError$.next('Failed to prepare query. Please check your configuration.');
+          this.queryError$.next(
+            'Failed to prepare query. Please check your configuration.',
+          );
+          this.queryResultInfoSubject.next(null);
+
           return of([]); // Return empty data on error
         })
       );
     }
     else {
       this.queryError$.next(null);
+      this.queryResultInfoSubject.next(null);
+
       return of([]);
     }
   }
@@ -538,9 +681,9 @@ export class AppComponent implements OnInit, OnDestroy {
       {
         type: 'buildQuery',
         slots: slots,
-        slotConfigurations: this.slotConfigs
+        slotConfigurations: this.slotConfigs,
       },
-      '*'
+      '*',
     );
 
     // Set a safety timeout to reset queryInProgress flag if no response received
@@ -605,14 +748,15 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     // Find the selected theme object from the options array
-    const selectedTheme = this.chartThemes.find(t => t.name === this.selectedTheme);
-    
+    const selectedTheme = this.chartThemes.find(
+      (t) => t.name === this.selectedTheme,
+    );
     const renderData = {
       data: data,
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {
-        theme: selectedTheme?.theme || this.chartThemes[0].theme // Fallback to first theme if not found
+        theme: selectedTheme?.theme || this.chartThemes[0].theme, // Fallback to first theme if not found
       },
       language: 'en',
       dimensions: this.getContainerDimensions()
@@ -643,7 +787,7 @@ export class AppComponent implements OnInit, OnDestroy {
   private getContainerDimensions() {
     return {
       width: this.container?.nativeElement?.clientWidth || 0,
-      height: this.container?.nativeElement?.clientHeight || 0
+      height: this.container?.nativeElement?.clientHeight || 0,
     };
   }
 
@@ -656,7 +800,9 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     // Find the selected theme object from the options array
-    const selectedThemeObj = this.chartThemes.find(t => t.name === this.selectedTheme);
+    const selectedThemeObj = this.chartThemes.find(
+      (t) => t.name === this.selectedTheme,
+    );
 
     const resizeData = {
       slots: this.slotsSubject.getValue(),
@@ -665,7 +811,7 @@ export class AppComponent implements OnInit, OnDestroy {
         theme: selectedThemeObj?.theme || this.chartThemes[0].theme
       },
       language: 'en',
-      dimensions: this.getContainerDimensions()
+      dimensions: this.getContainerDimensions(),
     };
 
     this.resizeAnimationFrame = requestAnimationFrame(() => {
@@ -679,7 +825,6 @@ export class AppComponent implements OnInit, OnDestroy {
       this.resizeAnimationFrame = null;
     });
   }
-
   /**
    * Loads the chart bundle into the iframe
    */
@@ -688,10 +833,8 @@ export class AppComponent implements OnInit, OnDestroy {
       // Load script content
       const scriptResponse = await fetch('/custom-chart/index.js?t=' + Date.now());
       this.scriptContent = await scriptResponse.text();
-
       // Escape special characters in script content
       this.scriptContent = this.escapeScriptContent(this.scriptContent);
-
       // Load style content
       try {
         const styleResponse = await fetch(
@@ -725,14 +868,133 @@ export class AppComponent implements OnInit, OnDestroy {
    * Escapes special characters in script content
    */
   private escapeScriptContent(script: string): string {
-    return (
-      script
-        .replaceAll('\\', '\\\\') // Escape backslashes first
-        .replaceAll('`', '\\`') // Escape backticks
-        .replaceAll('$', String.raw`\$`) // Escape dollar signs
-        .replaceAll('\'', String.raw`\'`) // Escape single quotes
-        .replaceAll('"', String.raw`\"`)
-    );
+    return script
+      .replaceAll('\\', '\\\\') // Escape backslashes first
+      .replaceAll('`', '\\`') // Escape backticks
+      .replaceAll('$', String.raw`\$`) // Escape dollar signs
+      .replaceAll("'", String.raw`\'`) // Escape single quotes
+      .replaceAll('"', String.raw`\"`);
+  }
+
+  private initializeAppearanceMode(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      return;
+    }
+
+    this.prefersDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+
+    let storedMode: AppearanceMode | null = null;
+
+    try {
+      const raw = localStorage.getItem(APPEARANCE_MODE_STORAGE_KEY);
+      if (this.isAppearanceMode(raw)) {
+        storedMode = raw;
+      }
+    } catch {
+      storedMode = null;
+    }
+
+    const initialMode = storedMode ?? 'auto';
+    this.applyAppearanceMode(initialMode, false);
+    this.attachSystemThemeListener();
+  }
+
+  private applyAppearanceMode(mode: AppearanceMode, persist = true): void {
+    this.appearanceMode = mode;
+
+    if (persist) {
+      try {
+        localStorage.setItem(APPEARANCE_MODE_STORAGE_KEY, mode);
+      } catch {
+        // Swallow storage errors (e.g. private browsing).
+      }
+    }
+
+    this.updateDocumentTheme(mode);
+    this.updateChartTheme();
+  }
+
+  private updateDocumentTheme(mode: AppearanceMode): void {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    const root = document.documentElement;
+
+    if (mode === 'auto') {
+      root.removeAttribute('data-theme');
+    } else {
+      root.setAttribute('data-theme', mode);
+    }
+  }
+
+  private updateChartTheme(): void {
+    const effectiveTheme = this.getEffectiveTheme();
+    this.selectedTheme = effectiveTheme;
+    
+    // Re-render chart if module is loaded and we have data
+    if (this.moduleLoaded) {
+      this.chartData$
+        .pipe(take(1))
+        .subscribe((data) => this.performRender(data));
+    }
+  }
+
+  private getEffectiveTheme(): 'light' | 'dark' {
+    if (this.appearanceMode === 'dark') {
+      return 'dark';
+    }
+    
+    if (this.appearanceMode === 'light') {
+      return 'light';
+    }
+    
+    // For 'auto' mode, check system preference
+    if (this.prefersDarkMedia?.matches) {
+      return 'dark';
+    }
+    
+    return 'light';
+  }
+
+  private attachSystemThemeListener(): void {
+    if (this.systemThemeListenerAttached || !this.prefersDarkMedia) {
+      return;
+    }
+
+    if (typeof this.prefersDarkMedia.addEventListener === 'function') {
+      this.prefersDarkMedia.addEventListener(
+        'change',
+        this.handleSystemThemeChange,
+      );
+      this.systemThemeListenerAttached = true;
+    } else if (typeof this.prefersDarkMedia.addListener === 'function') {
+      this.prefersDarkMedia.addListener(this.handleSystemThemeChange);
+      this.systemThemeListenerAttached = true;
+    }
+  }
+
+  private detachSystemThemeListener(): void {
+    if (!this.systemThemeListenerAttached || !this.prefersDarkMedia) {
+      return;
+    }
+
+    if (typeof this.prefersDarkMedia.removeEventListener === 'function') {
+      this.prefersDarkMedia.removeEventListener(
+        'change',
+        this.handleSystemThemeChange,
+      );
+    } else if (typeof this.prefersDarkMedia.removeListener === 'function') {
+      this.prefersDarkMedia.removeListener(this.handleSystemThemeChange);
+    }
+
+    this.systemThemeListenerAttached = false;
+  }
+
+  private isAppearanceMode(
+    value: string | null | undefined,
+  ): value is AppearanceMode {
+    return value === 'light' || value === 'dark' || value === 'auto';
   }
 
   @HostListener('window:resize')
@@ -747,6 +1009,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
+    this.initializeAppearanceMode();
     this.columns$.subscribe();
     this.initializeSlotConfigs();
     window.addEventListener('message', this.handleMessage);
@@ -768,6 +1031,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.detachSystemThemeListener();
     window.removeEventListener('message', this.handleMessage);
 
     if (this.resizeAnimationFrame !== null) {
@@ -782,6 +1046,16 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.blobUrl) {
       URL.revokeObjectURL(this.blobUrl);
       this.blobUrl = null;
+    }
+  }
+
+  ngAfterViewChecked(): void {
+    if (this.columnListContainer) {
+      const element = this.columnListContainer.nativeElement;
+      const hasScrollbar = element.scrollHeight > element.clientHeight;
+      if (this.hasScrollbar !== hasScrollbar) {
+        this.hasScrollbar = hasScrollbar;
+      }
     }
   }
 
@@ -812,7 +1086,9 @@ export class AppComponent implements OnInit, OnDestroy {
           subtype: column.subtype,
           type: column.type,
           aggregationFunc:
-            slotType === 'numeric' ? column.aggregationFunc || 'sum' : undefined
+            slotType === 'numeric'
+              ? column.aggregationFunc || 'sum'
+              : undefined,
         }));
 
         return {
@@ -843,6 +1119,13 @@ export class AppComponent implements OnInit, OnDestroy {
     this.selectedDatasetIdSubject.next(datasetId);
   }
 
+  onAppearanceModeChange(event: CustomEvent<string>): void {
+    const mode = event.detail;
+    if (!this.isAppearanceMode(mode) || mode === this.appearanceMode) {
+      return;
+    }
+    this.applyAppearanceMode(mode);
+  }
   onChartThemeChange(event: CustomEvent<string>): void {
     this.selectedTheme = event.detail;
     // Re-render with the new theme
