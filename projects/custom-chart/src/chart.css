@@ -95,7 +95,6 @@
 
 .bar-selected {
   transform: translateY(-2px);
-  stroke: transparent;
 }
 
 .legend-item {

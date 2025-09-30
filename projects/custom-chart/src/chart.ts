@@ -553,9 +553,15 @@ function renderChart(
           const barKey = selection.attr('data-bar-id');
           const isSelected = barKey ? chartState.selectedBars.has(barKey) : false;
 
-          selection
-            .attr('fill', isSelected ? lightenColor(startingFill, 0.25) : startingFill)
-            .style('filter', isSelected ? `drop-shadow(0 18px 32px ${theme.selectedShadow})` : 'none');
+          if (isSelected) {
+            selection
+              .attr('fill', lightenColor(startingFill, 0.25))
+              .style('filter', `drop-shadow(0 18px 32px ${theme.selectedShadow})`);
+          } else {
+            selection
+              .attr('fill', startingFill)
+              .style('filter', 'none');
+          }
 
           tooltip.transition().duration(120).style('opacity', 0);
         })
@@ -576,11 +582,15 @@ function renderChart(
             selection
               .classed('bar-selected', true)
               .attr('fill', lightenColor(base, 0.25))
+              .attr('stroke', theme.axisTextColor)
+              .attr('stroke-width', 1.25)
               .style('filter', `drop-shadow(0 20px 36px ${theme.selectedShadow})`);
           } else {
             selection
               .classed('bar-selected', false)
               .attr('fill', base)
+              .attr('stroke', 'none')
+              .attr('stroke-width', 0)
               .style('filter', 'none');
           }
 
@@ -721,7 +731,10 @@ function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElemen
         if (baseFill) {
           selection.attr('fill', baseFill);
         }
-        selection.style('filter', 'none');
+        selection
+          .attr('stroke', 'none')
+          .attr('stroke-width', 0)
+          .style('filter', 'none');
       });
     clearFilterBtn.classList.remove('visible');
     sendFilterEvent([]);
