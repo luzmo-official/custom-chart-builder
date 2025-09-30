@@ -721,11 +721,7 @@ npm run validate
 - Bundle server logs appear with the [BUNDLE] prefix
 - Chart watcher logs appear with the [WATCHER] prefix
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## Resources
 
-- [Developer Guide](https://developer.luzmo.com/guide/embedding--custom-charts)
+- [Developer Guide](https://developer.luzmo.com/guide/guides--custom-charts)
 - [Custom Charts Academy Article](https://academy.luzmo.com/article/xtau1755)
