@@ -285,8 +285,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
           fontSize: 15,
         },
         colors: [
+          'rgb(123,144,255)',
           'rgb(48,36,179)',
-          'rgb(105,93,255)',
           'rgb(199,194,255)',
           'rgb(134,4,129)',
           'rgb(204,55,198)',

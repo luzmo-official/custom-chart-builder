@@ -91,11 +91,13 @@
     width: 100%;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     background-color: var(--color-surface-alt-2);
+    color: var(--color-text);
     
     &:focus {
       border-color: var(--color-primary);
       box-shadow: 0 0 0 0.125rem rgba(var(--color-primary-rgb), 0.15);
       outline: none;
+      color: var(--color-text-active);
     }
     
     &::placeholder {

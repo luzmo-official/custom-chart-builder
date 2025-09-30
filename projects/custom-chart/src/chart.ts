@@ -145,9 +145,10 @@ function resolveTheme(theme?: ItemThemeConfig): ThemeContext {
   const selectedShadow = `rgba(${selectedShadowBase.r}, ${selectedShadowBase.g}, ${selectedShadowBase.b}, ${luminance < 0.45 ? 0.55 : 0.35
     })`;
 
-  const tooltipBackground =
-    theme?.tooltip?.background ||
+  const tooltipBaseColor = theme?.tooltip?.background ||
     (luminance < 0.45 ? lightenColor(backgroundColor, 0.18) : darkenColor(backgroundColor, 0.35));
+  const tooltipColorRgb = toRgb(tooltipBaseColor);
+  const tooltipBackground = `rgba(${tooltipColorRgb.r}, ${tooltipColorRgb.g}, ${tooltipColorRgb.b}, 0.70)`;
   const tooltipColor = luminance < 0.45 ? '#0f172a' : '#f8fafc';
 
   const controlBase =
