@@ -11,7 +11,7 @@ import { LoginComponent } from '@builder/components/login/login.component';
 import { buildLuzmoQuery } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
-import '@luzmo/analytics-components-kit/draggable-data-item';
+import '@luzmo/analytics-components-kit/draggable-data-field';
 import '@luzmo/analytics-components-kit/droppable-slot';
 import type { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
@@ -511,8 +511,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
         id: level.id,
         level: level.level,
-        label: level.name
+        name: level.name
       })),
+      name: column.name,
       label: column.name,
       level: column.level,
       lowestLevel: column.lowestLevel,
