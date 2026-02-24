@@ -1,4 +1,4 @@
-﻿import { formatter } from '@luzmo/analytics-components-kit/utils';
+import { formatter } from '@luzmo/analytics-components-kit/utils';
 import type {
   ItemData,
   ItemFilter,
@@ -260,6 +260,9 @@ export const render = ({
   dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
   const themeContext = resolveTheme(options.theme);
+  if (options?.bars?.roundedCorners != null) {
+    themeContext.barRounding = Math.max(0, Math.min(20, options.bars.roundedCorners));
+  }
   (container as any).__themeContext = themeContext;
   const chartContainer = setupContainer(container, themeContext);
 
@@ -313,10 +316,13 @@ export const render = ({
     );
   }
 
+  const showLegend = options?.display?.legend !== false;
+  const barLabel: 'none' | 'absolute' | 'percentage' = options?.bars?.label ?? 'none';
+
   // Calculate legend height first to adjust margins
   const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
   const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
-  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+  const legendHeight = (showLegend && hasMultipleGroups) ? calculateLegendHeight(groups, width) : 0;
 
   // Set up dimensions with dynamic top margin based on legend height
   const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
@@ -333,7 +339,9 @@ export const render = ({
     innerWidth,
     innerHeight,
     themeContext,
-    measureFormatterFn
+    measureFormatterFn,
+    showLegend,
+    barLabel
   );
 
   // Store the chart data on the container for reference during resize
@@ -356,16 +364,22 @@ export const resize = ({
   const chartData = (container as any).__chartData || [];
   const previousThemeContext = (container as any).__themeContext as ThemeContext | undefined;
   const themeContext = options.theme ? resolveTheme(options.theme) : previousThemeContext ?? resolveTheme(undefined);
+  if (options?.bars?.roundedCorners != null) {
+    themeContext.barRounding = Math.max(0, Math.min(20, options.bars.roundedCorners));
+  }
   (container as any).__themeContext = themeContext;
   const measureFormatterFn = chartState.measureSlot?.content?.[0]
     ? formatter(chartState.measureSlot.content[0])
     : (value: number) => new Intl.NumberFormat(language).format(value);
   const newChartContainer = setupContainer(container, themeContext);
 
+  const showLegend = options?.display?.legend !== false;
+  const barLabel: 'none' | 'absolute' | 'percentage' = options?.bars?.label ?? 'none';
+
   // Calculate legend height first to adjust margins
-  const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
+  const groups: string[] = Array.from(new Set(chartData.map((d: ChartDataItem) => d.group)));
   const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
-  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+  const legendHeight = (showLegend && hasMultipleGroups) ? calculateLegendHeight(groups, width) : 0;
 
   // Set up dimensions with dynamic top margin based on legend height
   const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
@@ -382,7 +396,9 @@ export const resize = ({
     innerWidth,
     innerHeight,
     themeContext,
-    measureFormatterFn
+    measureFormatterFn,
+    showLegend,
+    barLabel
   );
 
   // Maintain state for future resizes
@@ -430,7 +446,9 @@ function renderChart(
   innerWidth: number,
   innerHeight: number,
   theme: ThemeContext,
-  measureFormatter: (value: number) => string
+  measureFormatter: (value: number) => string,
+  showLegend: boolean = true,
+  barLabel: 'none' | 'absolute' | 'percentage' = 'none'
 ): void {
   const svg: d3.Selection<SVGSVGElement, unknown, null, undefined> = d3
     .select(chartContainer)
@@ -556,6 +574,33 @@ function renderChart(
         .attr('fill', baseFill)
         .attr('rx', barRadius)
         .attr('ry', barRadius);
+
+      if (barLabel !== 'none' && barHeight > 0) {
+        const totalValue = d3.sum(chartData, (d) => d.rawValue);
+        let labelText = '';
+        if (barLabel === 'absolute') {
+          labelText = measureFormatter(datum.rawValue);
+        } else if (barLabel === 'percentage' && totalValue > 0) {
+          labelText = `${((datum.rawValue / totalValue) * 100).toFixed(1)}%`;
+        }
+
+        if (labelText) {
+          const labelY = yScale(datum.rawValue) - 6;
+          const fitsAbove = labelY > 12;
+
+          chart
+            .append('text')
+            .attr('class', 'bar-label')
+            .attr('x', xPosition + barWidth / 2)
+            .attr('y', fitsAbove ? labelY : yScale(datum.rawValue) + 14)
+            .attr('text-anchor', 'middle')
+            .attr('fill', fitsAbove ? theme.axisTextColor : '#ffffff')
+            .style('font-size', `${Math.min(11, Math.max(8, barWidth * 0.28))}px`)
+            .style('font-weight', '600')
+            .style('pointer-events', 'none')
+            .text(labelText);
+        }
+      }
 
       bar
         .on('mouseover', function (event: MouseEvent) {
@@ -689,7 +734,7 @@ function renderChart(
     });
   });
 
-  const shouldRenderLegend = hasMultipleGroups;
+  const shouldRenderLegend = showLegend && hasMultipleGroups;
 
   if (shouldRenderLegend) {
     const itemWidth = 140; // Width per legend item including spacing

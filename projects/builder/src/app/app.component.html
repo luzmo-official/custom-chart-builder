@@ -129,6 +129,22 @@
               }
             </div>
 
+            @if (optionsConfig.length > 0) {
+              <div class="options-editor">
+                <p class="options-editor-label">Chart options</p>
+
+                <luzmo-edit-item
+                  language="en"
+                  size="s"
+                  [customOptionsConfiguration]="optionsConfig"
+                  [customTranslations]="optionsTranslations"
+                  [options]="chartOptions"
+                  [slots]="currentSlots"
+                  (luzmo-options-changed)="onOptionsChanged($any($event))"
+                ></luzmo-edit-item>
+              </div>
+            }
+
             <!-- Query result section -->
 
             <div class="query-result">

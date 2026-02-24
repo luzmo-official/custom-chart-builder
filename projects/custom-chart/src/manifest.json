@@ -34,5 +34,66 @@
       "isRequired": false,
       "acceptableColumnTypes": ["hierarchy", "datetime"]
     }
-  ]
+  ],
+  "optionsConfig": [
+    {
+      "key": "display",
+      "type": "group",
+      "open": true,
+      "children": [
+        {
+          "key": "display.title",
+          "control": { "type": "switch", "default": true }
+        },
+        {
+          "key": "display.legend",
+          "control": { "type": "switch", "default": true }
+        }
+      ]
+    },
+    {
+      "key": "bars",
+      "type": "group",
+      "open": false,
+      "children": [
+        {
+          "key": "bars.roundedCorners",
+          "control": { "type": "slider", "default": 4, "min": 0, "max": 20, "step": 1 }
+        },
+        {
+          "key": "bars.label",
+          "control": {
+            "type": "picker",
+            "default": "none",
+            "enum": ["none", "absolute", "percentage"]
+          }
+        }
+      ]
+    },
+    {
+      "key": "colors",
+      "type": "group",
+      "open": false,
+      "children": [
+        {
+          "key": "colors.barColor",
+          "control": { "type": "color-picker", "default": "#4434FF" }
+        }
+      ]
+    }
+  ],
+  "translations": {
+    "groups": {
+      "display": { "label": "Display" },
+      "bars": { "label": "Bars" },
+      "colors": { "label": "Colors" }
+    },
+    "options": {
+      "display.title": { "label": "Show title" },
+      "display.legend": { "label": "Show legend" },
+      "bars.roundedCorners": { "label": "Rounded corners" },
+      "bars.label": { "label": "Bar labels" },
+      "colors.barColor": { "label": "Bar color" }
+    }
+  }
 }

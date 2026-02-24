@@ -183,6 +183,19 @@
     }
   }
 
+  .options-editor {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 0.0625rem solid var(--color-border);
+
+    &-label {
+      color: var(--color-primary-700);
+      font-weight: 500;
+      font-size: 0.9375rem;
+      margin: 0 0 0.75rem 0;
+    }
+  }
+
   .query-result {
     margin-top: 1.5rem;
 

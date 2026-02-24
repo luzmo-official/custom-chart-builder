@@ -13,6 +13,7 @@ import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/draggable-data-field';
 import '@luzmo/analytics-components-kit/droppable-slot';
+import '@luzmo/analytics-components-kit/edit-item';
 import type { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
 import '@luzmo/lucero/progress-circle';
@@ -124,6 +125,19 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   slotConfigs: SlotConfig[] = [];
   manifestValidationError: string | null = null;
+
+  // Chart options from manifest
+  optionsConfig: unknown[] = Array.isArray((manifestJson as any).optionsConfig) ? (manifestJson as any).optionsConfig : [];
+  optionsTranslations: Record<string, unknown> = (manifestJson as any).translations ?? {};
+  private chartOptionsSubject = new BehaviorSubject<Record<string, unknown>>({});
+
+  get chartOptions(): Record<string, unknown> {
+    return this.chartOptionsSubject.getValue();
+  }
+
+  get currentSlots(): Slot[] {
+    return this.slotsSubject?.getValue() ?? [];
+  }
 
   private slotsSubject!: BehaviorSubject<Slot[]>;
   private queryRelevantSlotsSubject = new BehaviorSubject<SlotQuerySignature[]>(
@@ -757,7 +771,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {
-        theme: selectedTheme?.theme || this.chartThemes[0].theme, // Fallback to first theme if not found
+        ...this.chartOptionsSubject.getValue(),
+        theme: selectedTheme?.theme || this.chartThemes[0].theme,
       },
       language: 'en',
       dimensions: this.getContainerDimensions()
@@ -809,7 +824,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {
-        theme: selectedThemeObj?.theme || this.chartThemes[0].theme
+        ...this.chartOptionsSubject.getValue(),
+        theme: selectedThemeObj?.theme || this.chartThemes[0].theme,
       },
       language: 'en',
       dimensions: this.getContainerDimensions(),
@@ -1118,6 +1134,15 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   onDatasetSelected(datasetId: string): void {
     this.selectedDatasetIdSubject.next(datasetId);
+  }
+
+  onOptionsChanged(event: CustomEvent<{ options: Record<string, unknown> }>): void {
+    this.chartOptionsSubject.next(event.detail.options);
+    if (this.moduleLoaded) {
+      this.chartData$
+        .pipe(take(1))
+        .subscribe((data) => this.performRender(data));
+    }
   }
 
   onAppearanceModeChange(event: CustomEvent<string>): void {
