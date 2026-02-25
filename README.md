@@ -623,9 +623,50 @@ interface ItemFilter {
       datasetId?: string;   // Dataset containing the column
       level?: number;       // Optional level for hierarchical or datetime data
     },
-    any                     // Value to filter by
+    number | string         // Value to filter by (depends on column type)
   ];
 }
+```
+
+The exact type of `parameters[1]` depends on the column type you are filtering on:
+
+- Numeric column: use a number (example: `100`)
+- Datetime column: use an ISO8601 datetime string (example: `'2025-01-01T00:00:00.000Z'`)
+- Hierarchy column: use a string that matches the `id` field of the hierarchy `ItemData` object (example: `'North America'`)
+
+```typescript
+const numericFilter: ItemFilter = {
+  expression: '? >= ?',
+  parameters: [
+    { 
+      columnId: '< revenue column id >', 
+      datasetId: '< sales dataset id >' 
+    }, 
+    100
+  ]
+};
+
+const datetimeFilter: ItemFilter = {
+  expression: '? >= ?',
+  parameters: [
+    { 
+      columnId: '< created_at column id > ', 
+      datasetId: '< sales dataset id >'
+    },
+    '2025-01-01T00:00:00.000Z'
+  ]
+};
+
+const hierarchyFilter: ItemFilter = {
+  expression: '? = ?',
+  parameters: [
+    { 
+      columnId: '< region column id >', 
+      datasetId: '< sales dataset id >' 
+    },
+    'North America'
+  ]
+};
 ```
 
 #### Custom event (`customEvent`)
