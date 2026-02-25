@@ -1,4 +1,4 @@
-﻿import { formatter } from '@luzmo/analytics-components-kit/utils';
+import { formatter } from '@luzmo/analytics-components-kit/utils';
 import type {
   ItemData,
   ItemFilter,
@@ -59,10 +59,9 @@ interface ThemeContext {
   selectedShadow: string;
   tooltipBackground: string;
   tooltipColor: string;
-  controlBackground: string;
-  controlBorder: string;
-  controlText: string;
-  controlHoverBackground: string;
+  tooltipFontSize: number;
+  tooltipOpacity: number;
+  isDark: boolean;
 }
 
 function toRgb(color?: string, fallback = '#ffffff'): d3.RGBColor {
@@ -77,6 +76,11 @@ function getRelativeLuminance(color: d3.RGBColor): number {
   };
 
   return 0.2126 * normalize(color.r) + 0.7152 * normalize(color.g) + 0.0722 * normalize(color.b);
+}
+
+function getTextColorByBackground(background: string): string {
+  const rgb = toRgb(background);
+  return getRelativeLuminance(rgb) < 0.45 ? '#f8fafc' : '#111827';
 }
 
 function lightenColor(color: string, amount = 0.2): string {
@@ -121,7 +125,8 @@ function resolveTheme(theme?: ItemThemeConfig): ThemeContext {
   const backgroundColor = theme?.itemsBackground || '#ffffff';
   const backgroundRgb = toRgb(backgroundColor);
   const luminance = getRelativeLuminance(backgroundRgb);
-  const axisTextColor = luminance < 0.45 ? '#f8fafc' : '#1f2937';
+  const isDark = luminance < 0.45;
+  const axisTextColor = isDark ? '#f8fafc' : '#1f2937';
   const axisLineReference =
     luminance < 0.45 ? lightenColor(backgroundColor, 0.25) : darkenColor(backgroundColor, 0.15);
   const axisLineColor = d3.color(axisLineReference)?.formatHex() ?? '#d1d5db';
@@ -140,25 +145,18 @@ function resolveTheme(theme?: ItemThemeConfig): ThemeContext {
 
   const hoverShadowBase = d3.color(darkenColor(mainColor, 0.55)) ?? d3.rgb(15, 23, 42);
   const selectedShadowBase = d3.color(mainColor) ?? d3.rgb(99, 102, 241);
-  const hoverShadow = `rgba(${hoverShadowBase.r}, ${hoverShadowBase.g}, ${hoverShadowBase.b}, ${luminance < 0.45 ? 0.55 : 0.25
+  const hoverShadow = `rgba(${hoverShadowBase.r}, ${hoverShadowBase.g}, ${hoverShadowBase.b}, ${isDark ? 0.55 : 0.25
     })`;
-  const selectedShadow = `rgba(${selectedShadowBase.r}, ${selectedShadowBase.g}, ${selectedShadowBase.b}, ${luminance < 0.45 ? 0.55 : 0.35
+  const selectedShadow = `rgba(${selectedShadowBase.r}, ${selectedShadowBase.g}, ${selectedShadowBase.b}, ${isDark ? 0.55 : 0.35
     })`;
 
   const tooltipBaseColor = theme?.tooltip?.background ||
-    (luminance < 0.45 ? lightenColor(backgroundColor, 0.18) : darkenColor(backgroundColor, 0.35));
+    (isDark ? lightenColor(backgroundColor, 0.18) : darkenColor(backgroundColor, 0.35));
+  const tooltipOpacity = theme?.tooltip?.opacity ?? 0.92;
   const tooltipColorRgb = toRgb(tooltipBaseColor);
-  const tooltipBackground = `rgba(${tooltipColorRgb.r}, ${tooltipColorRgb.g}, ${tooltipColorRgb.b}, 0.70)`;
-  const tooltipColor = luminance < 0.45 ? '#0f172a' : '#f8fafc';
-
-  const controlBase =
-    luminance < 0.45 ? lightenColor(backgroundColor, 0.22) : darkenColor(backgroundColor, 0.08);
-  const controlBackground = controlBase;
-  const controlBorder =
-    luminance < 0.45 ? lightenColor(controlBase, 0.12) : darkenColor(controlBase, 0.12);
-  const controlHoverBackground =
-    luminance < 0.45 ? lightenColor(controlBase, 0.18) : darkenColor(controlBase, 0.18);
-  const controlText = axisTextColor;
+  const tooltipBackground = `rgba(${tooltipColorRgb.r}, ${tooltipColorRgb.g}, ${tooltipColorRgb.b}, ${tooltipOpacity})`;
+  const tooltipColor = getTextColorByBackground(tooltipBaseColor);
+  const tooltipFontSize = theme?.tooltip?.fontSize ?? 13;
 
   return {
     backgroundColor,
@@ -173,10 +171,9 @@ function resolveTheme(theme?: ItemThemeConfig): ThemeContext {
     selectedShadow,
     tooltipBackground,
     tooltipColor,
-    controlBackground,
-    controlBorder,
-    controlText,
-    controlHoverBackground
+    tooltipFontSize,
+    tooltipOpacity,
+    isDark
   };
 }
 
@@ -520,14 +517,74 @@ function renderChart(
     .attr('stroke-dasharray', '2,4');
   yAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
 
+  const baseFontSize = 13;
   const tooltip: d3.Selection<HTMLDivElement, unknown, null, undefined> = d3
     .select(chartContainer)
     .append('div')
     .attr('class', 'tooltip')
     .style('opacity', 0)
-    .style('background-color', theme.tooltipBackground)
+    .style('background', theme.tooltipBackground)
     .style('color', theme.tooltipColor)
-    .style('box-shadow', `0 12px 24px ${theme.hoverShadow}`);
+    .style('font-size', theme.tooltipFontSize + 'px')
+    .style('line-height', theme.tooltipFontSize * 1.4 + 'px')
+    .style('max-width', 250 * (theme.tooltipFontSize / baseFontSize) + 'px')
+    .style('overflow-wrap', 'break-word');
+
+  const resolveSlotLabel = (slot: Slot | undefined, fallback: string): string => {
+    const name = slot?.name || fallback;
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  };
+
+  const categoryLabel = resolveSlotLabel(chartState.categorySlot, 'Category');
+  const measureLabel = resolveSlotLabel(chartState.measureSlot, 'Measure');
+  const legendLabel = resolveSlotLabel(chartState.groupSlot, 'Legend');
+  const measureCount = chartState.measureSlot?.content?.length ?? 0;
+  const hasMeasure = measureCount > 0;
+  const hasLegend = (chartState.groupSlot?.content?.length ?? 0) > 0;
+  const multiMeasure = measureCount > 1;
+
+  const buildTooltipHtml = (categoryValue: string, measureValue: string | number, legendValue: string): string => {
+    const rows = [`<b>${categoryLabel}:</b> ${categoryValue}`];
+    if (hasMeasure || measureCount === 1) {
+      rows.push(`<b>${measureLabel}:</b> ${measureValue}`);
+    }
+    if (hasLegend && !multiMeasure) {
+      rows.push(`<b>${legendLabel}:</b> ${legendValue}`);
+    }
+    return rows.join('<br>');
+  };
+
+  const tooltipPadding = 8;
+  const tooltipOffset = 12;
+
+  const positionTooltip = (event: MouseEvent): void => {
+    const [pointerX, pointerY] = d3.pointer(event, chartContainer);
+    const tooltipNode = tooltip.node();
+
+    if (!tooltipNode) {
+      return;
+    }
+
+    const tooltipWidth = tooltipNode.offsetWidth || 200;
+    const tooltipHeight = tooltipNode.offsetHeight || 80;
+    const maxLeft = Math.max(tooltipPadding, chartContainer.clientWidth - tooltipWidth - tooltipPadding);
+    const maxTop = Math.max(tooltipPadding, chartContainer.clientHeight - tooltipHeight - tooltipPadding);
+
+    let x = pointerX + tooltipOffset;
+    let y = pointerY + tooltipOffset;
+
+    if (x > maxLeft) {
+      x = pointerX - tooltipWidth - tooltipOffset;
+    }
+    if (y > maxTop) {
+      y = pointerY - tooltipHeight - tooltipOffset;
+    }
+
+    x = Math.max(tooltipPadding, Math.min(x, maxLeft));
+    y = Math.max(tooltipPadding, Math.min(y, maxTop));
+
+    tooltip.style('left', `${x}px`).style('top', `${y}px`);
+  };
 
   categories.forEach((category) => {
     const categoryData = chartData.filter((d) => d.category === category);
@@ -568,26 +625,17 @@ function renderChart(
             .attr('fill', hoverFill)
             .style('filter', `drop-shadow(0 12px 20px ${theme.hoverShadow})`);
 
-          // Calculate tooltip position based on cursor location
-          // If cursor is in right half (50-100%), position tooltip to the left
-          // If cursor is in left half (0-50%), position tooltip to the right
-          const halfWidth = width / 2;
-          const tooltipOffset = 16;
-          const estimatedTooltipWidth = 200; // Estimated tooltip width
-          
-          const isRightHalf = event.offsetX >= halfWidth;
-          const tooltipLeft = isRightHalf 
-            ? Math.max(0, event.offsetX - estimatedTooltipWidth - tooltipOffset)
-            : event.offsetX + tooltipOffset;
-
           tooltip
             .interrupt()
             .style('opacity', 1)
-            .html(
-              `<div class="tooltip-title">${category}</div><div class="tooltip-row"><span>${group}</span><span>${datum.value}</span></div>`
-            )
-            .style('left', `${tooltipLeft}px`)
-            .style('top', `${Math.max(0, event.offsetY - 56)}px`);
+            .html(buildTooltipHtml(category, datum.value, group))
+            .style('left', '0px')
+            .style('top', '0px');
+
+          positionTooltip(event);
+        })
+        .on('mousemove', function (event: MouseEvent) {
+          positionTooltip(event);
         })
         .on('mouseout', function () {
           const selection = d3.select(this as SVGRectElement);
@@ -751,16 +799,13 @@ function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElemen
   chartContainer.style.setProperty('--chart-background', theme.backgroundColor);
   chartContainer.style.setProperty('--axis-text-color', theme.axisTextColor);
   chartContainer.style.setProperty('--axis-line-color', theme.axisLineColor);
-  chartContainer.style.setProperty('--control-bg', theme.controlBackground);
-  chartContainer.style.setProperty('--control-border', theme.controlBorder);
-  chartContainer.style.setProperty('--control-text', theme.controlText);
-  chartContainer.style.setProperty('--control-hover-bg', theme.controlHoverBackground);
   chartContainer.style.setProperty('--hover-shadow', theme.hoverShadow);
-  chartContainer.style.setProperty('--selected-shadow', theme.selectedShadow);
-  chartContainer.style.setProperty('--tooltip-bg', theme.tooltipBackground);
-  chartContainer.style.setProperty('--tooltip-color', theme.tooltipColor);
   chartContainer.style.setProperty('--bar-radius', `${theme.barRounding}px`);
   chartContainer.style.setProperty('--chart-font-family', theme.fontFamily);
+  chartContainer.style.setProperty('--clear-filter-bg', theme.isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)');
+  chartContainer.style.setProperty('--clear-filter-color', theme.isDark ? '#333' : '#eee');
+  chartContainer.style.setProperty('--clear-filter-hover-bg', theme.isDark ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.9)');
+  chartContainer.style.setProperty('--clear-filter-hover-color', theme.isDark ? '#333' : '#fff');
 
   if (theme.fontFamily) {
     chartContainer.style.fontFamily = theme.fontFamily;
@@ -768,9 +813,10 @@ function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElemen
 
   container.appendChild(chartContainer);
 
-  const clearFilterBtn = document.createElement('button');
+  const clearFilterBtn = document.createElement('div');
   clearFilterBtn.className = 'clear-filter-btn';
-  clearFilterBtn.textContent = 'Clear Filters';
+  clearFilterBtn.textContent = 'Clear filter';
+  clearFilterBtn.style.fontSize = `${11 + 11 * ((theme.tooltipFontSize / 13) - 1) / 2}px`;
   clearFilterBtn.onclick = () => {
     chartState.selectedBars.clear();
     d3.selectAll<SVGRectElement, unknown>('.bar')
@@ -835,16 +881,14 @@ function preProcessData(
 
   return (data ?? []).map((row) => {
     // Extract and format values
-    const categoryValue =
-      row[indices.category]?.name?.en || row[indices.category] || 'Unknown';
+    const categoryValue = row[indices.category]?.name?.en || row[indices.category] || 'Unknown';
     const category = formatters.category(
       categorySlot.content[0].type === 'datetime'
         ? new Date(categoryValue)
         : categoryValue
     );
 
-    const groupValue =
-      row[indices.group]?.name?.en || row[indices.group] || 'Default';
+    const groupValue = row[indices.group]?.name?.en || row[indices.group] || 'Default';
     const group = hasGroup
       ? formatters.group(
         groupSlot.content[0].type === 'datetime'

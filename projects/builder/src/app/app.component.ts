@@ -13,7 +13,7 @@ import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/draggable-data-field';
 import '@luzmo/analytics-components-kit/droppable-slot';
-import type { Slot, SlotConfig } from '@luzmo/dashboard-contents-types';
+import type { Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
 import '@luzmo/lucero/progress-circle';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
@@ -209,7 +209,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   };
   // Theme picker properties
-  chartThemes = [
+  chartThemes: { label: string, name: string, theme: ThemeConfig }[] = [
     {
       name: 'light',
       label: 'Default (light)',
@@ -260,7 +260,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         mainColor: 'rgb(68,52,255)',
         axis: {},
         legend: { type: 'circle' },
-        tooltip: { background: 'rgb(38,38,38)' },
+        tooltip: { background: 'rgb(38,38,38)', opacity: 1 },
         itemSpecific: { rounding: 8, padding: 4 },
       },
     },
@@ -314,7 +314,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         mainColor: 'rgb(123,144,255)',
         axis: {},
         legend: { type: 'circle' },
-        tooltip: { background: 'rgb(248,248,248)' },
+        tooltip: { background: 'rgb(248,248,248)', opacity: 1 },
         itemSpecific: { rounding: 8, padding: 4 },
       },
     },
@@ -337,7 +337,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         mainColor: '#f4a92c',
         axis: {},
         legend: { type: 'circle' },
-        tooltip: {},
+        tooltip: { background: 'rgb(248,248,248)', opacity: 1 },
         colors: [
           '#feeaa1',
           '#e6cc85',
@@ -369,7 +369,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         mainColor: '#33b59e',
         axis: {},
         legend: { type: 'circle' },
-        tooltip: {},
+        tooltip: { background: 'rgb(248,248,248)', opacity: 1 },
         colors: [
           '#33b59e',
           '#453d30',
