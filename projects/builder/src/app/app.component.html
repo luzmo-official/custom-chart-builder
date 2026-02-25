@@ -1,4 +1,4 @@
-﻿@if (authService.isAuthenticated$ | async) {
+@if (authService.isAuthenticated$ | async) {
   <div class="app-container">
     <header class="header">
       <div class="header-title">
@@ -71,13 +71,13 @@
 
             <div class="column-list" [class.has-scrollbar]="hasScrollbar" #columnListContainer>
               @for (column of filteredDatasetColumns; track column.columnId) {
-                <luzmo-draggable-data-item
+                <luzmo-draggable-data-field
                   variant="highlight"
                   size="m"
                   [data]="column"
                   [disabled]="false"
                 >
-                </luzmo-draggable-data-item>
+                </luzmo-draggable-data-field>
               }
             </div>
           }
@@ -117,7 +117,7 @@
                   [slotConfiguration]="slotConfig"
                   variant="highlight"
                   size="m"
-                  (slot-contents-changed)="
+                  (luzmo-slot-contents-changed)="
                     onColumnDropped(
                       slotConfig.name,
                       slotConfig.type!,
