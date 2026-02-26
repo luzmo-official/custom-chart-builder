@@ -203,6 +203,25 @@
         </div>
       </section>
 
+      <!-- Options column: Chart options editor -->
+
+      @if (optionsConfig.length > 0) {
+        <section class="column options-column">
+          <div class="column-header">
+            <p class="column-header-label">Chart options</p>
+          </div>
+
+          <div class="column-content">
+            <luzmo-edit-item
+              [customOptionsConfiguration]="optionsConfig"
+              [options]="customChartOptions"
+              (luzmo-options-changed)="onOptionsChanged($any($event))"
+            >
+            </luzmo-edit-item>
+          </div>
+        </section>
+      }
+
       <!-- Right column: Chart visualization -->
 
       <section class="column right-column">

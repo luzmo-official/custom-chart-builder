@@ -61,6 +61,8 @@ interface ThemeContext {
   tooltipColor: string;
   tooltipFontSize: number;
   tooltipOpacity: number;
+  gridOpacity: number;
+  axisFontSize: number;
   isDark: boolean;
 }
 
@@ -121,15 +123,17 @@ function expandPalette(basePalette: string[], mainColor: string, length: number)
   return palette.slice(0, length);
 }
 
-function resolveTheme(theme?: ItemThemeConfig): ThemeContext {
-  const backgroundColor = theme?.itemsBackground || '#ffffff';
+function resolveTheme(theme?: ItemThemeConfig, overrides?: ChartThemeOverrides): ThemeContext {
+  const backgroundColor = overrides?.backgroundColor && overrides.backgroundColor !== 'transparent'
+    ? overrides.backgroundColor
+    : (theme?.itemsBackground || '#ffffff');
   const backgroundRgb = toRgb(backgroundColor);
   const luminance = getRelativeLuminance(backgroundRgb);
   const isDark = luminance < 0.45;
-  const axisTextColor = isDark ? '#f8fafc' : '#1f2937';
+  const axisTextColor = overrides?.axisColor || (isDark ? '#f8fafc' : '#1f2937');
   const axisLineReference =
     luminance < 0.45 ? lightenColor(backgroundColor, 0.25) : darkenColor(backgroundColor, 0.15);
-  const axisLineColor = d3.color(axisLineReference)?.formatHex() ?? '#d1d5db';
+  const axisLineColor = overrides?.axisColor || (d3.color(axisLineReference)?.formatHex() ?? '#d1d5db');
 
   const paletteFromTheme = (theme?.colors ?? []).filter(Boolean) as string[];
   const mainColor = theme?.mainColor || paletteFromTheme[0];
@@ -157,6 +161,8 @@ function resolveTheme(theme?: ItemThemeConfig): ThemeContext {
   const tooltipBackground = `rgba(${tooltipColorRgb.r}, ${tooltipColorRgb.g}, ${tooltipColorRgb.b}, ${tooltipOpacity})`;
   const tooltipColor = getTextColorByBackground(tooltipBaseColor);
   const tooltipFontSize = theme?.tooltip?.fontSize ?? 13;
+  const gridOpacity = overrides?.gridOpacity ?? 0.1;
+  const axisFontSize = overrides?.fontSize ?? theme?.axis?.fontSize ?? 12;
 
   return {
     backgroundColor,
@@ -173,6 +179,8 @@ function resolveTheme(theme?: ItemThemeConfig): ThemeContext {
     tooltipColor,
     tooltipFontSize,
     tooltipOpacity,
+    gridOpacity,
+    axisFontSize,
     isDark
   };
 }
@@ -213,7 +221,40 @@ function sendFilterEvent(filters: ItemFilter[]): void {
   window.parent.postMessage(eventData, '*');
 }
 
-// Define parameter types for render and resize functions
+interface ChartThemeOverrides {
+  backgroundColor?: string;
+  axisColor?: string;
+  gridOpacity?: number;
+  fontSize?: number;
+}
+
+interface ChartOptions {
+  mode: 'grouped' | 'stacked';
+  orientation: 'vertical' | 'horizontal';
+  showLegend: boolean;
+  showValues: boolean;
+  barRounding: number | null;
+  themeOverrides: ChartThemeOverrides;
+}
+
+function extractChartOptions(options: Record<string, unknown>): ChartOptions {
+  const display = (options.display as Record<string, unknown>) ?? {};
+
+  return {
+    mode: (options.mode as ChartOptions['mode']) ?? 'grouped',
+    orientation: (options.orientation as ChartOptions['orientation']) ?? 'vertical',
+    showLegend: (display.legend as boolean) ?? true,
+    showValues: (display.values as boolean) ?? false,
+    barRounding: typeof options.barRounding === 'number' ? options.barRounding : null,
+    themeOverrides: {
+      backgroundColor: options.chartBackground as string | undefined,
+      axisColor: options.chartAxisColor as string | undefined,
+      gridOpacity: options.chartGridOpacity as number | undefined,
+      fontSize: options.chartFontSize as number | undefined,
+    }
+  };
+}
+
 interface ChartParams {
   container: HTMLElement;
   data: ItemData['data'];
@@ -256,11 +297,14 @@ export const render = ({
   language = 'en',
   dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
-  const themeContext = resolveTheme(options.theme);
+  console.log('[CustomChart] render()', { options, language, width, height });
+  const chartOpts = extractChartOptions(options);
+  const themeContext = resolveTheme(options.theme, chartOpts.themeOverrides);
+  console.log('[CustomChart] resolved options:', chartOpts);
   (container as any).__themeContext = themeContext;
+  (container as any).__chartOptions = chartOpts;
   const chartContainer = setupContainer(container, themeContext);
 
-  // Store slots in chart state
   chartState.categorySlot = slots.find((s) => s.name === 'category');
   chartState.measureSlot = slots.find((s) => s.name === 'measure');
   chartState.groupSlot = slots.find((s) => s.name === 'legend');
@@ -273,12 +317,9 @@ export const render = ({
   const hasCategory = chartState.categorySlot?.content?.length! > 0;
   const hasMeasure = chartState.measureSlot?.content?.length! > 0;
 
-  // Prepare data for visualization
   let chartData: ChartDataItem[] = [];
 
-  // Check if we have actual data or need sample data
   if (!data.length || !hasCategory || !hasMeasure) {
-    // Generate sample data for empty state
     const categories = ['Product A', 'Product B', 'Product C', 'Product D', 'Product E'];
     const groups = ['Region 1', 'Region 2', 'Region 3'];
     const sampleData = [];
@@ -289,8 +330,8 @@ export const render = ({
         sampleData.push({
           category: categories[i],
           group: groups[j],
-          value: measureFormatterFn(rawValue), // Format sample data using measure formatter
-          rawValue: rawValue, // Store the raw value
+          value: measureFormatterFn(rawValue),
+          rawValue: rawValue,
           columnId: `column_${i}_${j}`,
           datasetId: `dataset_${i}_${j}`
         });
@@ -300,7 +341,6 @@ export const render = ({
     chartData = sampleData;
   }
   else {
-    // Process real data
     chartData = preProcessData(
       data,
       chartState.measureSlot!,
@@ -310,17 +350,18 @@ export const render = ({
     );
   }
 
-  // Calculate legend height first to adjust margins
   const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
   const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
-  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+  const showLegend = chartOpts.showLegend && hasMultipleGroups;
+  const legendHeight = showLegend ? calculateLegendHeight(groups, width) : 0;
 
-  // Set up dimensions with dynamic top margin based on legend height
-  const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
+  const isHorizontal = chartOpts.orientation === 'horizontal';
+  const margin = isHorizontal
+    ? { top: 20 + legendHeight, right: 30, bottom: 30, left: 100 }
+    : { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
-  // Render the chart
   renderChart(
     chartContainer,
     chartData,
@@ -330,10 +371,10 @@ export const render = ({
     innerWidth,
     innerHeight,
     themeContext,
-    measureFormatterFn
+    measureFormatterFn,
+    chartOpts
   );
 
-  // Store the chart data on the container for reference during resize
   (container as any).__chartData = chartData;
 };
 
@@ -349,27 +390,31 @@ export const resize = ({
   language = 'en',
   dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
-  // Get the existing state
+  console.log('[CustomChart] resize()', { options, width, height });
   const chartData = (container as any).__chartData || [];
+  const chartOpts = extractChartOptions(options);
   const previousThemeContext = (container as any).__themeContext as ThemeContext | undefined;
-  const themeContext = options.theme ? resolveTheme(options.theme) : previousThemeContext ?? resolveTheme(undefined);
+  const themeContext = options.theme ? resolveTheme(options.theme, chartOpts.themeOverrides) : previousThemeContext ?? resolveTheme(undefined, chartOpts.themeOverrides);
+  console.log('[CustomChart] resolved options:', chartOpts);
   (container as any).__themeContext = themeContext;
+  (container as any).__chartOptions = chartOpts;
   const measureFormatterFn = chartState.measureSlot?.content?.[0]
     ? formatter(chartState.measureSlot.content[0])
     : (value: number) => new Intl.NumberFormat(language).format(value);
   const newChartContainer = setupContainer(container, themeContext);
 
-  // Calculate legend height first to adjust margins
-  const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
+  const groups: string[] = Array.from(new Set(chartData.map((d: ChartDataItem) => d.group)));
   const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
-  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+  const showLegend = chartOpts.showLegend && hasMultipleGroups;
+  const legendHeight = showLegend ? calculateLegendHeight(groups, width) : 0;
 
-  // Set up dimensions with dynamic top margin based on legend height
-  const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
+  const isHorizontal = chartOpts.orientation === 'horizontal';
+  const margin = isHorizontal
+    ? { top: 20 + legendHeight, right: 30, bottom: 30, left: 100 }
+    : { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
-  // Render chart with existing data
   renderChart(
     newChartContainer,
     chartData,
@@ -379,22 +424,70 @@ export const resize = ({
     innerWidth,
     innerHeight,
     themeContext,
-    measureFormatterFn
+    measureFormatterFn,
+    chartOpts
   );
 
-  // Maintain state for future resizes
   (container as any).__chartData = chartData;
 };
 
-/**
- * Build query for data retrieval
- * NOTE: This method is OPTIONAL to implement. If not implemented, Luzmo will automatically build a query based on the slot configurations. For more advanced use cases, you can implement this method to build a custom query (e.g. if you need your query to return row-level data instead of aggregated data, or if you want to implement ordering or pagination in your chart).
- * 
- * See the README.md file for more information on how to implement this method and expected query structure.
- * 
- * @param params Object containing slots with their contents and slot configurations.
- * @returns Query object for data retrieval
- */
+export const optionsChanged = ({
+  container,
+  options,
+  previousOptions
+}: {
+  container: HTMLElement;
+  options: Record<string, unknown>;
+  previousOptions: Record<string, unknown>;
+}): void => {
+  console.log('[CustomChart] optionsChanged()', { options, previousOptions });
+  const chartData = (container as any).__chartData || [];
+  if (!chartData.length) {
+    console.warn('[CustomChart] optionsChanged() called with no chart data, skipping');
+    return;
+  }
+
+  const chartOpts = extractChartOptions(options);
+  const platformTheme = (options.theme as ItemThemeConfig) ?? undefined;
+  const themeContext = resolveTheme(platformTheme, chartOpts.themeOverrides);
+  console.log('[CustomChart] resolved options:', chartOpts);
+  (container as any).__themeContext = themeContext;
+  (container as any).__chartOptions = chartOpts;
+
+  const measureFormatterFn = chartState.measureSlot?.content?.[0]
+    ? formatter(chartState.measureSlot.content[0])
+    : (value: number) => new Intl.NumberFormat('en').format(value);
+
+  const groups: string[] = Array.from(new Set(chartData.map((d: ChartDataItem) => d.group)));
+  const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
+  const showLegend = chartOpts.showLegend && hasMultipleGroups;
+
+  const { width, height } = container.getBoundingClientRect();
+
+  const newChartContainer = setupContainer(container, themeContext);
+  const legendHeight = showLegend ? calculateLegendHeight(groups, width) : 0;
+
+  const isHorizontal = chartOpts.orientation === 'horizontal';
+  const margin = isHorizontal
+    ? { top: 20 + legendHeight, right: 30, bottom: 30, left: 100 }
+    : { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
+  const innerWidth = width - margin.left - margin.right;
+  const innerHeight = height - margin.top - margin.bottom;
+
+  renderChart(
+    newChartContainer,
+    chartData,
+    width,
+    height,
+    margin,
+    innerWidth,
+    innerHeight,
+    themeContext,
+    measureFormatterFn,
+    chartOpts
+  );
+};
+
 /*
 export const buildQuery = ({
   slots = [],
@@ -427,8 +520,13 @@ function renderChart(
   innerWidth: number,
   innerHeight: number,
   theme: ThemeContext,
-  measureFormatter: (value: number) => string
+  measureFormatter: (value: number) => string,
+  chartOpts: ChartOptions = { mode: 'grouped', orientation: 'vertical', showLegend: true, showValues: false, barRounding: null }
 ): void {
+  const isHorizontal = chartOpts.orientation === 'horizontal';
+  const isStacked = chartOpts.mode === 'stacked';
+  const effectiveBarRounding = chartOpts.barRounding ?? theme.barRounding;
+
   const svg: d3.Selection<SVGSVGElement, unknown, null, undefined> = d3
     .select(chartContainer)
     .append('svg')
@@ -442,9 +540,9 @@ function renderChart(
 
   const chart = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-  const nestedData = d3.group(chartData, (d) => d.category);
-  const categories: string[] = Array.from(nestedData.keys());
+  const categories: string[] = Array.from(new Set(chartData.map((d) => d.category)));
   const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
+  const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
 
   const palette = expandPalette(theme.basePalette, theme.mainColor, Math.max(groups.length, 1));
   const colorScale: d3.ScaleOrdinal<string, string> = d3
@@ -452,70 +550,88 @@ function renderChart(
     .domain(groups)
     .range(palette);
 
-  const xScale: d3.ScaleBand<string> = d3
+  let maxValue: number;
+  if (isStacked) {
+    const stackedTotals = new Map<string, number>();
+    chartData.forEach((d) => {
+      stackedTotals.set(d.category, (stackedTotals.get(d.category) ?? 0) + d.rawValue);
+    });
+    maxValue = d3.max(Array.from(stackedTotals.values())) || 0;
+  } else {
+    maxValue = d3.max(chartData, (d) => d.rawValue) || 0;
+  }
+
+  const categoryScale: d3.ScaleBand<string> = d3
     .scaleBand<string>()
     .domain(categories)
-    .range([0, innerWidth])
+    .range(isHorizontal ? [0, innerHeight] : [0, innerWidth])
     .padding(theme.barPadding);
 
-  const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
-
-  const groupedXScale: d3.ScaleBand<string> = d3
+  const groupScale: d3.ScaleBand<string> = d3
     .scaleBand<string>()
     .domain(groups)
-    .range([0, Math.max(xScale.bandwidth(), 0)])
-    .padding(hasMultipleGroups ? Math.min(0.35, theme.barPadding * 0.6) : 0.08);
+    .range([0, Math.max(categoryScale.bandwidth(), 0)])
+    .padding(hasMultipleGroups && !isStacked ? Math.min(0.35, theme.barPadding * 0.6) : 0.08);
 
-  const baseBarWidth = hasMultipleGroups ? groupedXScale.bandwidth() : xScale.bandwidth();
-  const barRadius = Math.min(theme.barRounding, Math.max(baseBarWidth, 0) / 2);
-
-  const maxValue: number = d3.max(chartData, (d) => d.rawValue) || 0;
-  const yScale: d3.ScaleLinear<number, number> = d3
+  const valueScale: d3.ScaleLinear<number, number> = d3
     .scaleLinear()
     .domain([0, maxValue === 0 ? 1 : maxValue * 1.1])
-    .range([innerHeight, 0])
+    .range(isHorizontal ? [0, innerWidth] : [innerHeight, 0])
     .nice();
 
-  const xAxis = chart
-    .append('g')
-    .attr('class', 'axis x-axis')
-    .attr('transform', `translate(0,${innerHeight})`)
-    .call(d3.axisBottom(xScale).tickSizeOuter(0));
+  const baseBarWidth = (isStacked || !hasMultipleGroups) ? categoryScale.bandwidth() : groupScale.bandwidth();
+  const barRadius = Math.min(effectiveBarRounding, Math.max(baseBarWidth, 0) / 2);
 
-  xAxis
-    .selectAll<SVGTextElement, string>('text')
-    .attr('transform', 'rotate(-45)')
-    .style('text-anchor', 'end')
-    .attr('dx', '-.8em')
-    .attr('dy', '.15em')
-    .style('fill', theme.axisTextColor);
+  if (isHorizontal) {
+    const yAxis = chart
+      .append('g')
+      .attr('class', 'axis y-axis')
+      .call(d3.axisLeft(categoryScale).tickSizeOuter(0));
+    yAxis.selectAll<SVGTextElement, string>('text').style('fill', theme.axisTextColor).style('font-size', `${theme.axisFontSize}px`);
+    if (theme.fontFamily) { yAxis.selectAll<SVGTextElement, string>('text').style('font-family', theme.fontFamily); }
+    yAxis.selectAll<SVGLineElement, unknown>('line').attr('stroke', theme.axisLineColor);
+    yAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
 
-  if (theme.fontFamily) {
-    xAxis.selectAll<SVGTextElement, string>('text').style('font-family', theme.fontFamily);
+    const xAxisGenerator = d3.axisBottom(valueScale)
+      .ticks(6)
+      .tickSize(-innerHeight)
+      .tickSizeOuter(0)
+      .tickFormat((value) => measureFormatter(Number(value)));
+    const xAxis = chart.append('g').attr('class', 'axis x-axis')
+      .attr('transform', `translate(0,${innerHeight})`)
+      .call(xAxisGenerator);
+    xAxis.selectAll<SVGTextElement, number>('text').style('fill', theme.axisTextColor).style('font-size', `${theme.axisFontSize}px`);
+    if (theme.fontFamily) { xAxis.selectAll<SVGTextElement, number>('text').style('font-family', theme.fontFamily); }
+    xAxis.selectAll<SVGLineElement, number>('line').attr('stroke', theme.axisLineColor).attr('stroke-dasharray', '2,4').attr('opacity', theme.gridOpacity);
+    xAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
+  } else {
+    const xAxis = chart
+      .append('g')
+      .attr('class', 'axis x-axis')
+      .attr('transform', `translate(0,${innerHeight})`)
+      .call(d3.axisBottom(categoryScale).tickSizeOuter(0));
+    xAxis.selectAll<SVGTextElement, string>('text')
+      .attr('transform', 'rotate(-45)')
+      .style('text-anchor', 'end')
+      .attr('dx', '-.8em')
+      .attr('dy', '.15em')
+      .style('fill', theme.axisTextColor)
+      .style('font-size', `${theme.axisFontSize}px`);
+    if (theme.fontFamily) { xAxis.selectAll<SVGTextElement, string>('text').style('font-family', theme.fontFamily); }
+    xAxis.selectAll<SVGLineElement, unknown>('line').attr('stroke', theme.axisLineColor);
+    xAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
+
+    const yAxisGenerator = d3.axisLeft(valueScale)
+      .ticks(6)
+      .tickSize(-innerWidth)
+      .tickSizeOuter(0)
+      .tickFormat((value) => measureFormatter(Number(value)));
+    const yAxis = chart.append('g').attr('class', 'axis y-axis').call(yAxisGenerator);
+    yAxis.selectAll<SVGTextElement, number>('text').style('fill', theme.axisTextColor).style('font-size', `${theme.axisFontSize}px`);
+    if (theme.fontFamily) { yAxis.selectAll<SVGTextElement, number>('text').style('font-family', theme.fontFamily); }
+    yAxis.selectAll<SVGLineElement, number>('line').attr('stroke', theme.axisLineColor).attr('stroke-dasharray', '2,4').attr('opacity', theme.gridOpacity);
+    yAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
   }
-
-  xAxis.selectAll<SVGLineElement, unknown>('line').attr('stroke', theme.axisLineColor);
-  xAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
-
-  const yAxisGenerator = d3
-    .axisLeft(yScale)
-    .ticks(6)
-    .tickSize(-innerWidth)
-    .tickSizeOuter(0)
-    .tickFormat((value) => measureFormatter(Number(value)));
-  const yAxis = chart.append('g').attr('class', 'axis y-axis').call(yAxisGenerator);
-
-  yAxis.selectAll<SVGTextElement, number>('text').style('fill', theme.axisTextColor);
-
-  if (theme.fontFamily) {
-    yAxis.selectAll<SVGTextElement, number>('text').style('font-family', theme.fontFamily);
-  }
-
-  yAxis
-    .selectAll<SVGLineElement, number>('line')
-    .attr('stroke', theme.axisLineColor)
-    .attr('stroke-dasharray', '2,4');
-  yAxis.selectAll<SVGPathElement, unknown>('path').attr('stroke', theme.axisLineColor);
 
   const baseFontSize = 13;
   const tooltip: d3.Selection<HTMLDivElement, unknown, null, undefined> = d3
@@ -560,10 +676,7 @@ function renderChart(
   const positionTooltip = (event: MouseEvent): void => {
     const [pointerX, pointerY] = d3.pointer(event, chartContainer);
     const tooltipNode = tooltip.node();
-
-    if (!tooltipNode) {
-      return;
-    }
+    if (!tooltipNode) { return; }
 
     const tooltipWidth = tooltipNode.offsetWidth || 200;
     const tooltipHeight = tooltipNode.offsetHeight || 80;
@@ -572,71 +685,104 @@ function renderChart(
 
     let x = pointerX + tooltipOffset;
     let y = pointerY + tooltipOffset;
-
-    if (x > maxLeft) {
-      x = pointerX - tooltipWidth - tooltipOffset;
-    }
-    if (y > maxTop) {
-      y = pointerY - tooltipHeight - tooltipOffset;
-    }
-
+    if (x > maxLeft) { x = pointerX - tooltipWidth - tooltipOffset; }
+    if (y > maxTop) { y = pointerY - tooltipHeight - tooltipOffset; }
     x = Math.max(tooltipPadding, Math.min(x, maxLeft));
     y = Math.max(tooltipPadding, Math.min(y, maxTop));
 
     tooltip.style('left', `${x}px`).style('top', `${y}px`);
   };
 
+  const stackOffsets = new Map<string, number>();
+
   categories.forEach((category) => {
     const categoryData = chartData.filter((d) => d.category === category);
+    stackOffsets.set(category, 0);
 
     groups.forEach((group) => {
       const datum = categoryData.find((d) => d.group === group);
-      if (!datum) {
-        return;
-      }
+      if (!datum) { return; }
 
       const barId = `${category}-${group}`;
       const baseFill = colorScale(group);
-      const xPosition = (xScale(category) ?? 0) + (hasMultipleGroups ? groupedXScale(group) ?? 0 : 0);
-      const barWidth = hasMultipleGroups ? groupedXScale.bandwidth() : xScale.bandwidth();
-      const barHeight = innerHeight - yScale(datum.rawValue);
+
+      let barX: number, barY: number, barW: number, barH: number;
+
+      if (isStacked) {
+        const offset = stackOffsets.get(category) ?? 0;
+        if (isHorizontal) {
+          barX = valueScale(0) + offset;
+          barY = categoryScale(category) ?? 0;
+          barW = valueScale(datum.rawValue) - valueScale(0);
+          barH = categoryScale.bandwidth();
+        } else {
+          barW = categoryScale.bandwidth();
+          barH = valueScale(0) - valueScale(datum.rawValue);
+          barX = categoryScale(category) ?? 0;
+          barY = valueScale(datum.rawValue) - offset;
+          barY = valueScale(0) - offset - barH;
+        }
+        stackOffsets.set(category, offset + (isHorizontal ? barW : barH));
+      } else {
+        if (isHorizontal) {
+          barX = 0;
+          barY = (categoryScale(category) ?? 0) + (hasMultipleGroups ? groupScale(group) ?? 0 : 0);
+          barW = valueScale(datum.rawValue);
+          barH = hasMultipleGroups ? groupScale.bandwidth() : categoryScale.bandwidth();
+        } else {
+          barX = (categoryScale(category) ?? 0) + (hasMultipleGroups ? groupScale(group) ?? 0 : 0);
+          barY = valueScale(datum.rawValue);
+          barW = hasMultipleGroups ? groupScale.bandwidth() : categoryScale.bandwidth();
+          barH = innerHeight - valueScale(datum.rawValue);
+        }
+      }
 
       const bar = chart
         .append('rect')
         .attr('class', 'bar')
         .attr('data-bar-id', barId)
         .attr('data-base-fill', baseFill)
-        .attr('x', xPosition)
-        .attr('y', yScale(datum.rawValue))
-        .attr('width', barWidth)
-        .attr('height', barHeight)
+        .attr('x', barX)
+        .attr('y', barY)
+        .attr('width', Math.max(0, barW))
+        .attr('height', Math.max(0, barH))
         .attr('fill', baseFill)
         .attr('rx', barRadius)
         .attr('ry', barRadius);
+
+      if (chartOpts.showValues && datum.rawValue > 0) {
+        const labelX = isHorizontal ? barX + barW + 4 : barX + barW / 2;
+        const labelY = isHorizontal ? barY + barH / 2 : barY - 4;
+        chart
+          .append('text')
+          .attr('class', 'bar-value')
+          .attr('x', labelX)
+          .attr('y', labelY)
+          .attr('text-anchor', isHorizontal ? 'start' : 'middle')
+          .attr('dominant-baseline', isHorizontal ? 'central' : 'auto')
+          .style('fill', theme.axisTextColor)
+          .style('font-size', '11px')
+          .style('pointer-events', 'none')
+          .text(measureFormatter(datum.rawValue));
+      }
 
       bar
         .on('mouseover', function (event: MouseEvent) {
           const selection = d3.select(this as SVGRectElement);
           const startingFill = selection.attr('data-base-fill') || baseFill;
-          const hoverFill = lightenColor(startingFill, 0.18);
-
           selection
             .raise()
-            .attr('fill', hoverFill)
+            .attr('fill', lightenColor(startingFill, 0.18))
             .style('filter', `drop-shadow(0 12px 20px ${theme.hoverShadow})`);
-
           tooltip
             .interrupt()
             .style('opacity', 1)
             .html(buildTooltipHtml(category, datum.value, group))
             .style('left', '0px')
             .style('top', '0px');
-
           positionTooltip(event);
         })
-        .on('mousemove', function (event: MouseEvent) {
-          positionTooltip(event);
-        })
+        .on('mousemove', function (event: MouseEvent) { positionTooltip(event); })
         .on('mouseout', function () {
           const selection = d3.select(this as SVGRectElement);
           const startingFill = selection.attr('data-base-fill') || baseFill;
@@ -648,11 +794,8 @@ function renderChart(
               .attr('fill', lightenColor(startingFill, 0.25))
               .style('filter', `drop-shadow(0 18px 32px ${theme.selectedShadow})`);
           } else {
-            selection
-              .attr('fill', startingFill)
-              .style('filter', 'none');
+            selection.attr('fill', startingFill).style('filter', 'none');
           }
-
           tooltip.transition().duration(120).style('opacity', 0);
         })
         .on('click', function (event: MouseEvent) {
@@ -693,21 +836,15 @@ function renderChart(
           Array.from(chartState.selectedBars).forEach((selectedId) => {
             const [selectedCategory] = selectedId.split('-');
             const categoryContent = chartState.categorySlot?.content[0];
-            if (!categoryContent) {
-              return;
-            }
-            const columnKey = `${categoryContent.columnId || (categoryContent as any).column}:${categoryContent.datasetId || (categoryContent as any).set
-              }`;
-            if (!groupedFilters.has(columnKey)) {
-              groupedFilters.set(columnKey, new Set());
-            }
+            if (!categoryContent) { return; }
+            const columnKey = `${categoryContent.columnId || (categoryContent as any).column}:${categoryContent.datasetId || (categoryContent as any).set}`;
+            if (!groupedFilters.has(columnKey)) { groupedFilters.set(columnKey, new Set()); }
             groupedFilters.get(columnKey)?.add(selectedCategory);
           });
 
           groupedFilters.forEach((values, key) => {
             const [columnId, datasetId] = key.split(':');
             const uniqueValues = Array.from(values);
-
             filters.push({
               expression: uniqueValues.length > 1 ? '? in ?' : '? = ?',
               parameters: [
@@ -718,30 +855,21 @@ function renderChart(
                 },
                 uniqueValues.length > 1 ? uniqueValues : uniqueValues[0]
               ],
-              properties: {
-                origin: 'filterFromVizItem',
-                type: 'where'
-              }
+              properties: { origin: 'filterFromVizItem', type: 'where' }
             });
           });
 
           sendFilterEvent(filters);
-
-          sendCustomEvent({
-            category,
-            group,
-            value: datum.value,
-            rawValue: datum.rawValue
-          });
+          sendCustomEvent({ category, group, value: datum.value, rawValue: datum.rawValue });
         });
     });
   });
 
-  const shouldRenderLegend = hasMultipleGroups;
+  const showLegend = chartOpts.showLegend && hasMultipleGroups;
 
-  if (shouldRenderLegend) {
-    const itemWidth = 140; // Width per legend item including spacing
-    const rowHeight = 24; // Height per row including spacing
+  if (showLegend) {
+    const itemWidth = 140;
+    const rowHeight = 24;
     const availableWidth = innerWidth;
     const itemsPerRow = Math.max(1, Math.floor(availableWidth / itemWidth));
 
@@ -753,7 +881,7 @@ function renderChart(
     groups.forEach((group, index) => {
       const row = Math.floor(index / itemsPerRow);
       const col = index % itemsPerRow;
-      
+
       const legendItem = legend
         .append('g')
         .attr('class', 'legend-item')

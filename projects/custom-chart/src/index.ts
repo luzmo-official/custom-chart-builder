@@ -1,1 +1,1 @@
-export { render, resize, buildQuery } from './chart';
+export { render, resize, optionsChanged } from './chart';

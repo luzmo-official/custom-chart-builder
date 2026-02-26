@@ -13,7 +13,8 @@ import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/draggable-data-field';
 import '@luzmo/analytics-components-kit/droppable-slot';
-import type { Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
+import '@luzmo/analytics-components-kit/edit-item';
+import type { OptionsConfig, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
 import '@luzmo/lucero/progress-circle';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
@@ -123,6 +124,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   queryResultInfo$ = this.queryResultInfoSubject.asObservable();
 
   slotConfigs: SlotConfig[] = [];
+  optionsConfig: OptionsConfig = (manifestJson as Record<string, unknown>)['options'] as OptionsConfig ?? [];
+  customChartOptions: Record<string, unknown> = {};
   manifestValidationError: string | null = null;
 
   private slotsSubject!: BehaviorSubject<Slot[]>;
@@ -748,16 +751,13 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       return;
     }
 
-    // Find the selected theme object from the options array
-    const selectedTheme = this.chartThemes.find(
-      (t) => t.name === this.selectedTheme,
-    );
     const renderData = {
       data: data,
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {
-        theme: selectedTheme?.theme || this.chartThemes[0].theme, // Fallback to first theme if not found
+        ...this.customChartOptions,
+        theme: this.getSelectedThemeConfig()
       },
       language: 'en',
       dimensions: this.getContainerDimensions()
@@ -792,6 +792,31 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     };
   }
 
+  private getSelectedThemeConfig(): ThemeConfig {
+    return this.chartThemes.find((t) => t.name === this.selectedTheme)?.theme
+      || this.chartThemes[0].theme;
+  }
+
+  onOptionsChanged(event: CustomEvent): void {
+    const updatedOptions = event?.detail?.options ?? {};
+    this.customChartOptions = updatedOptions;
+
+    if (!this.iframe || !this.moduleLoaded) {
+      return;
+    }
+
+    this.iframe.contentWindow?.postMessage({
+      type: 'optionsChanged',
+      data: {
+        options: {
+          ...this.customChartOptions,
+          theme: this.getSelectedThemeConfig()
+        },
+        previousOptions: {}
+      }
+    }, '*');
+  }
+
   /**
    * Performs chart resizing with debounce to improve performance
    */
@@ -800,16 +825,12 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       cancelAnimationFrame(this.resizeAnimationFrame);
     }
 
-    // Find the selected theme object from the options array
-    const selectedThemeObj = this.chartThemes.find(
-      (t) => t.name === this.selectedTheme,
-    );
-
     const resizeData = {
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {
-        theme: selectedThemeObj?.theme || this.chartThemes[0].theme
+        ...this.customChartOptions,
+        theme: this.getSelectedThemeConfig()
       },
       language: 'en',
       dimensions: this.getContainerDimensions(),

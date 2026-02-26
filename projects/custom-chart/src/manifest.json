@@ -17,6 +17,7 @@
       "rotate": true,
       "label": "Value",
       "type": "numeric",
+      "position": "middle",
       "options": {
         "isAggregationDisabled": false
       },
@@ -33,6 +34,106 @@
       },
       "isRequired": false,
       "acceptableColumnTypes": ["hierarchy", "datetime"]
+    }
+  ],
+  "options": [
+    {
+      "key": "general",
+      "type": "group",
+      "label": "General",
+      "open": true,
+      "children": [
+        {
+          "key": "mode",
+          "control": {
+            "type": "picker",
+            "label": "Mode",
+            "default": "grouped",
+            "enum": ["grouped", "stacked"]
+          }
+        },
+        {
+          "key": "orientation",
+          "control": {
+            "type": "picker",
+            "label": "Orientation",
+            "default": "vertical",
+            "enum": ["vertical", "horizontal"]
+          }
+        },
+        {
+          "key": "display.legend",
+          "control": {
+            "type": "switch",
+            "label": "Show legend",
+            "default": true
+          }
+        },
+        {
+          "key": "display.values",
+          "control": {
+            "type": "switch",
+            "label": "Show values on bars",
+            "default": false
+          }
+        },
+        {
+          "key": "barRounding",
+          "control": {
+            "type": "slider",
+            "label": "Bar rounding",
+            "default": 8,
+            "min": 0,
+            "max": 20
+          }
+        }
+      ]
+    },
+    {
+      "key": "appearance",
+      "type": "group",
+      "label": "Theme",
+      "open": false,
+      "children": [
+        {
+          "key": "chartBackground",
+          "control": {
+            "type": "color-picker",
+            "label": "Background color",
+            "default": "transparent"
+          }
+        },
+        {
+          "key": "chartAxisColor",
+          "control": {
+            "type": "color-picker",
+            "label": "Axis color",
+            "default": "#999999"
+          }
+        },
+        {
+          "key": "chartGridOpacity",
+          "control": {
+            "type": "slider",
+            "label": "Grid opacity",
+            "default": 0.1,
+            "min": 0,
+            "max": 1,
+            "step": 0.05
+          }
+        },
+        {
+          "key": "chartFontSize",
+          "control": {
+            "type": "slider",
+            "label": "Font size",
+            "default": 12,
+            "min": 8,
+            "max": 24,
+            "step": 1
+          }
+        }
+      ]
     }
   ]
 }

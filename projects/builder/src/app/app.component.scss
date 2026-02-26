@@ -292,9 +292,25 @@
   }
 }
 
+// Options column
+.options-column {
+  width: 20%;
+  min-width: 240px;
+
+  .column-content {
+    padding: 0;
+  }
+
+  luzmo-edit-item {
+    display: block;
+    padding: 0.75rem;
+  }
+}
+
 // Right column - Chart visualization
 .right-column {
-  width: 55%;
+  flex: 1;
+  min-width: 0;
 
   .visualization-container {
     display: flex;

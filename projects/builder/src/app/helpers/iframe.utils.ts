@@ -98,6 +98,10 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
                 const container = document.querySelector('.widget-body');
                 module.resize({ container, ...data });
               }
+              else if (type === 'optionsChanged' && module?.optionsChanged) {
+                const container = document.querySelector('.widget-body');
+                module.optionsChanged({ container, ...data });
+              }
             });
           } catch (error) {
             console.error('Error loading module:', error);
