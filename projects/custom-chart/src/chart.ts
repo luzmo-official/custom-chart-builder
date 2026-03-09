@@ -203,6 +203,10 @@ function sendCustomEvent(data: any): void {
  * NOTE: This is a helper method for internal use. You can implement your own filter handling
  * directly in the render/resize methods if needed.
  */
+function triggerExport(exportType: 'csv' | 'xlsx' | 'png'): void {
+  window.parent.postMessage({ type: 'triggerExport', exportType }, '*');
+}
+
 function sendFilterEvent(filters: ItemFilter[]): void {
   const eventData: FilterEventData = {
     type: 'setFilter',
@@ -258,7 +262,7 @@ export const render = ({
 }: ChartParams): void => {
   const themeContext = resolveTheme(options.theme);
   (container as any).__themeContext = themeContext;
-  const chartContainer = setupContainer(container, themeContext);
+  const chartContainer = setupContainer(container, themeContext, options);
 
   // Store slots in chart state
   chartState.categorySlot = slots.find((s) => s.name === 'category');
@@ -357,7 +361,7 @@ export const resize = ({
   const measureFormatterFn = chartState.measureSlot?.content?.[0]
     ? formatter(chartState.measureSlot.content[0])
     : (value: number) => new Intl.NumberFormat(language).format(value);
-  const newChartContainer = setupContainer(container, themeContext);
+  const newChartContainer = setupContainer(container, themeContext, options);
 
   // Calculate legend height first to adjust margins
   const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
@@ -789,7 +793,7 @@ function renderChart(
  * NOTE: This is a helper method for internal use. You can implement your own container setup
  * directly in the render/resize methods if needed.
  */
-function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElement {
+function setupContainer(container: HTMLElement, theme: ThemeContext, options: Record<string, any> = {}): HTMLElement {
   container.innerHTML = '';
   container.style.background = theme.backgroundColor;
 
@@ -836,6 +840,46 @@ function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElemen
     sendFilterEvent([]);
   };
   chartContainer.appendChild(clearFilterBtn);
+
+  if (options.export === false) {
+    const exportDropdown = document.createElement('div');
+    exportDropdown.className = 'export-dropdown widget-export';
+
+    const trigger = document.createElement('button');
+    trigger.className = 'export-dropdown-trigger';
+    trigger.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>';
+
+    const menu = document.createElement('div');
+    menu.className = 'export-dropdown-menu';
+
+    const exportOptions: Array<{ label: string; type: 'csv' | 'xlsx' | 'png' }> = [
+      { label: 'Download CSV', type: 'csv' },
+      { label: 'Download XLSX', type: 'xlsx' },
+      { label: 'Download PNG', type: 'png' }
+    ];
+
+    exportOptions.forEach(({ label, type }) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        menu.classList.remove('open');
+        triggerExport(type);
+      };
+      menu.appendChild(btn);
+    });
+
+    trigger.onclick = (e) => {
+      e.stopPropagation();
+      menu.classList.toggle('open');
+    };
+
+    document.addEventListener('click', () => menu.classList.remove('open'));
+
+    exportDropdown.appendChild(trigger);
+    exportDropdown.appendChild(menu);
+    chartContainer.appendChild(exportDropdown);
+  }
 
   return chartContainer;
 }
