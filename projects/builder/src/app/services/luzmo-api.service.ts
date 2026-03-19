@@ -18,8 +18,8 @@ export class LuzmoApiService {
       {
         action: 'get',
         version: '0.1.0',
-        key: this.authService.getLoginCookies().key,
-        token: this.authService.getLoginCookies().token,
+        key: this.authService.getCredentials().key,
+        token: this.authService.getCredentials().token,
         find: {
           attributes: ['id', 'updated_at', 'created_at', 'name', 'subtype'],
           where: { type: 'dataset', is_variant: false },
@@ -44,8 +44,8 @@ export class LuzmoApiService {
       {
         action: 'get',
         version: '0.1.0',
-        key: this.authService.getLoginCookies().key,
-        token: this.authService.getLoginCookies().token,
+        key: this.authService.getCredentials().key,
+        token: this.authService.getCredentials().token,
         find: {
           attributes: ['id', 'name'],
           where: { id: datasetId },
@@ -89,8 +89,8 @@ export class LuzmoApiService {
       {
         action: 'get',
         version: '0.1.0',
-        key: this.authService.getLoginCookies().key,
-        token: this.authService.getLoginCookies().token,
+        key: this.authService.getCredentials().key,
+        token: this.authService.getCredentials().token,
         find: { queries }
       },
       { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }

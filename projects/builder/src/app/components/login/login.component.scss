@@ -19,41 +19,49 @@
     font-weight: 500;
     margin-bottom: 3rem;
   }
-  .form-log-in,
-  .form-2fa {
-    .form-group {
-      margin-bottom: 1rem;
-      label {
-        margin-bottom: 0.5rem;
-        font-size: 0.8125rem;
-        display: inline-block;
-        text-transform: uppercase;
-      }
-      input {
-        display: block;
-        width: -webkit-fill-available;
-        padding: .625rem .75rem;
-        font-size: .875rem;
-        font-weight: 400;
-        line-height: 1.5;
+  .form-group {
+    margin-bottom: 1rem;
+    label {
+      margin-bottom: 0.5rem;
+      font-size: 0.8125rem;
+      display: inline-block;
+      text-transform: uppercase;
+    }
+    input {
+      display: block;
+      width: -webkit-fill-available;
+      padding: .625rem .75rem;
+      font-size: .875rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--color-text-active);
+      background-color: transparent;
+      background-clip: padding-box;
+      border: 0.0625rem solid var(--color-border);
+      appearance: none;
+      border-radius: .375rem;
+      box-shadow: none;
+      transition: all .3s ease;
+      height: auto;
+      margin: 0;
+      &:focus {
         color: var(--color-text-active);
-        background-color: transparent;
-        background-clip: padding-box;
-        border: 0.0625rem solid var(--color-border);
-        appearance: none;
-        border-radius: .375rem;
-        box-shadow: none;
-        transition: all .3s ease;
-        height: auto;
-        margin: 0;
-        &:focus {
-          color: var(--color-text-active);
-          background-color: var(--color-surface-alt-1);
-          border-color: var(--color-primary);
-          outline: 0;
-        }
+        background-color: var(--color-surface-alt-1);
+        border-color: var(--color-primary);
+        outline: 0;
       }
     }
+  }
+  .login-tabs {
+    display: block;
+    margin-top: 1.5rem;
+  }
+  .tab-content {
+    margin-top: 1.5rem;
+  }
+  .form-log-in,
+  .form-2fa,
+  .form-key-token {
     .button-container {
       margin: 2.5rem 0;
       display: flex;
@@ -114,7 +122,6 @@
       color: #721c24;
       background-color: #f8d7da;
       border-color: #f5c6cb;
-      margin-bottom: 1rem;
     }
   }
 }

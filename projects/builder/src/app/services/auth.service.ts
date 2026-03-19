@@ -1,27 +1,28 @@
 import { inject, Injectable } from '@angular/core';
-import { CookieService } from 'ngx-cookie-service';
 import type { Observable } from 'rxjs';
-import { BehaviorSubject, take } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { BehaviorSubject, of, take } from 'rxjs';
+import { catchError, map, tap } from 'rxjs/operators';
 import type { AuthResponse, RowsData, User } from '../helpers/types';
 import { isBoolean, isEmpty } from '../helpers/types.utils';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { of } from 'rxjs/internal/observable/of';
+
+interface StoredAuth {
+  key: string;
+  token: string;
+  apiUrl: string;
+  appUrl: string;
+  tokenExpiry?: string;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
+  private static readonly AUTH_STORAGE_KEY = 'authentication';
+
   private user?: User;
   private httpClient = inject(HttpClient);
-  private cookieService = inject(CookieService);
 
-  // Cookie configuration
-  private cookieDomain = 'localhost';
-  private cookieExpiry = new Date();
-  private cookiePath = '/';
-
-  // Default URLs based on region
   private defaultUrls = {
     US: {
       appUrl: 'https://app.us.luzmo.com',
@@ -33,41 +34,43 @@ export class AuthService {
     }
   };
 
-  private _region: 'US' | 'Europe' = 'Europe'; // Default region
+  private _region: 'US' | 'Europe' = 'Europe';
 
-  // Authentication state
-  private authenticated = this.checkAuthentication();
+  private _key = '';
+  private _token = '';
+  private _appUrl = this.defaultUrls[this._region].appUrl;
+  private _apiUrl = this.defaultUrls[this._region].apiUrl;
+
+  private authenticated = this.restoreSession();
   isAuthenticated$ = new BehaviorSubject<boolean>(this.authenticated);
   private isAuthenticating = false;
 
-  // URLs with priority: 1. Cookies, 2. Defaults
-  private _appUrl =
-    this.getCookie('appUrl') || this.defaultUrls[this._region].appUrl;
-  private _apiUrl =
-    this.getCookie('apiUrl') || this.defaultUrls[this._region].apiUrl;
+  private restoreSession(): boolean {
+    const auth = this.getStoredAuth();
+    if (!auth || !auth.key || !auth.token || !auth.appUrl || !auth.apiUrl) {
+      this.clearStoredAuth();
+      return false;
+    }
 
-  /**
-   * Checks if user is authenticated based on cookies
-   */
-  private checkAuthentication(): boolean {
-    return (
-      !isEmpty(this.getCookie('k')) &&
-      !isEmpty(this.getCookie('t')) &&
-      !isEmpty(this.getCookie('e')) &&
-      new Date(Number.parseInt(this.getCookie('e'), 10)) >= new Date()
-    );
+    if (auth.tokenExpiry) {
+      const expiryMs = Number.parseInt(auth.tokenExpiry, 10);
+      if (Number.isNaN(expiryMs) || new Date(expiryMs) < new Date()) {
+        this.clearStoredAuth();
+        return false;
+      }
+    }
+
+    this._key = auth.key;
+    this._token = auth.token;
+    this._appUrl = auth.appUrl;
+    this._apiUrl = auth.apiUrl;
+    return true;
   }
 
-  /**
-   * Gets the current authentication state
-   */
   isAuthenticated(): boolean {
     return this.isAuthenticated$.getValue();
   }
 
-  /**
-   * Sets the authentication state of the user.
-   */
   setAuthenticated(value: boolean, user?: AuthResponse['user'] | User): void {
     if (
       !isBoolean(value) ||
@@ -81,34 +84,16 @@ export class AuthService {
 
     try {
       if (value === false) {
-        // Logout
         this.user = undefined;
-        this.clearAuthCookies();
+        this._key = '';
+        this._token = '';
+        this.clearStoredAuth();
         this._appUrl = this.defaultUrls[this._region].appUrl;
         this._apiUrl = this.defaultUrls[this._region].apiUrl;
       } else if (user && this.isAuthResponse(user) && !isEmpty(user.token)) {
-        // Login
-        this.setCookie('k', user.token.id, new Date(user.token.cookieExpiry));
-        this.setCookie(
-          't',
-          user.token.token,
-          new Date(user.token.cookieExpiry)
-        );
-        this.setCookie(
-          'e',
-          user.token.tokenExpiry,
-          new Date(user.token.cookieExpiry)
-        );
-        this.setCookie(
-          'appUrl',
-          this._appUrl,
-          new Date(user.token.cookieExpiry)
-        );
-        this.setCookie(
-          'apiUrl',
-          this._apiUrl,
-          new Date(user.token.cookieExpiry)
-        );
+        this._key = user.token.id;
+        this._token = user.token.token;
+        this.persistAuth(user.token.tokenExpiry);
       }
 
       this.authenticated = value;
@@ -118,36 +103,10 @@ export class AuthService {
     }
   }
 
-  /**
-   * Set a cookie with standard options
-   */
-  private setCookie(name: string, value: string, expiry: Date): void {
-    this.cookieService.set(
-      name,
-      value,
-      expiry,
-      this.cookiePath,
-      this.cookieDomain,
-      false,
-      'Lax'
-    );
-  }
-
-  private getCookie(name: string): string {
-    return this.cookieService.get(name);
-  }
-
-  private clearAuthCookies(): void {
-    const cookiesToClear = ['k', 't', 'e', 'appUrl', 'apiUrl'];
-    for (const cookie of cookiesToClear) {
-      this.cookieService.delete(cookie, this.cookiePath, this.cookieDomain);
-    }
-  }
-
-  getLoginCookies(): Record<'key' | 'token', string> {
+  getCredentials(): Record<'key' | 'token', string> {
     return {
-      key: this.getCookie('k'),
-      token: this.getCookie('t')
+      key: this._key,
+      token: this._token
     };
   }
 
@@ -162,8 +121,8 @@ export class AuthService {
         {
           action: 'get',
           version: '0.1.0',
-          key: this.getCookie('k'),
-          token: this.getCookie('t'),
+          key: this._key,
+          token: this._token,
           find: {
             where: { id: uid },
             include: [{ model: 'Organization', attributes: ['id', 'name'] }]
@@ -194,6 +153,31 @@ export class AuthService {
       );
   }
 
+  authenticateWithKeyToken(key: string, token: string): Observable<User | null> {
+    this.user = undefined;
+    this.clearStoredAuth();
+
+    this._key = key;
+    this._token = token;
+
+    return this.loadUser('me').pipe(
+      tap(() => {
+        if (this.isAuthenticated()) {
+          this.persistAuth();
+        } else {
+          this._key = '';
+          this._token = '';
+        }
+      }),
+      catchError(() => {
+        this._key = '';
+        this._token = '';
+        this.setAuthenticated(false);
+        return of(null);
+      })
+    );
+  }
+
   getUser(): User {
     return this.user || ({} as User);
   }
@@ -214,7 +198,7 @@ export class AuthService {
     if (!isEmpty(value)) {
       this._appUrl = value;
       if (this.authenticated) {
-        this.updateUrlCookie('appUrl', value);
+        this.persistAuth();
       }
     }
   }
@@ -223,18 +207,14 @@ export class AuthService {
     if (!isEmpty(value)) {
       this._apiUrl = value;
       if (this.authenticated) {
-        this.updateUrlCookie('apiUrl', value);
+        this.persistAuth();
       }
     }
   }
 
-  /**
-   * Set region and update URLs accordingly
-   */
   setRegion(region: 'US' | 'Europe'): void {
     this._region = region;
 
-    // Check if URLs are using default values
     const isUsingDefaultAppUrl = Object.values(this.defaultUrls).some(
       (urls) => urls.appUrl === this._appUrl
     );
@@ -243,7 +223,6 @@ export class AuthService {
       (urls) => urls.apiUrl === this._apiUrl
     );
 
-    // Update to new region defaults if using defaults
     if (isUsingDefaultAppUrl) {
       this._appUrl = this.defaultUrls[region].appUrl;
     }
@@ -252,44 +231,57 @@ export class AuthService {
       this._apiUrl = this.defaultUrls[region].apiUrl;
     }
 
-    // Update cookies if authenticated
     if (this.authenticated) {
-      this.updateUrlCookies();
+      this.persistAuth();
     }
   }
 
-  /**
-   * Reset URLs to region defaults
-   */
   resetUrlsToDefaults(): void {
     this._appUrl = this.defaultUrls[this._region].appUrl;
     this._apiUrl = this.defaultUrls[this._region].apiUrl;
 
     if (this.authenticated) {
-      this.updateUrlCookies();
+      this.persistAuth();
     }
   }
 
-  /**
-   * Update URL cookies
-   */
-  private updateUrlCookies(): void {
-    this.updateUrlCookie('appUrl', this._appUrl);
-    this.updateUrlCookie('apiUrl', this._apiUrl);
+  private persistAuth(tokenExpiry?: string): void {
+    try {
+      const existing = this.getStoredAuth();
+      const data: StoredAuth = {
+        key: this._key,
+        token: this._token,
+        apiUrl: this._apiUrl,
+        appUrl: this._appUrl,
+        tokenExpiry: tokenExpiry ?? existing?.tokenExpiry
+      };
+      localStorage.setItem(AuthService.AUTH_STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      console.warn('Storage unavailable. Auth will continue in-memory only.');
+    }
   }
 
-  /**
-   * Update a single URL cookie
-   */
-  private updateUrlCookie(name: 'appUrl' | 'apiUrl', value: string): void {
-    const expiry = new Date();
-    expiry.setFullYear(expiry.getFullYear() + 1);
-    this.setCookie(name, value, expiry);
+  private getStoredAuth(): StoredAuth | null {
+    try {
+      const data = localStorage.getItem(AuthService.AUTH_STORAGE_KEY);
+      if (!data) {
+        return null;
+      }
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
   }
 
-  /**
-   * Check if user object is an auth response
-   */
+  private clearStoredAuth(): void {
+    try {
+      localStorage.removeItem(AuthService.AUTH_STORAGE_KEY);
+    } catch {
+      // Storage unavailable — nothing to clear
+      console.warn('Storage unavailable.');
+    }
+  }
+
   private isAuthResponse(
     user: AuthResponse['user'] | User
   ): user is AuthResponse['user'] {

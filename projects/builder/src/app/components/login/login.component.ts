@@ -11,6 +11,7 @@ import { switchMap, take } from 'rxjs/operators';
 import type { AuthResponse, User } from '../../helpers/types';
 import { CommonModule } from '@angular/common';
 import '@luzmo/lucero/picker';
+import '@luzmo/lucero/tabs';
 
 interface LogInForm {
   email: FormControl<string>;
@@ -21,6 +22,13 @@ interface LogInForm {
 
 interface TwoFAForm {
   totp: FormControl<string>;
+  busy: FormControl<boolean>;
+  errorMsg: FormControl<string>;
+}
+
+interface KeyTokenForm {
+  apiKey: FormControl<string>;
+  apiToken: FormControl<string>;
   busy: FormControl<boolean>;
   errorMsg: FormControl<string>;
 }
@@ -44,8 +52,10 @@ export class LoginComponent implements OnInit {
   vpcAppUrl = '';
   vpcApiUrl = '';
   mode: 'login' | '2FA' = 'login';
+  activeTab = 'email-password';
   logInForm!: FormGroup<LogInForm>;
   twoFAForm!: FormGroup<TwoFAForm>;
+  keyTokenForm!: FormGroup<KeyTokenForm>;
 
   ngOnInit(): void {
     this.initForms();
@@ -65,6 +75,13 @@ export class LoginComponent implements OnInit {
 
     this.twoFAForm = this.formBuilder.nonNullable.group({
       totp: ['', [Validators.required]],
+      busy: [false],
+      errorMsg: ['']
+    });
+
+    this.keyTokenForm = this.formBuilder.nonNullable.group({
+      apiKey: ['', [Validators.required]],
+      apiToken: ['', [Validators.required]],
       busy: [false],
       errorMsg: ['']
     });
@@ -173,6 +190,27 @@ export class LoginComponent implements OnInit {
     this.mode = 'login';
     this.logInForm.controls.password.setValue('');
     this.logInForm.controls.busy.setValue(false);
+  }
+
+  onTabChange(event: Event): void {
+    const tabs = event.target as HTMLElement & { selected: string };
+    this.activeTab = tabs.selected;
+  }
+
+  attemptKeyTokenLogin(): void {
+    const key = this.keyTokenForm.get('apiKey')?.value ?? '';
+    const token = this.keyTokenForm.get('apiToken')?.value ?? '';
+    this.keyTokenForm.controls.busy.setValue(true);
+    this.keyTokenForm.controls.errorMsg.setValue('');
+
+    this.authService.authenticateWithKeyToken(key, token).subscribe(() => {
+      this.keyTokenForm.controls.busy.setValue(false);
+      if (!this.authService.isAuthenticated()) {
+        this.keyTokenForm.controls.errorMsg.setValue(
+          'Invalid API key or token'
+        );
+      }
+    });
   }
 
   /**
