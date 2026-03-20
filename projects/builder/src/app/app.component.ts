@@ -1,4 +1,5 @@
 import { AsyncPipe } from '@angular/common';
+import type { HttpErrorResponse } from '@angular/common/http';
 import type { AfterViewChecked, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
   Component,
@@ -137,7 +138,14 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   currentUser$ = this.authService.isAuthenticated$.pipe(
     filter((isAuthenticated) => isAuthenticated),
-    switchMap(() => this.authService.getOrLoadUser()),
+    switchMap(() => this.authService.getOrLoadUser().pipe(
+      catchError((error: HttpErrorResponse) => {
+        if (error.status === 401 || error.status === 403) {
+          this.authService.setAuthenticated(false);
+        }
+        return of(null);
+      })
+    )),
   );
 
   private datasetState: DatasetState = {
