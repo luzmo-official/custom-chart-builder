@@ -71,13 +71,13 @@
 
             <div class="column-list" [class.has-scrollbar]="hasScrollbar" #columnListContainer>
               @for (column of filteredDatasetColumns; track column.columnId) {
-                <luzmo-draggable-data-field
+                <luzmo-data-field
                   variant="highlight"
                   size="m"
                   [data]="column"
                   [disabled]="false"
                 >
-                </luzmo-draggable-data-field>
+                </luzmo-data-field>
               }
             </div>
           }
@@ -108,14 +108,17 @@
             </div>
 
           } @else {
+            @let slotsForDrop = slots$ | async;
             <div class="slot-editor">
               @for (slotConfig of slotConfigs; track slotConfig.name) {
-                <luzmo-droppable-slot
+                <luzmo-item-slot-drop
                   data-drop-target-for-element="true"
+                  [itemType]="vizItemType"
+                  [slotName]="slotConfig.name"
                   [label]="slotConfig.label"
-                  [type]="slotConfig.type"
                   [slotConfiguration]="slotConfig"
-                  variant="highlight"
+                  [slotsContents]="slotsForDrop ?? []"
+                  menu="draggable"
                   size="m"
                   (luzmo-slot-contents-changed)="
                     onColumnDropped(
@@ -125,7 +128,7 @@
                     )
                   "
                 >
-                </luzmo-droppable-slot>
+                </luzmo-item-slot-drop>
               }
             </div>
 
