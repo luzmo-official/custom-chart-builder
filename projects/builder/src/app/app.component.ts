@@ -12,8 +12,8 @@ import { LoginComponent } from '@builder/components/login/login.component';
 import { buildLuzmoQuery } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
-import '@luzmo/analytics-components-kit/draggable-data-field';
-import '@luzmo/analytics-components-kit/droppable-slot';
+import '@luzmo/analytics-components-kit/data-field';
+import '@luzmo/analytics-components-kit/item-slot-drop';
 import type { Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
 import '@luzmo/lucero/progress-circle';
@@ -127,6 +127,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   manifestValidationError: string | null = null;
 
   private slotsSubject!: BehaviorSubject<Slot[]>;
+  /** Bound to luzmo-item-slot-drop (replaces luzmo-droppable-slot). */
+  slots$!: Observable<Slot[]>;
+  /** Must match dashboard item type so the kit can resolve pivot-table slot rules. */
+  readonly vizItemType = 'pivot-table' as const;
   private queryRelevantSlotsSubject = new BehaviorSubject<SlotQuerySignature[]>(
     [],
   );
@@ -436,6 +440,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         content: [],
       }))
     );
+    this.slots$ = this.slotsSubject.asObservable();
 
     // Initialize query-relevant slots subject
     this.queryRelevantSlotsSubject.next(
