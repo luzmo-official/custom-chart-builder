@@ -143,61 +143,94 @@
 
               @let chartData = chartData$ | async;
 
-              @if (isQuerying) {
-                <div class="query-loader">
-                  <div class="query-loader-label">Fetching data...</div>
+              @let generatedQuery = generatedQuery$ | async;
 
-                  <div class="query-loader-track">
-                    <div class="query-loader-pulse"></div>
-                  </div>
+              @if (generatedQuery || chartData?.length > 0) {
+                <div class="query-result-tabs">
+                  <button
+                    class="query-result-tab"
+                    [class.active]="!showGeneratedQuery"
+                    (click)="showGeneratedQuery = false"
+                  >
+                    Data
+                  </button>
+
+                  <button
+                    class="query-result-tab"
+                    [class.active]="showGeneratedQuery"
+                    (click)="showGeneratedQuery = true"
+                  >
+                    Generated query
+                  </button>
                 </div>
+              }
 
+              @if (showGeneratedQuery) {
+                @if (generatedQuery) {
+                  <ngx-json-viewer
+                    [json]="generatedQuery"
+                    [expanded]="true"
+                  ></ngx-json-viewer>
+                } @else {
+                  <p class="query-summary">No query generated yet.</p>
+                }
               } @else {
-                @if (queryError) {
-                  <div class="error-state">
-                    <div class="error-state-header">
-                      <div class="error-icon">❌</div>
+                @if (isQuerying) {
+                  <div class="query-loader">
+                    <div class="query-loader-label">Fetching data...</div>
 
-                      <div class="error-title">Query Error</div>
+                    <div class="query-loader-track">
+                      <div class="query-loader-pulse"></div>
                     </div>
-
-                    <p class="error-state-message" [innerHTML]="queryError"></p>
                   </div>
 
                 } @else {
-                  @if (queryInfo) {
-                    <p class="query-summary">
-                      Queried {{ queryInfo.rowCount }} rows in
-                      {{ queryInfo.durationInSeconds }} seconds:
-                    </p>
-                  }
+                  @if (queryError) {
+                    <div class="error-state">
+                      <div class="error-state-header">
+                        <div class="error-icon">❌</div>
 
-                  @if (chartData?.length > 0) {
-                    <ngx-json-viewer
-                      [json]="displayedChartData$ | async"
-                      [expanded]="false"
-                    ></ngx-json-viewer>
+                        <div class="error-title">Query Error</div>
+                      </div>
 
-                    @if (chartData.length > 25) {
-                      <p class="remaining-rows">
-                        ... and {{ chartData.length - 25 }} more rows.
+                      <p class="error-state-message" [innerHTML]="queryError"></p>
+                    </div>
+
+                  } @else {
+                    @if (queryInfo) {
+                      <p class="query-summary">
+                        Queried {{ queryInfo.rowCount }} rows in
+                        {{ queryInfo.durationInSeconds }} seconds:
                       </p>
                     }
 
-                  } @else {
-                    <div class="empty-state">
-                      <div class="empty-state-message">
-                        <p>
-                          Drag and drop columns from the left side to your chart
-                          slots above.
-                        </p>
+                    @if (chartData?.length > 0) {
+                      <ngx-json-viewer
+                        [json]="displayedChartData$ | async"
+                        [expanded]="false"
+                      ></ngx-json-viewer>
 
-                        <p>
-                          Once all required slots are filled, a query will be
-                          launched and your chart will be rendered.
+                      @if (chartData.length > 25) {
+                        <p class="remaining-rows">
+                          ... and {{ chartData.length - 25 }} more rows.
                         </p>
+                      }
+
+                    } @else {
+                      <div class="empty-state">
+                        <div class="empty-state-message">
+                          <p>
+                            Drag and drop columns from the left side to your chart
+                            slots above.
+                          </p>
+
+                          <p>
+                            Once all required slots are filled, a query will be
+                            launched and your chart will be rendered.
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    }
                   }
                 }
               }

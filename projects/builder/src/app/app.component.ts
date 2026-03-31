@@ -20,7 +20,7 @@ import '@luzmo/lucero/progress-circle';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import type { Observable } from 'rxjs';
-import { BehaviorSubject, of, Subject } from 'rxjs';
+import { BehaviorSubject, forkJoin, of, Subject } from 'rxjs';
 import {
   catchError,
   debounceTime,
@@ -110,8 +110,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private queryInProgress = false;
   private lastQueryTime = 0;
   private queryThrottleTime = 500; // ms
-  private querySubject = new Subject<ItemQuery | null>();
+  private querySubject = new Subject<ItemQuery | ItemQuery[] | null>();
   private queryReady$ = this.querySubject.asObservable();
+  private multiQueryData: any[][][] | undefined;
 
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
   @ViewChild('columnListContainer') columnListContainer?: ElementRef<HTMLDivElement>;
@@ -122,6 +123,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   queryError$ = new BehaviorSubject<string | null>(null);
   private queryResultInfoSubject = new BehaviorSubject<QueryResultInfo | null>(null);
   queryResultInfo$ = this.queryResultInfoSubject.asObservable();
+  private generatedQuerySubject = new BehaviorSubject<ItemQuery | ItemQuery[] | null>(null);
+  generatedQuery$ = this.generatedQuerySubject.asObservable();
+  showGeneratedQuery = false;
 
   slotConfigs: SlotConfig[] = [];
   manifestValidationError: string | null = null;
@@ -405,7 +409,6 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private initializeSlotConfigs(): void {
     try {
-      // Validate the slots array from manifest
       const validationResult = SlotsConfigSchema.safeParse(manifestJson.slots);
 
       if (!validationResult.success) {
@@ -577,25 +580,36 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private fetchChartData(slots: Slot[]): Observable<any[]> {
     const allRequiredSlotsFilled = this.areAllRequiredSlotsFilled(slots);
     if (allRequiredSlotsFilled && slots.some((s) => s.content.length > 0)) {
-      // Only fetch the query if we're not already doing so and module is loaded
       if (this.moduleLoaded && !this.queryInProgress) {
         this.fetchQuery();
       }
-      // Wait for query to be available
       return this.queryReady$.pipe(
-        switchMap((query) => {
-          // If no custom query is available yet, use the default
-          const finalQuery = query || buildLuzmoQuery(slots, this.slotConfigs);
-          console.log('Fetching data with query', finalQuery);
+        switchMap((queryOrQueries) => {
+          const defaultQuery = buildLuzmoQuery(slots, this.slotConfigs);
+          const finalQueries: ItemQuery[] = queryOrQueries
+            ? (Array.isArray(queryOrQueries) ? queryOrQueries : [queryOrQueries])
+            : [defaultQuery];
+
+          const isMultiQuery = finalQueries.length > 1;
+
+          this.generatedQuerySubject.next(isMultiQuery ? finalQueries : finalQueries[0]);
+          console.log('Fetching data with queries', finalQueries);
           this.queryingData$.next(true);
           this.queryError$.next(null);
           this.queryResultInfoSubject.next(null);
-          return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
+
+          if (isMultiQuery) {
+            return this.fetchMultipleQueries(finalQueries);
+          }
+
+          return this.luzmoAPIService.queryLuzmoDataset(finalQueries).pipe(
             tap(() => {
               this.queryingData$.next(false);
-              this.queryError$.next(null); // Clear error on success
+              this.queryError$.next(null);
             }),
             map((result) => {
+              this.multiQueryData = undefined;
+
               if (isErrorResponse(result)) {
                 this.queryError$.next(result.error.message);
                 this.queryResultInfoSubject.next(null);
@@ -619,40 +633,94 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
             }),
             catchError((error) => {
               console.error('Chart data query failed:', error);
-              this.queryingData$.next(false); // Hide loader
+              this.queryingData$.next(false);
               this.queryError$.next(`
                 <p>Failed to load chart data. Please check if your query is valid and try again.</p>
-                <p><b>Query:</b> ${JSON.stringify(finalQuery, null, 2)}</p>
-              `); // Set error message
+                <p><b>Query:</b> ${JSON.stringify(finalQueries, null, 2)}</p>
+              `);
               this.queryResultInfoSubject.next(null);
 
-              return of([]); // Return empty data on error
+              return of([]);
             }),
           );
         }),
         catchError((error) => {
           console.error('Query preparation failed:', error);
-          this.queryingData$.next(false); // Hide loader
+          this.queryingData$.next(false);
           this.queryError$.next(
             'Failed to prepare query. Please check your configuration.',
           );
           this.queryResultInfoSubject.next(null);
 
-          return of([]); // Return empty data on error
+          return of([]);
         })
       );
     }
     else {
       this.queryError$.next(null);
       this.queryResultInfoSubject.next(null);
+      this.generatedQuerySubject.next(null);
+      this.multiQueryData = undefined;
 
       return of([]);
     }
   }
 
-  /**
-   * Checks if all required slots are filled with data
-   */
+  private fetchMultipleQueries(queries: ItemQuery[]): Observable<any[]> {
+    const queryObservables = queries.map(q => this.luzmoAPIService.queryLuzmoDataset([q]));
+
+    return forkJoin(queryObservables).pipe(
+      tap(() => {
+        this.queryingData$.next(false);
+        this.queryError$.next(null);
+      }),
+      map((results) => {
+        const allData: any[][][] = [];
+
+        for (const result of results) {
+          if (isErrorResponse(result)) {
+            this.queryError$.next(result.error.message);
+            this.queryResultInfoSubject.next(null);
+            this.multiQueryData = undefined;
+            return [];
+          }
+
+          if (isDataResponse(result)) {
+            allData.push(result.data);
+          }
+          else {
+            allData.push([]);
+          }
+        }
+
+        this.multiQueryData = allData;
+
+        const primaryResult = results[0];
+        if (isDataResponse(primaryResult)) {
+          const durationInSeconds = this.calculateQueryDuration(
+            primaryResult.performance ?? null,
+          );
+          this.queryResultInfoSubject.next({
+            rowCount: (allData[0] ?? []).length,
+            durationInSeconds,
+          });
+        }
+
+        return allData;
+      }),
+      catchError((error) => {
+        console.error('Multi-query fetch failed:', error);
+        this.queryingData$.next(false);
+        this.queryError$.next(`
+          <p>Failed to load chart data. Please check if your queries are valid and try again.</p>
+        `);
+        this.queryResultInfoSubject.next(null);
+        this.multiQueryData = undefined;
+        return of([]);
+      }),
+    );
+  }
+
   private areAllRequiredSlotsFilled(slots: Slot[]): boolean {
     return this.slotConfigs
       .filter((config) => config.isRequired)
@@ -748,7 +816,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   /**
    * Handles query loaded event from iframe
    */
-  private handleQueryLoaded(query: ItemQuery): void {
+  private handleQueryLoaded(query: ItemQuery | ItemQuery[]): void {
     this.queryInProgress = false;
     this.querySubject.next(query);
   }
@@ -770,7 +838,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {
-        theme: selectedTheme?.theme || this.chartThemes[0].theme, // Fallback to first theme if not found
+        theme: selectedTheme?.theme || this.chartThemes[0].theme,
       },
       language: 'en',
       dimensions: this.getContainerDimensions()
@@ -844,15 +912,14 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   private async loadBundle(): Promise<void> {
     try {
-      // Load script content
-      const scriptResponse = await fetch('/custom-chart/index.js?t=' + Date.now());
+      const scriptResponse = await fetch(`/custom-chart/index.js?t=` + Date.now());
       this.scriptContent = await scriptResponse.text();
       // Escape special characters in script content
       this.scriptContent = this.escapeScriptContent(this.scriptContent);
       // Load style content
       try {
         const styleResponse = await fetch(
-          '/custom-chart/index.css?t=' + Date.now()
+          `/custom-chart/index.css?t=` + Date.now()
         );
         this.styleContent = await styleResponse.text();
       } catch {

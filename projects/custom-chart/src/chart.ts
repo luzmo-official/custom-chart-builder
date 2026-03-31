@@ -2,6 +2,9 @@ import { formatter } from '@luzmo/analytics-components-kit/utils';
 import type {
   ItemData,
   ItemFilter,
+  ItemQuery,
+  ItemQueryDimension,
+  ItemQueryMeasure,
   ItemThemeConfig,
   Slot,
   SlotConfig
@@ -216,12 +219,42 @@ function sendFilterEvent(filters: ItemFilter[]): void {
 // Define parameter types for render and resize functions
 interface ChartParams {
   container: HTMLElement;
-  data: ItemData['data'];
+  data: ItemData['data'] | ItemData['data'][];
   slots: Slot[];
   slotConfigurations: SlotConfig[];
   options: Record<string, any> & { theme?: ItemThemeConfig };
   language: string;
   dimensions: { width: number; height: number };
+}
+
+function isMultiQueryData(data: unknown): data is any[][][] {
+  return Array.isArray(data) && data.length > 0 && Array.isArray(data[0]) && Array.isArray(data[0][0]);
+}
+
+interface OverlayPoint {
+  category: string;
+  value: number;
+}
+
+function extractOverlayData(data: any[][] | any[][][], categoryFormatter: (val: unknown) => string): OverlayPoint[] {
+  if (!isMultiQueryData(data) || data.length < 2) {
+    return [];
+  }
+
+  const overlayRows = data[1];
+  if (!overlayRows?.length) {
+    return [];
+  }
+
+  return overlayRows
+    .map((row: unknown[]) => {
+      const rawCategory = (row[0] as any)?.name?.en ?? row[0] ?? 'Unknown';
+      const category = String(categoryFormatter(rawCategory));
+      const value = Number(row[1]);
+
+      return Number.isFinite(value) ? { category, value } : null;
+    })
+    .filter((p: OverlayPoint | null): p is OverlayPoint => p !== null);
 }
 
 /**
@@ -260,7 +293,6 @@ export const render = ({
   (container as any).__themeContext = themeContext;
   const chartContainer = setupContainer(container, themeContext);
 
-  // Store slots in chart state
   chartState.categorySlot = slots.find((s) => s.name === 'category');
   chartState.measureSlot = slots.find((s) => s.name === 'measure');
   chartState.groupSlot = slots.find((s) => s.name === 'legend');
@@ -273,12 +305,11 @@ export const render = ({
   const hasCategory = chartState.categorySlot?.content?.length! > 0;
   const hasMeasure = chartState.measureSlot?.content?.length! > 0;
 
-  // Prepare data for visualization
+  const primaryData: any[][] = isMultiQueryData(data) ? data[0] : data;
+
   let chartData: ChartDataItem[] = [];
 
-  // Check if we have actual data or need sample data
-  if (!data.length || !hasCategory || !hasMeasure) {
-    // Generate sample data for empty state
+  if (!primaryData.length || !hasCategory || !hasMeasure) {
     const categories = ['Product A', 'Product B', 'Product C', 'Product D', 'Product E'];
     const groups = ['Region 1', 'Region 2', 'Region 3'];
     const sampleData = [];
@@ -289,8 +320,8 @@ export const render = ({
         sampleData.push({
           category: categories[i],
           group: groups[j],
-          value: measureFormatterFn(rawValue), // Format sample data using measure formatter
-          rawValue: rawValue, // Store the raw value
+          value: measureFormatterFn(rawValue),
+          rawValue: rawValue,
           columnId: `column_${i}_${j}`,
           datasetId: `dataset_${i}_${j}`
         });
@@ -300,9 +331,8 @@ export const render = ({
     chartData = sampleData;
   }
   else {
-    // Process real data
     chartData = preProcessData(
-      data,
+      primaryData,
       chartState.measureSlot!,
       chartState.categorySlot!,
       chartState.groupSlot!,
@@ -310,17 +340,22 @@ export const render = ({
     );
   }
 
-  // Calculate legend height first to adjust margins
+  const categoryFormatterFn: (val: unknown) => string = chartState.categorySlot?.content?.[0]
+    ? (val: unknown) => String(formatter(chartState.categorySlot!.content[0], { level: chartState.categorySlot!.content[0].level || 9 })(val as never))
+    : (val: unknown) => String(val);
+
+  const overlayData = data ? extractOverlayData(data as any[][] | any[][][], categoryFormatterFn) : [];
+  (container as any).__overlayData = overlayData;
+
   const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
   const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
-  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+  const legendEntryCount = (hasMultipleGroups ? groups.length : 0) + (overlayData.length > 0 ? 1 : 0);
+  const legendHeight = legendEntryCount > 0 ? calculateLegendHeight(new Array(legendEntryCount).fill(''), width) : 0;
 
-  // Set up dimensions with dynamic top margin based on legend height
   const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
-  // Render the chart
   renderChart(
     chartContainer,
     chartData,
@@ -330,10 +365,10 @@ export const render = ({
     innerWidth,
     innerHeight,
     themeContext,
-    measureFormatterFn
+    measureFormatterFn,
+    overlayData
   );
 
-  // Store the chart data on the container for reference during resize
   (container as any).__chartData = chartData;
 };
 
@@ -351,6 +386,7 @@ export const resize = ({
 }: ChartParams): void => {
   // Get the existing state
   const chartData = (container as any).__chartData || [];
+  const overlayData: OverlayPoint[] = (container as any).__overlayData ?? [];
   const previousThemeContext = (container as any).__themeContext as ThemeContext | undefined;
   const themeContext = options.theme ? resolveTheme(options.theme) : previousThemeContext ?? resolveTheme(undefined);
   (container as any).__themeContext = themeContext;
@@ -359,17 +395,15 @@ export const resize = ({
     : (value: number) => new Intl.NumberFormat(language).format(value);
   const newChartContainer = setupContainer(container, themeContext);
 
-  // Calculate legend height first to adjust margins
-  const groups: string[] = Array.from(new Set(chartData.map((d) => d.group)));
+  const groups: string[] = Array.from(new Set(chartData.map((d: ChartDataItem) => d.group)));
   const hasMultipleGroups = groups.length > 1 || (groups.length === 1 && groups[0] !== 'Default');
-  const legendHeight = hasMultipleGroups ? calculateLegendHeight(groups, width) : 0;
+  const legendEntryCount = (hasMultipleGroups ? groups.length : 0) + (overlayData.length > 0 ? 1 : 0);
+  const legendHeight = legendEntryCount > 0 ? calculateLegendHeight(new Array(legendEntryCount).fill(''), width) : 0;
 
-  // Set up dimensions with dynamic top margin based on legend height
   const margin = { top: 40 + legendHeight, right: 30, bottom: 60, left: 60 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
 
-  // Render chart with existing data
   renderChart(
     newChartContainer,
     chartData,
@@ -379,38 +413,92 @@ export const resize = ({
     innerWidth,
     innerHeight,
     themeContext,
-    measureFormatterFn
+    measureFormatterFn,
+    overlayData
   );
 
-  // Maintain state for future resizes
   (container as any).__chartData = chartData;
 };
 
 /**
- * Build query for data retrieval
- * NOTE: This method is OPTIONAL to implement. If not implemented, Luzmo will automatically build a query based on the slot configurations. For more advanced use cases, you can implement this method to build a custom query (e.g. if you need your query to return row-level data instead of aggregated data, or if you want to implement ordering or pagination in your chart).
- * 
- * See the README.md file for more information on how to implement this method and expected query structure.
- * 
- * @param params Object containing slots with their contents and slot configurations.
- * @returns Query object for data retrieval
+ * Build queries for data retrieval.
+ * Returns an array of queries:
+ *   [0] = main bar chart data (categories + measures with user's aggregation)
+ *   [1] = overlay line data (same categories, measures with AVERAGE aggregation)
+ *
+ * Returning a single ItemQuery is still supported for backward compatibility.
+ * When returning ItemQuery[], the render function receives `data` as `any[][][]`
+ * (array of result arrays, indexed by query position) instead of `any[][]`.
  */
-/*
 export const buildQuery = ({
   slots = [],
   slotConfigurations = []
 }: {
   slots: Slot[];
   slotConfigurations: SlotConfig[];
-}): ItemQuery => {
-  return {
-    dimensions: [],
-    measures: [],
-    order: [],
+}): ItemQuery | ItemQuery[] => {
+  const dimensions: ItemQueryDimension[] = [];
+  const categoryDimensions: ItemQueryDimension[] = [];
+  const measures: ItemQueryMeasure[] = [];
+
+  for (const slotConfig of slotConfigurations) {
+    const slot = slots.find(s => s.name === slotConfig.name);
+    if (!slot?.content?.length) {
+      continue;
+    }
+
+    for (const item of slot.content) {
+      if (slotConfig.type === 'numeric') {
+        const measure: ItemQueryMeasure = {
+          dataset_id: item.datasetId ?? (item as any).set,
+          column_id: item.columnId ?? (item as any).column
+        };
+        if (item.aggregationFunc) {
+          measure.aggregation = { type: item.aggregationFunc };
+        }
+        measures.push(measure);
+      }
+      else {
+        const dimension: ItemQueryDimension = {
+          dataset_id: item.datasetId ?? (item as any).set,
+          column_id: item.columnId ?? (item as any).column,
+          ...(item.level != null && { level: item.level })
+        };
+        dimensions.push(dimension);
+
+        if (slotConfig.name === 'category') {
+          categoryDimensions.push(dimension);
+        }
+      }
+    }
+  }
+
+  if (measures.length === 0 && dimensions.length > 0) {
+    const firstDim = dimensions[0];
+    measures.push({ dataset_id: firstDim.dataset_id, column_id: '*' });
+  }
+
+  const mainQuery: ItemQuery = {
+    dimensions,
+    measures,
     limit: { by: 10000, offset: 0 }
   };
+
+  if (measures.length === 0 || categoryDimensions.length === 0) {
+    return mainQuery;
+  }
+
+  const overlayQuery: ItemQuery = {
+    dimensions: [...categoryDimensions],
+    measures: measures.map(m => ({
+      ...m,
+      aggregation: { type: 'average' as const }
+    })),
+    limit: { by: 10000, offset: 0 }
+  };
+
+  return [mainQuery, overlayQuery];
 };
-*/
 
 /**
  * Helper function to render chart with given data and dimensions
@@ -427,7 +515,8 @@ function renderChart(
   innerWidth: number,
   innerHeight: number,
   theme: ThemeContext,
-  measureFormatter: (value: number) => string
+  measureFormatter: (value: number) => string,
+  overlayData: OverlayPoint[] = []
 ): void {
   const svg: d3.Selection<SVGSVGElement, unknown, null, undefined> = d3
     .select(chartContainer)
@@ -469,7 +558,9 @@ function renderChart(
   const baseBarWidth = hasMultipleGroups ? groupedXScale.bandwidth() : xScale.bandwidth();
   const barRadius = Math.min(theme.barRounding, Math.max(baseBarWidth, 0) / 2);
 
-  const maxValue: number = d3.max(chartData, (d) => d.rawValue) || 0;
+  const maxBarValue: number = d3.max(chartData, (d) => d.rawValue) || 0;
+  const maxOverlayValue: number = overlayData.length > 0 ? (d3.max(overlayData, (d) => d.value) ?? 0) : 0;
+  const maxValue = Math.max(maxBarValue, maxOverlayValue);
   const yScale: d3.ScaleLinear<number, number> = d3
     .scaleLinear()
     .domain([0, maxValue === 0 ? 1 : maxValue * 1.1])
@@ -737,38 +828,127 @@ function renderChart(
     });
   });
 
-  const shouldRenderLegend = hasMultipleGroups;
+  if (overlayData.length > 0) {
+    const overlayGroup = chart.append('g').attr('class', 'overlay-line');
+    const overlayColor = theme.isDark ? lightenColor(theme.mainColor, 0.35) : darkenColor(theme.mainColor, 0.15);
+
+    const points = overlayData
+      .filter(d => categories.includes(d.category))
+      .map(d => ({
+        x: (xScale(d.category) ?? 0) + xScale.bandwidth() / 2,
+        y: yScale(d.value),
+        value: d.value,
+        category: d.category
+      }));
+
+    if (points.length > 1) {
+      const lineGenerator = d3.line<{ x: number; y: number }>()
+        .x(d => d.x)
+        .y(d => d.y)
+        .curve(d3.curveMonotoneX);
+
+      overlayGroup
+        .append('path')
+        .datum(points)
+        .attr('d', lineGenerator)
+        .attr('fill', 'none')
+        .attr('stroke', overlayColor)
+        .attr('stroke-width', 2)
+        .attr('stroke-dasharray', '6,3')
+        .attr('opacity', 0.85);
+    }
+
+    points.forEach(point => {
+      overlayGroup
+        .append('circle')
+        .attr('cx', point.x)
+        .attr('cy', point.y)
+        .attr('r', 4)
+        .attr('fill', overlayColor)
+        .attr('stroke', theme.backgroundColor)
+        .attr('stroke-width', 1.5)
+        .on('mouseover', function (event: MouseEvent) {
+          d3.select(this).attr('r', 6);
+          tooltip
+            .interrupt()
+            .style('opacity', 1)
+            .html(`<b>${point.category}</b><br>Avg: ${measureFormatter(point.value)}`)
+            .style('left', '0px')
+            .style('top', '0px');
+          positionTooltip(event);
+        })
+        .on('mousemove', function (event: MouseEvent) {
+          positionTooltip(event);
+        })
+        .on('mouseout', function () {
+          d3.select(this).attr('r', 4);
+          tooltip.transition().duration(120).style('opacity', 0);
+        });
+    });
+  }
+
+  const hasOverlay = overlayData.length > 0;
+  const shouldRenderLegend = hasMultipleGroups || hasOverlay;
 
   if (shouldRenderLegend) {
-    const itemWidth = 140; // Width per legend item including spacing
-    const rowHeight = 24; // Height per row including spacing
+    const itemWidth = 140;
+    const rowHeight = 24;
     const availableWidth = innerWidth;
     const itemsPerRow = Math.max(1, Math.floor(availableWidth / itemWidth));
+
+    const overlayColor = hasOverlay
+      ? (theme.isDark ? lightenColor(theme.mainColor, 0.35) : darkenColor(theme.mainColor, 0.15))
+      : '';
+
+    const legendEntries = [
+      ...groups.filter(g => hasMultipleGroups).map(g => ({ type: 'bar' as const, label: g, color: colorScale(g) })),
+      ...(hasOverlay ? [{ type: 'line' as const, label: 'Average', color: overlayColor }] : [])
+    ];
 
     const legend = svg
       .append('g')
       .attr('class', 'legend')
       .attr('transform', `translate(${margin.left}, ${Math.max(16, 20)})`);
 
-    groups.forEach((group, index) => {
+    legendEntries.forEach((entry, index) => {
       const row = Math.floor(index / itemsPerRow);
       const col = index % itemsPerRow;
-      
+
       const legendItem = legend
         .append('g')
         .attr('class', 'legend-item')
         .attr('transform', `translate(${col * itemWidth}, ${row * rowHeight})`);
 
-      legendItem
-        .append('rect')
-        .attr('class', 'legend-color')
-        .attr('x', 0)
-        .attr('y', -9)
-        .attr('width', 14)
-        .attr('height', 14)
-        .attr('rx', Math.max(barRadius / 2, 2))
-        .attr('ry', Math.max(barRadius / 2, 2))
-        .attr('fill', colorScale(group));
+      if (entry.type === 'line') {
+        legendItem
+          .append('line')
+          .attr('x1', 0)
+          .attr('x2', 14)
+          .attr('y1', -2)
+          .attr('y2', -2)
+          .attr('stroke', entry.color)
+          .attr('stroke-width', 2)
+          .attr('stroke-dasharray', '4,2');
+
+        legendItem
+          .append('circle')
+          .attr('cx', 7)
+          .attr('cy', -2)
+          .attr('r', 3)
+          .attr('fill', entry.color);
+      }
+      else {
+        legendItem
+          .append('rect')
+          .attr('class', 'legend-color')
+          .attr('x', 0)
+          .attr('y', -9)
+          .attr('width', 14)
+          .attr('height', 14)
+          .attr('rx', Math.max(barRadius / 2, 2))
+          .attr('ry', Math.max(barRadius / 2, 2))
+          .attr('fill', entry.color);
+      }
 
       legendItem
         .append('text')
@@ -777,7 +957,7 @@ function renderChart(
         .style('fill', theme.axisTextColor)
         .style('font-size', '12px')
         .style('font-weight', 500)
-        .text(group);
+        .text(entry.label);
     });
   }
 }

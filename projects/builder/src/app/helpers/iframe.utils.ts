@@ -85,10 +85,22 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
               const { type, data } = event.data;
               if (type === 'buildQuery') {
                 let query = null;
+                let filtersApplied = false;
                 if (module?.buildQuery) {
-                  query = await module.buildQuery({ slots: event.data.slots, slotConfigurations: event.data.slotConfigurations });
+                  const result = await module.buildQuery({
+                    slots: event.data.slots,
+                    slotConfigurations: event.data.slotConfigurations,
+                    filters: event.data.filters || [],
+                    havingFilters: event.data.havingFilters || []
+                  });
+                  if (result && typeof result === 'object' && ('queries' in result || 'query' in result)) {
+                    query = result.queries ?? result.query;
+                    filtersApplied = result.filtersApplied ?? false;
+                  } else {
+                    query = result;
+                  }
                 }
-                window.parent.postMessage({ type: 'queryLoaded', query }, '*');
+                window.parent.postMessage({ type: 'queryLoaded', query, filtersApplied }, '*');
               }
               else if (type === 'render' && module?.render) {
                 const container = document.querySelector('.widget-body');

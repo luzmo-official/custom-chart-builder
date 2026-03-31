@@ -27,7 +27,14 @@ function copyStaticAssets() {
   console.log('Static assets copied to build output directory');
 }
 
-// Build function that runs esbuild and copies static assets
+function notifyClients() {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send('watcher-rebuild');
+    }
+  });
+}
+
 function buildChart() {
   if (currentBuild) {
     currentBuild.kill();
@@ -48,16 +55,11 @@ function buildChart() {
     try {
       copyStaticAssets();
       console.log('Build completed successfully');
-      
-      // Notify connected clients
-      wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send('watcher-rebuild');
-        }
-      });
     } catch (copyError) {
       console.error('Error copying static assets:', copyError);
     }
+
+    notifyClients();
   });
 }
 
