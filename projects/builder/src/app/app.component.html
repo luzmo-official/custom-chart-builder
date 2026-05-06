@@ -110,26 +110,20 @@
           } @else {
             @let slotsForDrop = slots$ | async;
             <div class="slot-editor">
-              @for (slotConfig of slotConfigs; track slotConfig.name) {
-                <luzmo-item-slot-drop
-                  data-drop-target-for-element="true"
-                  [itemType]="vizItemType"
-                  [slotName]="slotConfig.name"
-                  [label]="slotConfig.label"
-                  [slotConfiguration]="slotConfig"
-                  [slotsContents]="slotsForDrop ?? []"
-                  menu="draggable"
-                  size="m"
-                  (luzmo-slot-contents-changed)="
-                    onColumnDropped(
-                      slotConfig.name,
-                      slotConfig.type!,
-                      $any($event)
-                    )
-                  "
-                >
-                </luzmo-item-slot-drop>
-              }
+              <luzmo-item-slot-drop-panel
+                [itemType]="vizItemType"
+                [slotsConfiguration]="slotConfigs"
+                [slotsContents]="slotsForDrop ?? []"
+                [apiUrl]="authService.getApiUrl()"
+                [authKey]="authService.getCredentials().key"
+                [authToken]="authService.getCredentials().token"
+                [slotMenuMode]="'draggable'"
+                [hideDelete]="false"
+                [grows]="true"
+                size="m"
+                (luzmo-slots-contents-changed)="onSlotsContentsChanged($any($event))"
+              >
+              </luzmo-item-slot-drop-panel>
             </div>
 
             <!-- Query result section -->

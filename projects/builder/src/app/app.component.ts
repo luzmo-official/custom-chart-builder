@@ -13,7 +13,7 @@ import { buildLuzmoQuery } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/data-field';
-import '@luzmo/analytics-components-kit/item-slot-drop';
+import '@luzmo/analytics-components-kit/item-slot-drop-panel';
 import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
 import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
@@ -77,6 +77,10 @@ interface QueryResultInfo {
   durationInSeconds: number;
 }
 
+interface SlotsContentsChangedEventDetail {
+  slotsContents: Slot[];
+}
+
 type AppearanceMode = 'light' | 'dark' | 'auto';
 const APPEARANCE_MODE_STORAGE_KEY = 'luzmo-builder-appearance-mode';
 /**
@@ -137,7 +141,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   manifestValidationError: string | null = null;
 
   private slotsSubject!: BehaviorSubject<Slot[]>;
-  /** Bound to luzmo-item-slot-drop (replaces luzmo-droppable-slot). */
+  /** Bound to luzmo-item-slot-drop-panel. */
   slots$!: Observable<Slot[]>;
   /** Must match dashboard item type so the kit can resolve pivot-table slot rules. */
   readonly vizItemType = 'pivot-table' as const;
@@ -149,6 +153,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   columnSearchTerm = '';
   hasScrollbar = false;
+  private scrollbarUpdateQueued = false;
 
   currentUser$ = this.authService.isAuthenticated$.pipe(
     filter((isAuthenticated) => isAuthenticated),
@@ -1068,55 +1073,26 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (this.columnListContainer) {
       const element = this.columnListContainer.nativeElement;
       const hasScrollbar = element.scrollHeight > element.clientHeight;
-      if (this.hasScrollbar !== hasScrollbar) {
-        this.hasScrollbar = hasScrollbar;
+      if (this.hasScrollbar !== hasScrollbar && !this.scrollbarUpdateQueued) {
+        this.scrollbarUpdateQueued = true;
+        queueMicrotask(() => {
+          this.scrollbarUpdateQueued = false;
+          if (!this.columnListContainer) {
+            return;
+          }
+
+          const element = this.columnListContainer.nativeElement;
+          this.hasScrollbar = element.scrollHeight > element.clientHeight;
+        });
       }
     }
   }
 
   /**
-   * Handles column drop events
+   * Handles aggregate slot updates from luzmo-item-slot-drop-panel.
    */
-  onColumnDropped(
-    slotName: string,
-    slotType: string,
-    event: CustomEvent<{ slotContents: any[] }>
-  ): void {
-    const currentSlots = this.slotsSubject.getValue();
-    // Extract the previous content for the slot being updated
-
-    // Create updated slots
-    const updatedSlots = currentSlots.map((slot) => {
-      if (slot.name === slotName) {
-        const content: GenericSlotContent[] = event.detail.slotContents.map(
-          (field) => ({
-            columnId: field.columnId,
-            column: field.columnId ?? field.column,
-            formulaId: field.formulaId,
-            formula: field.formula,
-            currency: field.currency,
-            datasetId: field.datasetId,
-            set: field.datasetId,
-            format: field.format,
-            label: field.label ?? field.name,
-            level: field.level,
-            lowestLevel: field.lowestLevel,
-            subtype: field.subtype,
-            type: field.type,
-            aggregationFunc:
-              slotType === 'numeric'
-                ? field.aggregationFunc || 'sum'
-                : undefined,
-          })
-        );
-
-        return {
-          ...slot,
-          content
-        };
-      }
-      return slot;
-    });
+  onSlotsContentsChanged(event: CustomEvent<SlotsContentsChangedEventDetail>): void {
+    const updatedSlots = event.detail.slotsContents ?? [];
 
     // Always update the main slots subject for rendering
     this.slotsSubject.next(updatedSlots);
