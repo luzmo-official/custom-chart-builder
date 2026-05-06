@@ -161,15 +161,15 @@
   /* Divider */
   --luzmo-divider-background-color: var(--color-border);
 
-  /* Droppable slot */
-  --luzmo-droppable-slot-font-color: var(--color-text);
-  --luzmo-droppable-slot-filled-color: var(--color-primary-500-inv);
-  --luzmo-droppable-slot-filled-border-color: var(--color-primary-500);
-  --luzmo-droppable-slot-height: 2.25rem;
-  --luzmo-droppable-slot-border-style: solid;
-  --luzmo-droppable-slot-background-color: var(--color-surface-alt-1);
-  --luzmo-droppable-slot-border-color: var(--color-border);
-  --luzmo-droppable-slot-controls-color: var(--color-primary-600-inv);
+  /* Item slot drop */
+  --luzmo-item-slot-drop-font-color: var(--color-text);
+  --luzmo-item-slot-drop-filled-color: var(--color-primary-500-inv);
+  --luzmo-item-slot-drop-filled-border-color: var(--color-primary-500);
+  --luzmo-item-slot-drop-height: 2.25rem;
+  --luzmo-item-slot-drop-border-style: solid;
+  --luzmo-item-slot-drop-background-color: var(--color-surface-alt-1);
+  --luzmo-item-slot-drop-border-color: var(--color-border);
+  --luzmo-item-slot-drop-controls-color: var(--color-primary-600-inv);
 
   /* Picker */
   --luzmo-picker-border-radius: var(--border-radius-default);
@@ -182,13 +182,13 @@
   --luzmo-menu-item-background-color-hover: rgba(var(--color-primary-rgb), 0.10);
   --luzmo-menu-item-label-content-color-hover: var(--color-text-active);
 
-  /* Draggable data item */
-  --luzmo-draggable-data-field-level-border-color: var(--color-border);
-  --luzmo-draggable-data-field-level-background-color: var(--color-surface-alt-1);
-  --luzmo-draggable-data-field-level-background-color-hover: var(--color-surface-alt-2);
-  --luzmo-draggable-data-field-level-sublevel-background-color-hover: var(--color-surface-alt-2);
-  --luzmo-draggable-data-field-level-font-color-hover: var(--color-text-active);
-  --luzmo-draggable-data-field-level-border-color-hover: var(--color-border-hard);
+  /* Data field */
+  --luzmo-data-field-level-border-color: var(--color-border);
+  --luzmo-data-field-level-background-color: var(--color-surface-alt-1);
+  --luzmo-data-field-level-background-color-hover: var(--color-surface-alt-2);
+  --luzmo-data-field-level-sublevel-background-color-hover: var(--color-surface-alt-2);
+  --luzmo-data-field-level-font-color-hover: var(--color-text-active);
+  --luzmo-data-field-level-border-color-hover: var(--color-border-hard);
   --luzmo-animation-duration: 0.3s;
 }
 
