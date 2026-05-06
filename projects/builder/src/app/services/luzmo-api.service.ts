@@ -1,7 +1,11 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { AuthService } from '@builder/services/auth.service';
-import { ItemQuery, ItemQueryResponse, Securable, RowsData, User } from '../helpers/types';
+import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
+import { loadDataFieldsForDatasets } from '@luzmo/analytics-components-kit/utils';
+import { from } from 'rxjs';
+import { map } from 'rxjs/operators';
+import { ItemQuery, ItemQueryResponse, Securable, RowsData } from '../helpers/types';
 
 @Injectable({
   providedIn: 'root'
@@ -31,55 +35,19 @@ export class LuzmoApiService {
     );
   }
 
-  // TODO: fix columns type
-  loadDatasetWithColumns(datasetId: string) {
-    return this.httpClient.post<
-      RowsData<
-        Pick<Securable, 'id' | 'name' | 'created_at' | 'subtype'> & {
-          columns: any[];
+  loadDatasetDataFields(datasetId: string) {
+    const { key, token } = this.authService.getCredentials();
+
+    return from(
+      loadDataFieldsForDatasets([datasetId], {
+        dataBrokerConfig: {
+          apiUrl: this.authService.getApiUrl(),
+          authKey: key,
+          authToken: token
         }
-      >
-    >(
-      `${this.authService.getApiUrl()}/0.1.0/securable`,
-      {
-        action: 'get',
-        version: '0.1.0',
-        key: this.authService.getCredentials().key,
-        token: this.authService.getCredentials().token,
-        find: {
-          attributes: ['id', 'name'],
-          where: { id: datasetId },
-          include: [
-            {
-              model: 'Column',
-              attributes: [
-                'id',
-                'name',
-                'description',
-                'type',
-                'subtype',
-                'format',
-                'highestLevel',
-                'lowestLevel',
-                'duration_levels',
-                'duration_format'
-              ],
-              separate: true,
-              order: [['order', 'asc']],
-              include: [
-                {
-                  model: 'HierarchyLevel',
-                  attributes: ['id', 'color', 'level', 'name'],
-                  separate: true,
-                  order: [['level', 'asc']]
-                },
-                { model: 'Currency', attributes: ['id', 'name', 'symbol'] }
-              ]
-            }
-          ]
-        }
-      },
-      { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
+      })
+    ).pipe(
+      map((datasets): DatasetDataField[] => datasets[0]?.dataFields ?? [])
     );
   }
 

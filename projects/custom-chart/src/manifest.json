@@ -21,7 +21,8 @@
         "isAggregationDisabled": false
       },
       "isRequired": true,
-      "acceptableColumnTypes": ["numeric"]
+      "acceptableColumnTypes": ["numeric"],
+      "canAcceptFormula": true
     },
     {
       "name": "legend",

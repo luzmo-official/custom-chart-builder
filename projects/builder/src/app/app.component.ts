@@ -14,7 +14,8 @@ import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/data-field';
 import '@luzmo/analytics-components-kit/item-slot-drop';
-import type { Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
+import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
+import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
 import '@luzmo/lucero/progress-circle';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
@@ -51,15 +52,24 @@ import { SlotsConfigSchema } from './slot-schema';
 interface SlotQuerySignature {
   name: string;
   content: Array<{
-    columnId: string;
+    columnId?: string;
+    formulaId?: string;
+    formula?: string;
     datasetId: string;
     aggregationFunc?: string;
   }>;
 }
 
+type BuilderDataField = Omit<DatasetDataField, 'currency'> & {
+  column?: string;
+  set: string;
+  label: DatasetDataField['name'];
+  currency?: string;
+};
+
 interface DatasetState {
   loading: boolean;
-  columns: any[];
+  columns: BuilderDataField[];
 }
 
 interface QueryResultInfo {
@@ -161,12 +171,12 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     return this.datasetState.loading;
   }
 
-  get datasetColumns(): any[] {
+  get datasetColumns(): BuilderDataField[] {
     return this.datasetState.columns;
   }
 
   // Filtered columns based on search term
-  get filteredDatasetColumns(): any[] {
+  get filteredDatasetColumns(): BuilderDataField[] {
     if (!this.columnSearchTerm.trim()) {
       return this.datasetColumns;
     }
@@ -174,8 +184,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     const searchTerm = this.columnSearchTerm.toLowerCase().trim();
     return this.datasetColumns.filter((column) => {
       // Search across all language values in the i18n label object
-      if (column.label && typeof column.label === 'object') {
-        return Object.values(column.label).some(
+      if (column.name && typeof column.name === 'object') {
+        return Object.values(column.name).some(
           (labelValue: any) =>
             labelValue &&
             labelValue.toString().toLowerCase().includes(searchTerm),
@@ -193,13 +203,18 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.datasetState.columns = [];
     }),
     switchMap((datasetId) =>
-      this.luzmoAPIService.loadDatasetWithColumns(datasetId),
+      this.luzmoAPIService.loadDatasetDataFields(datasetId).pipe(
+        catchError((error) => {
+          console.error('Error loading dataset fields:', error);
+          this.datasetState.loading = false;
+          return of([]);
+        })
+      ),
     ),
-    map((result) => result.rows[0]),
-    map((dataset) => this.transformColumnsData(dataset)),
-    tap((columns) => {
+    map((fields) => this.toBuilderDataFields(fields)),
+    tap((fields) => {
       // Update state with results
-      this.datasetState.columns = columns;
+      this.datasetState.columns = fields;
       this.datasetState.loading = false;
       this.columnSearchTerm = '';
     }),
@@ -509,29 +524,13 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     );
   }
 
-  /**
-   * Transforms the raw dataset columns into the format expected by the chart builder
-   */
-  private transformColumnsData(dataset: any): any[] {
-    return dataset.columns.map((column: any) => ({
-      columnId: column.id,
-      column: column.id,
-      currency: column.currency?.symbol,
-      datasetId: dataset.id,
-      set: dataset.id,
-      description: column.description,
-      format: column.format,
-      hierarchyLevels: (column.hierarchyLevels || []).map((level: any) => ({
-        id: level.id,
-        level: level.level,
-        name: level.name
-      })),
-      name: column.name,
-      label: column.name,
-      level: column.level,
-      lowestLevel: column.lowestLevel,
-      subtype: column.subtype,
-      type: column.type
+  private toBuilderDataFields(fields: DatasetDataField[]): BuilderDataField[] {
+    return fields.map((field) => ({
+      ...field,
+      column: 'columnId' in field ? field.columnId : undefined,
+      currency: field.currency?.symbol,
+      label: field.name,
+      set: field.datasetId,
     }));
   }
 
@@ -543,7 +542,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     return slots.map((slot) => ({
       name: slot.name,
       content: slot.content.map((item) => ({
-        columnId: item.columnId!,
+        columnId: item.columnId,
+        formulaId: item.formulaId,
+        formula: item.formula,
         datasetId: item.datasetId!,
         aggregationFunc: item.aggregationFunc,
       })),
@@ -1087,23 +1088,27 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Create updated slots
     const updatedSlots = currentSlots.map((slot) => {
       if (slot.name === slotName) {
-        const content = event.detail.slotContents.map((column) => ({
-          columnId: column.columnId,
-          column: column.column,
-          currency: column.currency,
-          datasetId: column.datasetId,
-          set: column.datasetId,
-          format: column.format,
-          label: column.label,
-          level: column.level,
-          lowestLevel: column.lowestLevel,
-          subtype: column.subtype,
-          type: column.type,
-          aggregationFunc:
-            slotType === 'numeric'
-              ? column.aggregationFunc || 'sum'
-              : undefined,
-        }));
+        const content: GenericSlotContent[] = event.detail.slotContents.map(
+          (field) => ({
+            columnId: field.columnId,
+            column: field.columnId ?? field.column,
+            formulaId: field.formulaId,
+            formula: field.formula,
+            currency: field.currency,
+            datasetId: field.datasetId,
+            set: field.datasetId,
+            format: field.format,
+            label: field.label ?? field.name,
+            level: field.level,
+            lowestLevel: field.lowestLevel,
+            subtype: field.subtype,
+            type: field.type,
+            aggregationFunc:
+              slotType === 'numeric'
+                ? field.aggregationFunc || 'sum'
+                : undefined,
+          })
+        );
 
         return {
           ...slot,

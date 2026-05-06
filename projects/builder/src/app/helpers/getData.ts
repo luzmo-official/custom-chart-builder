@@ -7,6 +7,26 @@ interface SlotMetadata {
 
 const DEFAULT_QUERY_LIMIT = { by: 100000, offset: 0 };
 
+function getFieldReference(item: GenericSlotContent): Pick<ItemQueryDimension,'column_id' | 'formula_id' | 'dataset_id'> {
+  return {
+    dataset_id: item.datasetId,
+    ...(item.formulaId
+      ? { formula_id: item.formulaId }
+      : { column_id: item.columnId }),
+  };
+}
+
+function getMeasureReference(item: GenericSlotContent): ItemQueryMeasure {
+  return {
+    dataset_id: item.datasetId,
+    ...(item.formulaId
+      ? { formula_id: item.formulaId }
+      : item.formula
+        ? { formula: item.formula }
+        : { column_id: item.columnId }),
+  };
+}
+
 function generateMetadataFromSlot(slots: Slot[], slotName: string, name: string): SlotMetadata {
   const slot = slots.find((s) => s.name === slotName) || { content: [] };
   const content = slot.content || [];
@@ -46,24 +66,21 @@ export function buildLuzmoQuery(
       for (const item of slotDef[contentKey] as GenericSlotContent[]) {
         // Determine if this should be a dimension or measure based, on slot type
         if (slotConfig.type === 'numeric') {
+          const measureReference = getMeasureReference(item);
+
           if (item.aggregationFunc) {
             measures.push({
-              dataset_id: item.datasetId,
-              column_id: item.columnId,
+              ...measureReference,
               aggregation: { type: item.aggregationFunc }
             });
           }
           else {
-            measures.push({
-              dataset_id: item.datasetId,
-              column_id: item.columnId
-            });
+            measures.push(measureReference);
           }
         }
         else {
           dimensions.push({
-            dataset_id: item.datasetId,
-            column_id: item.columnId,
+            ...getFieldReference(item),
             ...(item.level !== undefined && item.level !== null && { level: item.level })
           });
         }
