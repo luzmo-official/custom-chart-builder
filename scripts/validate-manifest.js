@@ -1,112 +1,78 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+
+require('ts-node').register({
+  skipProject: true,
+  transpileOnly: true,
+  compilerOptions: {
+    esModuleInterop: true,
+    module: 'CommonJS',
+    moduleResolution: 'node',
+    target: 'ES2022'
+  }
+});
+
+const { SlotsConfigSchema } = require('../projects/builder/src/app/slot-schema.ts');
 
 const manifestPath = path.join(__dirname, '../projects/custom-chart/src/manifest.json');
-const customChartProjectPath = path.join(__dirname, '../projects/custom-chart');
 
-// Create a temporary TypeScript validation file
-const createValidatorScript = () => {
-  const tempDir = path.join(customChartProjectPath, 'temp');
-  const validatorPath = path.join(tempDir, 'validator.ts');
-
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-  }
-  
-  // Hack - create TS file dynamically to avoid typescript import error in the JS file
-  const validatorContent = `
-import { SlotsConfigSchema } from '../../builder/src/app/slot-schema';
-import * as fs from 'fs';
-import * as path from 'path';
-
-// Path to the manifest file
-const manifestPath = '${manifestPath.replace(/\\/g, '\\\\')}';
-
-try {
-  // Check if manifest exists
-  if (!fs.existsSync(manifestPath)) {
-    console.error('Manifest file not found at', manifestPath);
-    process.exit(1);
+function formatValidationPath(segments, manifest) {
+  if (segments.length === 0) {
+    return 'manifest.slots';
   }
 
-  // Read and parse the manifest.json file
-  const manifestContent = fs.readFileSync(manifestPath, 'utf8');
-  const manifest = JSON.parse(manifestContent);
+  let formattedPath = 'slots';
+  let startIndex = 0;
+  const firstSegment = segments[0];
 
-  if (!manifest.slots || !Array.isArray(manifest.slots)) {
-    console.error('Invalid manifest: "slots" property must be an array');
-    process.exit(1);
-  }
-  
-  // Validate with zod schema
-  const result = SlotsConfigSchema.safeParse(manifest.slots);
-  
-  if (!result.success) {
-    const formattedErrors = result.error.errors.map(err => 
-      \`\${err.path.join('.')}: \${err.message}\`
-    ).join('\\n');
-    
-    console.error(\`Validation failed:\\n\${formattedErrors}\`);
-    process.exit(1);
-  }
-  
-  console.log('Manifest validation successful!');
-  process.exit(0);
-} catch (error: any) {
-  console.error('Error during validation:', error.message || String(error));
-  process.exit(1);
-}
-`;
+  if (typeof firstSegment === 'number') {
+    formattedPath += `[${firstSegment}]`;
 
-  fs.writeFileSync(validatorPath, validatorContent);
-  return validatorPath;
+    const slot = manifest.slots?.[firstSegment];
+    if (slot && typeof slot.name === 'string') {
+      formattedPath += ` ("${slot.name}")`;
+    }
+
+    startIndex = 1;
+  }
+
+  for (let index = startIndex; index < segments.length; index += 1) {
+    const segment = segments[index];
+    formattedPath += typeof segment === 'number' ? `[${segment}]` : `.${segment}`;
+  }
+
+  return formattedPath;
 }
 
 function validateManifest() {
   try {
     console.log('Validating manifest.json...');
-    
+
     if (!fs.existsSync(manifestPath)) {
       throw new Error(`manifest.json not found at ${manifestPath}`);
     }
-    
-    const validatorPath = createValidatorScript();
-    
-    try {
-      // Run the validator with ts-node
-      const result = execSync(`npx ts-node --skipProject ${validatorPath}`, { 
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-      
-      console.log('✅', result.trim());
-      return true;
-    } catch (execError) {
-      let errorMessage = 'Unknown validation error';
-      
-      if (execError.stderr) {
-        // If there's stderr output, use that (may contain validation errors)
-        errorMessage = execError.stderr;
-      } else if (execError.stdout) {
-        // Otherwise check stdout
-        errorMessage = execError.stdout;
-      } else if (execError.message) {
-        // Finally fall back to the error message
-        errorMessage = execError.message;
-      }
-      
-      console.error('❌ Validation failed:', errorMessage);
+
+    const manifestContent = fs.readFileSync(manifestPath, 'utf8');
+    const manifest = JSON.parse(manifestContent);
+
+    if (!manifest.slots || !Array.isArray(manifest.slots)) {
+      console.error('❌ Manifest validation error: "slots" property must be an array');
       return false;
-    } finally {
-      // Clean up temp files
-      try {
-        const tempDir = path.join(customChartProjectPath, 'temp');
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      } catch (cleanupError) {
-        console.warn('Warning: Could not clean up temporary files:', cleanupError.message);
-      }
     }
+
+    const result = SlotsConfigSchema.safeParse(manifest.slots);
+
+    if (!result.success) {
+      const formattedErrors = result.error.errors
+        .map((err) => `${formatValidationPath(err.path, manifest)}: ${err.message}`)
+        .join('\n');
+
+      console.error(`❌ Validation failed:\n${formattedErrors}`);
+      return false;
+    }
+
+    console.log('✅ Manifest validation successful!');
+    return true;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('❌ Manifest validation error:', errorMessage);
