@@ -1,4 +1,4 @@
-import type { ItemQueryDimension, ItemQueryMeasure, ItemQuerySort } from '@luzmo/dashboard-contents-types';
+import type { ItemQueryDimension, ItemQueryMeasure, ItemQuerySort, ThemeConfig } from '@luzmo/dashboard-contents-types';
 
 type PublicConnector =
   | 'amazonathena'
@@ -83,6 +83,15 @@ export type Securable = {
 export interface RowsData<T> {
   count: number;
   rows: T[];
+}
+
+export interface Theme {
+  id: string;
+  name: Record<string, string>;
+  theme: ThemeConfig;
+  updated_at?: string;
+  created_at?: string;
+  organization_id?: string;
 }
 
 export type ItemData = {
