@@ -15,7 +15,7 @@ import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/data-field';
 import '@luzmo/analytics-components-kit/item-slot-drop-panel';
 import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
-import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
+import type { Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
 import '@luzmo/lucero/progress-circle';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
@@ -38,7 +38,7 @@ import {
   isValidMessageSource,
   setUpSecureIframe
 } from './helpers/iframe.utils';
-import type { ItemData, ItemQuery } from './helpers/types';
+import type { ItemData, ItemQuery, Theme } from './helpers/types';
 import { isDataResponse, isErrorResponse } from './helpers/types';
 import {
   CdkVirtualScrollViewport,
@@ -79,6 +79,12 @@ interface QueryResultInfo {
 
 interface SlotsContentsChangedEventDetail {
   slotsContents: Slot[];
+}
+
+interface ChartThemeOption {
+  label: string;
+  name: string;
+  theme: ThemeConfig;
 }
 
 type AppearanceMode = 'light' | 'dark' | 'auto';
@@ -240,8 +246,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.applyAppearanceMode('auto', false);
     }
   };
-  // Theme picker properties
-  chartThemes: { label: string, name: string, theme: ThemeConfig }[] = [
+  private readonly predefinedChartThemes: ChartThemeOption[] = [
     {
       name: 'light',
       label: 'Default (light)',
@@ -419,6 +424,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     },
   ];
 
+  // Theme picker properties
+  chartThemes: ChartThemeOption[] = [...this.predefinedChartThemes];
+
   selectedTheme = 'light';
 
   @ViewChild('chartContainer') container!: ElementRef;
@@ -537,6 +545,35 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       label: field.name,
       set: field.datasetId,
     }));
+  }
+
+  private loadCustomThemes(): void {
+    this.chartThemes = [...this.predefinedChartThemes];
+
+    this.luzmoAPIService.loadCustomThemes()
+      .pipe(
+        take(1),
+        map((result) => result.rows.map((theme) => this.toCustomChartTheme(theme))),
+        catchError((error) => {
+          console.error('Error loading custom themes:', error);
+          return of([]);
+        }),
+      )
+      .subscribe((customThemes) => {
+        this.chartThemes = [...this.predefinedChartThemes, ...customThemes];
+      });
+  }
+
+  private toCustomChartTheme(theme: Theme): ChartThemeOption {
+    return {
+      name: `custom:${theme.id}`,
+      label: this.getLocalizedThemeName(theme),
+      theme: theme.theme,
+    };
+  }
+
+  private getLocalizedThemeName(theme: Theme): string {
+    return theme.name?.['en'] ?? Object.values(theme.name ?? {})[0] ?? theme.id;
   }
 
   /**
@@ -1040,6 +1077,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         filter(() => !this.queryInProgress)
       )
       .subscribe(async () => {
+        this.loadCustomThemes();
+
         this.ws.onmessage = async (message) => {
           if (message.data === 'watcher-rebuild') {
             await this.loadBundle();
