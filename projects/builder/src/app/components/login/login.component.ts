@@ -34,6 +34,8 @@ interface KeyTokenForm {
 }
 
 type RegionType = 'europe' | 'us' | 'custom';
+const LOGO_LIGHT_SRC = 'assets/logos/logo-small.svg';
+const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
 
 @Component({
   selector: 'app-login',
@@ -56,6 +58,10 @@ export class LoginComponent implements OnInit {
   logInForm!: FormGroup<LogInForm>;
   twoFAForm!: FormGroup<TwoFAForm>;
   keyTokenForm!: FormGroup<KeyTokenForm>;
+
+  get logoSrc(): string {
+    return this.isDarkTheme() ? LOGO_DARK_SRC : LOGO_LIGHT_SRC;
+  }
 
   ngOnInit(): void {
     this.initForms();
@@ -85,6 +91,21 @@ export class LoginComponent implements OnInit {
       busy: [false],
       errorMsg: ['']
     });
+  }
+
+  private isDarkTheme(): boolean {
+    if (typeof document !== 'undefined') {
+      const theme = document.documentElement.getAttribute('data-theme');
+      if (theme === 'dark') {
+        return true;
+      }
+      if (theme === 'light') {
+        return false;
+      }
+    }
+
+    return typeof window !== 'undefined'
+      && window.matchMedia('(prefers-color-scheme: dark)').matches;
   }
 
   /**

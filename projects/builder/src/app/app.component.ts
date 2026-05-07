@@ -89,6 +89,8 @@ interface ChartThemeOption {
 
 type AppearanceMode = 'light' | 'dark' | 'auto';
 const APPEARANCE_MODE_STORAGE_KEY = 'luzmo-builder-appearance-mode';
+const LOGO_LIGHT_SRC = 'assets/logos/logo-small.svg';
+const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
 /**
  * Main component for the Luzmo Custom Chart Builder application
  * Provides dataset selection, chart configuration, and visualization
@@ -428,6 +430,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   chartThemes: ChartThemeOption[] = [...this.predefinedChartThemes];
 
   selectedTheme = 'light';
+
+  get logoSrc(): string {
+    return this.getEffectiveTheme() === 'dark' ? LOGO_DARK_SRC : LOGO_LIGHT_SRC;
+  }
 
   @ViewChild('chartContainer') container!: ElementRef;
 
