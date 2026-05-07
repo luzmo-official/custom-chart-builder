@@ -1,3 +1,23 @@
+import type { ItemQuery } from './types';
+
+/**
+ * Normalizes the raw `buildQuery` result returned by a chart bundle into the
+ * array shape the host always works with.
+ *
+ * NOTE: The inline iframe `<script>` below cannot import this function (it
+ * runs in an isolated module created from a Blob URL). The expression in the
+ * `buildQuery` branch of the script must mirror this implementation 1:1.
+ */
+export function normalizeBuildQueryResult(
+  raw: ItemQuery | ItemQuery[] | null | undefined
+): ItemQuery[] | null {
+  if (raw == null) {
+    return null;
+  }
+
+  return Array.isArray(raw) ? raw : [raw];
+}
+
 function configureIframe(iframe: HTMLIFrameElement): void {
   iframe.setAttribute('sandbox', 'allow-scripts');
   iframe.setAttribute('src', 'about:blank');
@@ -84,11 +104,12 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
 
               const { type, data } = event.data;
               if (type === 'buildQuery') {
-                let query = null;
-                if (module?.buildQuery) {
-                  query = await module.buildQuery({ slots: event.data.slots, slotConfigurations: event.data.slotConfigurations });
-                }
-                window.parent.postMessage({ type: 'queryLoaded', query }, '*');
+                const raw = module?.buildQuery
+                  ? await module.buildQuery({ slots: event.data.slots, slotConfigurations: event.data.slotConfigurations })
+                  : null;
+                // Keep this expression in sync with normalizeBuildQueryResult() above.
+                const queries = raw == null ? null : Array.isArray(raw) ? raw : [raw];
+                window.parent.postMessage({ type: 'queryLoaded', queries }, '*');
               }
               else if (type === 'render' && module?.render) {
                 const container = document.querySelector('.widget-body');

@@ -38,8 +38,8 @@ import {
   isValidMessageSource,
   setUpSecureIframe
 } from './helpers/iframe.utils';
-import type { ItemData, ItemQuery, Theme } from './helpers/types';
-import { isDataResponse, isErrorResponse } from './helpers/types';
+import type { ItemData, ItemQuery, ItemQueryResponse, Theme } from './helpers/types';
+import { isDataResponse, isErrorResponse, normalizeQueryResponse } from './helpers/types';
 import {
   CdkVirtualScrollViewport,
   ScrollingModule
@@ -132,7 +132,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private queryInProgress = false;
   private lastQueryTime = 0;
   private queryThrottleTime = 500; // ms
-  private querySubject = new Subject<ItemQuery | null>();
+  private querySubject = new Subject<ItemQuery[] | null>();
   private queryReady$ = this.querySubject.asObservable();
 
   @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
@@ -632,69 +632,82 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       }
       // Wait for query to be available
       return this.queryReady$.pipe(
-        switchMap((query) => {
+        switchMap((queries) => {
           // If no custom query is available yet, use the default
-          const finalQuery = query || buildLuzmoQuery(slots, this.slotConfigs);
-          console.log('Fetching data with query', finalQuery);
+          const finalQueries = queries || buildLuzmoQuery(slots, this.slotConfigs);
+          console.log('Fetching data with queries', finalQueries);
           this.queryingData$.next(true);
           this.queryError$.next(null);
           this.queryResultInfoSubject.next(null);
-          return this.luzmoAPIService.queryLuzmoDataset([finalQuery]).pipe(
+
+          return this.luzmoAPIService.queryLuzmoDataset(finalQueries).pipe(
             tap(() => {
               this.queryingData$.next(false);
-              this.queryError$.next(null); // Clear error on success
+              this.queryError$.next(null);
             }),
-            map((result) => {
-              if (isErrorResponse(result)) {
-                this.queryError$.next(result.error.message);
+            map((response) => {
+              const results = normalizeQueryResponse(response);
+
+              const firstError = results.find(isErrorResponse);
+              if (firstError && isErrorResponse(firstError)) {
+                this.queryError$.next(firstError.error.message);
                 this.queryResultInfoSubject.next(null);
                 return [];
               }
-              if (isDataResponse(result)) {
-                console.log('Query result:', result);
-                const durationInSeconds = this.calculateQueryDuration(
-                  result.performance ?? null,
-                );
-                const rowCount = Array.isArray(result.data)
-                  ? result.data.length
-                  : 0;
-                this.queryResultInfoSubject.next({
-                  rowCount,
-                  durationInSeconds,
-                });
-                return result.data;
+
+              const dataResults = results.filter(isDataResponse);
+              if (dataResults.length === 0) {
+                return [];
               }
-              return [];
+
+              const performances = dataResults
+                .map((r) => r.performance)
+                .filter((p) => p != null);
+              if (performances.length > 0) {
+                const durationInSeconds =
+                  performances.reduce(
+                    (sum, p) => sum + this.calculateQueryDuration(p),
+                    0,
+                  ) / performances.length;
+                const rowCount =
+                  performances.reduce((sum, p) => sum + ((p as any).rows || 0), 0) ||
+                  (Array.isArray(dataResults[0].data) ? dataResults[0].data.length : 0);
+
+                this.queryResultInfoSubject.next({ rowCount, durationInSeconds });
+              }
+
+              if (dataResults.length === 1) {
+                return dataResults[0].data;
+              }
+
+              return [dataResults.map((r) => r.data?.[0]?.[0])];
             }),
             catchError((error) => {
               console.error('Chart data query failed:', error);
-              this.queryingData$.next(false); // Hide loader
+              this.queryingData$.next(false);
               this.queryError$.next(`
-                <p>Failed to load chart data. Please check if your query is valid and try again.</p>
-                <p><b>Query:</b> ${JSON.stringify(finalQuery, null, 2)}</p>
-              `); // Set error message
+                <p>Failed to load chart data. Please check if your queries are valid and try again.</p>
+                <p><b>Queries:</b> ${JSON.stringify(finalQueries, null, 2)}</p>
+              `);
               this.queryResultInfoSubject.next(null);
-
-              return of([]); // Return empty data on error
+              return of([]);
             }),
           );
         }),
         catchError((error) => {
           console.error('Query preparation failed:', error);
-          this.queryingData$.next(false); // Hide loader
+          this.queryingData$.next(false);
           this.queryError$.next(
             'Failed to prepare query. Please check your configuration.',
           );
           this.queryResultInfoSubject.next(null);
-
-          return of([]); // Return empty data on error
+          return of([]);
         })
       );
     }
     else {
       this.queryError$.next(null);
       this.queryResultInfoSubject.next(null);
-
       return of([]);
     }
   }
@@ -771,7 +784,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.handleModuleLoaded();
         break;
       case 'queryLoaded':
-        this.handleQueryLoaded(event.data.query);
+        this.handleQueryLoaded(event.data.queries);
         break;
       case 'moduleError':
         console.error('Module error:', event.data.error);
@@ -797,7 +810,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   /**
    * Handles query loaded event from iframe
    */
-  private handleQueryLoaded(query: ItemQuery): void {
+  private handleQueryLoaded(query: ItemQuery[]): void {
     this.queryInProgress = false;
     this.querySubject.next(query);
   }
@@ -814,7 +827,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     const selectedTheme = this.chartThemes.find(
       (t) => t.name === this.selectedTheme,
     );
-    const renderData = {
+    const renderData: any = {
       data: data,
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,

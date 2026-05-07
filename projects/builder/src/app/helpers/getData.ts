@@ -41,7 +41,7 @@ export function buildLuzmoQuery(
   slots: Slot[],
   slotConfigurations: SlotConfig[],
   limit?: ItemQuery['limit']
-): ItemQuery {
+): ItemQuery[] {
   // Create metadata definitions dynamically from slotConfigurations
   const slotDefs: Record<string, SlotMetadata> = {};
 
@@ -88,7 +88,7 @@ export function buildLuzmoQuery(
     }
   }
 
-  const query: ItemQuery = {
+  const query: ItemQuery[] = [{
     dimensions,
     measures,
     order,
@@ -97,7 +97,7 @@ export function buildLuzmoQuery(
       locale_id: 'en',
       timezone_id: 'UTC'
     }
-  };
+  }];
 
   return query;
 }
