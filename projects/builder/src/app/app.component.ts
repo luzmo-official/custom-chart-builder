@@ -15,7 +15,7 @@ import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import '@luzmo/analytics-components-kit/data-field';
 import '@luzmo/analytics-components-kit/item-slot-drop';
 import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
-import type { Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
+import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
 import '@luzmo/lucero/picker';
 import '@luzmo/lucero/progress-circle';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
