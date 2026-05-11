@@ -16,8 +16,15 @@ import '@luzmo/analytics-components-kit/data-field';
 import '@luzmo/analytics-components-kit/item-slot-drop';
 import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
 import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
+import '@luzmo/lucero/icon';
 import '@luzmo/lucero/picker';
 import '@luzmo/lucero/progress-circle';
+import {
+  luzmoAngleLeft,
+  luzmoAngleRight,
+  luzmoExclamationCircle,
+  luzmoExternalLink
+} from '@luzmo/icons';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import type { Observable } from 'rxjs';
@@ -45,6 +52,7 @@ import {
   ScrollingModule
 } from '@angular/cdk/scrolling';
 import { FormsModule } from '@angular/forms';
+import { CustomChartsListComponent } from './components/custom-charts-list/custom-charts-list.component';
 import { DatasetPickerComponent } from './components/dataset-picker/dataset-picker.component';
 import { SlotsConfigSchema } from './slot-schema';
 
@@ -85,6 +93,8 @@ interface ChartThemeOption {
 
 type AppearanceMode = 'light' | 'dark' | 'auto';
 const APPEARANCE_MODE_STORAGE_KEY = 'luzmo-builder-appearance-mode';
+const CHART_LIST_COLLAPSED_STORAGE_KEY_PREFIX =
+  'luzmo-builder-chart-list-collapsed:';
 const LOGO_LIGHT_SRC = 'assets/logos/logo-small.svg';
 const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
 /**
@@ -100,7 +110,8 @@ const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
     AsyncPipe,
     FormsModule,
     ScrollingModule,
-    DatasetPickerComponent
+    DatasetPickerComponent,
+    CustomChartsListComponent
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
@@ -111,6 +122,22 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Services
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
+
+  protected readonly luzmoExternalLink = luzmoExternalLink;
+  protected readonly luzmoExclamationCircle = luzmoExclamationCircle;
+  protected readonly luzmoAngleLeft = luzmoAngleLeft;
+  protected readonly luzmoAngleRight = luzmoAngleRight;
+
+  /** Whether the right-most "Chart list" column is collapsed into a side rail. */
+  isChartListCollapsed = true;
+  /** Latest known number of custom charts. Used for the rail's count badge. */
+  chartListCount = 0;
+  /** True once we've read (or attempted to read) a stored preference for the current user. */
+  private hasResolvedChartListPref = false;
+
+  get customChartsSettingsUrl(): string {
+    return `${this.authService.getAppUrl().replace(/\/$/, '')}/settings/custom-charts`;
+  }
 
   // WebSocket connection for real-time updates
   private ws = new WebSocket('ws://localhost:8080');
@@ -123,6 +150,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private renderPending = false;
   private scriptContent = '';
   private styleContent = '';
+  /** Watches the chart container so layout changes (e.g. rail toggling)
+   *  trigger a chart resize without relying on `window:resize`. */
+  private chartResizeObserver: ResizeObserver | null = null;
 
   // Query management
   private queryInProgress = false;
@@ -168,6 +198,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         return of(null);
       })
     )),
+  );
+
+  isOrgOwner$ = this.currentUser$.pipe(
+    map(() => this.authService.isOrgOwner())
   );
 
   private datasetState: DatasetState = {
@@ -850,6 +884,31 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   /**
+   * Observe the chart container so any layout-driven size change (rail
+   * collapse/expand, future drag-to-resize, parent flex changes during the
+   * width transition) triggers a chart resize. Idempotent: only installs
+   * once, after the iframe is ready.
+   */
+  private observeChartContainerSize(): void {
+    if (
+      this.chartResizeObserver !== null ||
+      typeof ResizeObserver === 'undefined'
+    ) {
+      return;
+    }
+    const target = this.container?.nativeElement as HTMLElement | undefined;
+    if (!target) {
+      return;
+    }
+    this.chartResizeObserver = new ResizeObserver(() => {
+      if (this.moduleLoaded && this.iframe) {
+        this.performResize();
+      }
+    });
+    this.chartResizeObserver.observe(target);
+  }
+
+  /**
    * Performs chart resizing with debounce to improve performance
    */
   private performResize(): void {
@@ -913,6 +972,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         .then(({ iframe, blobUrl }) => {
           this.iframe = iframe;
           this.blobUrl = blobUrl;
+          this.observeChartContainerSize();
         })
         .catch((error) => {
           console.error('Failed to setup iframe:', error);
@@ -1055,6 +1115,98 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     return value === 'light' || value === 'dark' || value === 'auto';
   }
 
+  /**
+   * Loads the per-user chart list collapse preference once the current user
+   * resolves. Falls back to "collapsed" when no preference is stored.
+   */
+  private initializeChartListPreference(): void {
+    this.currentUser$
+      .pipe(
+        untilDestroyed(this),
+        filter((user): user is NonNullable<typeof user> => user !== null),
+        map((user) => user.id),
+        distinctUntilChanged()
+      )
+      .subscribe((userId) => {
+        let storedCollapsed: boolean | null = null;
+        try {
+          const raw = localStorage.getItem(
+            CHART_LIST_COLLAPSED_STORAGE_KEY_PREFIX + userId,
+          );
+          if (raw === 'true' || raw === 'false') {
+            storedCollapsed = raw === 'true';
+          }
+        } catch {
+          storedCollapsed = null;
+        }
+
+        if (storedCollapsed !== null) {
+          this.isChartListCollapsed = storedCollapsed;
+        }
+        this.hasResolvedChartListPref = true;
+      });
+  }
+
+  private persistChartListCollapsed(): void {
+    const userId = this.authService.getUser()?.id;
+    if (!userId) {
+      return;
+    }
+    try {
+      localStorage.setItem(
+        CHART_LIST_COLLAPSED_STORAGE_KEY_PREFIX + userId,
+        String(this.isChartListCollapsed),
+      );
+    } catch {
+      // Swallow storage errors (e.g. private browsing).
+    }
+  }
+
+  /**
+   * Toggles the chart list panel between rail (collapsed) and full column.
+   * Persists the new state for the current user.
+   */
+  toggleChartList(): void {
+    this.isChartListCollapsed = !this.isChartListCollapsed;
+    this.persistChartListCollapsed();
+  }
+
+  /**
+   * Receives the latest chart count from the child list component. When the
+   * user has no stored preference yet and starts with an empty list, expand
+   * the panel once to make the "New chart" call-to-action discoverable.
+   */
+  onChartsLoaded(count: number): void {
+    this.chartListCount = count;
+    if (count !== 0 || !this.hasResolvedChartListPref) {
+      return;
+    }
+    const userId = this.authService.getUser()?.id;
+    if (!userId) {
+      return;
+    }
+    let hasStoredPref = false;
+    try {
+      hasStoredPref =
+        localStorage.getItem(
+          CHART_LIST_COLLAPSED_STORAGE_KEY_PREFIX + userId,
+        ) !== null;
+    } catch {
+      hasStoredPref = false;
+    }
+    if (!hasStoredPref) {
+      this.isChartListCollapsed = false;
+    }
+  }
+
+  /** Collapse the panel when Escape is pressed while focus is inside it. */
+  onPanelEscape(): void {
+    if (!this.isChartListCollapsed) {
+      this.isChartListCollapsed = true;
+      this.persistChartListCollapsed();
+    }
+  }
+
   @HostListener('window:resize')
   onResize(): void {
     if (
@@ -1068,6 +1220,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   async ngOnInit(): Promise<void> {
     this.initializeAppearanceMode();
+    this.initializeChartListPreference();
     this.columns$.subscribe();
     this.initializeSlotConfigs();
     window.addEventListener('message', this.handleMessage);
@@ -1096,6 +1249,11 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     if (this.resizeAnimationFrame !== null) {
       cancelAnimationFrame(this.resizeAnimationFrame);
+    }
+
+    if (this.chartResizeObserver) {
+      this.chartResizeObserver.disconnect();
+      this.chartResizeObserver = null;
     }
 
     if (this.iframe) {

@@ -94,6 +94,19 @@ export interface Theme {
   organization_id?: string;
 }
 
+export interface CustomChart {
+  id: string;
+  name: Record<string, string>;
+  /** File name returned by `toJSON()` on the customchart model, e.g. `<id>.svg`. Null when no live icon exists. */
+  icon?: string | null;
+  /** Candidate (unpublished) icon file name, e.g. `<id>_candidate.svg`. Null when there is no pending icon. */
+  icon_candidate?: string | null;
+  type?: string;
+  status?: 'private' | 'published' | string;
+  updated_at?: string;
+  created_at?: string;
+}
+
 export type ItemData = {
   cached: boolean;
   data: any[][];
