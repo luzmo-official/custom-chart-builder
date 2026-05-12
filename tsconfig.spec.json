@@ -5,11 +5,14 @@
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
     "types": [
-      "jasmine"
-    ]
+      "vitest/globals"
+    ],
+    "paths": {
+      "@builder/*": ["./projects/builder/src/app/*"]
+    }
   },
   "include": [
-    "src/**/*.spec.ts",
-    "src/**/*.d.ts"
+    "projects/**/*.spec.ts",
+    "projects/**/*.d.ts"
   ]
 }

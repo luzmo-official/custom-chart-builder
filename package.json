@@ -10,6 +10,8 @@
     "build": "cd projects/custom-chart && npm run build && cd ../.. && node scripts/copy-assets.js && npm run archive",
     "archive": "node scripts/archive-bundle.js",
     "validate": "node scripts/validate-manifest.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "postinstall": "cd projects/custom-chart && npm install"
   },
   "private": true,
@@ -44,6 +46,7 @@
     "concurrently": "^9.2.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
+    "vitest": "^4.1.5",
     "zod": "^3.25.76"
   }
 }

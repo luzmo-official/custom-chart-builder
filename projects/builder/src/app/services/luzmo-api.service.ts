@@ -69,7 +69,7 @@ export class LuzmoApiService {
   }
 
   queryLuzmoDataset(queries: ItemQuery[]) {
-    return this.httpClient.post<ItemQueryResponse>(
+    return this.httpClient.post<ItemQueryResponse | ItemQueryResponse[]>(
       `${this.authService.getApiUrl()}/0.1.0/data`,
       {
         action: 'get',

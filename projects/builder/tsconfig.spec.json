@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.spec.json",
+  "compilerOptions": {
+    "outDir": "../../out-tsc/spec",
+    "paths": {
+      "@builder/*": ["./src/app/*"]
+    }
+  },
+  "include": [
+    "src/**/*.spec.ts",
+    "src/**/*.d.ts",
+    "../custom-chart/utils/types.utils.ts"
+  ]
+}

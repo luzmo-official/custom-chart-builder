@@ -131,6 +131,12 @@ export function isDataResponse(response: ItemQueryResponse): response is ItemDat
   return 'data' in response && !('error' in response);
 }
 
+export function normalizeQueryResponse(
+  response: ItemQueryResponse | ItemQueryResponse[]
+): ItemQueryResponse[] {
+  return Array.isArray(response) ? response : [response];
+}
+
 export type ItemQuery = {
   dimensions: ItemQueryDimension[];
   measures: ItemQueryMeasure[];
