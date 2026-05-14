@@ -152,6 +152,8 @@
 
               @let chartData = chartData$ | async;
 
+              @let queryPreviews = displayedQueryResults$ | async;
+
               @if (isQuerying) {
                 <div class="query-loader">
                   <div class="query-loader-label">Fetching data...</div>
@@ -175,22 +177,40 @@
 
                 } @else {
                   @if (queryInfo) {
-                    <p class="query-summary">
-                      Queried {{ queryInfo.rowCount }} rows in
-                      {{ queryInfo.durationInSeconds }} seconds:
-                    </p>
+                    <div class="query-summary">
+                      <p>
+                        Query results:
+                      </p>
+                    </div>
                   }
 
                   @if (chartData?.length > 0) {
-                    <ngx-json-viewer
-                      [json]="displayedChartData$ | async"
-                      [expanded]="false"
-                    ></ngx-json-viewer>
+                    @for (preview of queryPreviews ?? []; track preview.index) {
+                      <div class="query-preview">
+                        <div class="query-preview-header">
+                          <span class="query-summary-label">
+                            Query {{ preview.index }}
+                          </span>
 
-                    @if (chartData.length > 25) {
-                      <p class="remaining-rows">
-                        ... and {{ chartData.length - 25 }} more rows.
-                      </p>
+                          <span>
+                            {{ queryInfo?.queries?.[preview.index - 1]?.rowCount ?? preview.rowCount }}
+                            rows in
+                            {{ queryInfo?.queries?.[preview.index - 1]?.durationInSeconds ?? 0 }}
+                            seconds
+                          </span>
+                        </div>
+
+                        <ngx-json-viewer
+                          [json]="preview.rows"
+                          [expanded]="false"
+                        ></ngx-json-viewer>
+
+                        @if (preview.remainingRows > 0) {
+                          <p class="remaining-rows">
+                            ... and {{ preview.remainingRows }} more rows.
+                          </p>
+                        }
+                      </div>
                     }
 
                   } @else {

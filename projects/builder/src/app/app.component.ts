@@ -72,9 +72,23 @@ interface DatasetState {
   columns: BuilderDataField[];
 }
 
+interface QueryResultDetail {
+  index: number;
+  rowCount: number;
+  durationInSeconds: number;
+}
+
 interface QueryResultInfo {
   rowCount: number;
   durationInSeconds: number;
+  queries: QueryResultDetail[];
+}
+
+interface QueryResultPreview {
+  index: number;
+  rows: ItemData['data'];
+  rowCount: number;
+  remainingRows: number;
 }
 
 interface ChartThemeOption {
@@ -230,6 +244,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   chartData$!: Observable<any>;
   displayedChartData$!: Observable<any>;
+  displayedQueryResults$!: Observable<QueryResultPreview[]>;
   appearanceOptions = [
     { value: 'auto', label: 'Auto' },
     { value: 'light', label: 'Light' },
@@ -536,6 +551,34 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.displayedChartData$ = this.chartData$.pipe(
       map((data) => data.slice(0, 25)),
     );
+
+    this.displayedQueryResults$ = this.chartData$.pipe(
+      map((data) => this.buildQueryResultPreviews(data))
+    );
+  }
+
+  private buildQueryResultPreviews(
+    data: ItemData['data'] | ItemData['data'][]
+  ): QueryResultPreview[] {
+    if (!Array.isArray(data) || data.length === 0) {
+      return [];
+    }
+
+    const isMultiQueryResult = Array.isArray(data[0]) && Array.isArray(data[0][0]);
+    const queryRows: ItemData['data'][] = isMultiQueryResult
+      ? (data as ItemData['data'][])
+      : [data as ItemData['data']];
+
+    return queryRows.map((rows, index) => {
+      const displayedRows = rows.slice(0, 25);
+
+      return {
+        index: index + 1,
+        rows: displayedRows,
+        rowCount: rows.length,
+        remainingRows: Math.max(0, rows.length - displayedRows.length)
+      };
+    });
   }
 
   private toBuilderDataFields(fields: DatasetDataField[]): BuilderDataField[] {
@@ -655,21 +698,21 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
                 return [];
               }
 
-              const performances = dataResults
-                .map((r) => r.performance)
-                .filter((p) => p != null);
-              if (performances.length > 0) {
-                const durationInSeconds =
-                  performances.reduce(
-                    (sum, p) => sum + this.calculateQueryDuration(p),
-                    0,
-                  ) / performances.length;
-                const rowCount =
-                  performances.reduce((sum, p) => sum + ((p as any).rows || 0), 0) ||
-                  (Array.isArray(dataResults[0].data) ? dataResults[0].data.length : 0);
+              const queryDetails = dataResults.map((result, index) => ({
+                index: index + 1,
+                rowCount: Array.isArray(result.data) ? result.data.length : 0,
+                durationInSeconds: this.calculateQueryDuration(result.performance)
+              }));
+              const rowCount = queryDetails.reduce((sum, detail) => sum + detail.rowCount, 0);
+              const durationInSeconds =
+                queryDetails.reduce((sum, detail) => sum + detail.durationInSeconds, 0) /
+                queryDetails.length;
 
-                this.queryResultInfoSubject.next({ rowCount, durationInSeconds });
-              }
+              this.queryResultInfoSubject.next({
+                rowCount,
+                durationInSeconds,
+                queries: queryDetails
+              });
 
               return normalizeQueryDataForRender(dataResults);
             }),
