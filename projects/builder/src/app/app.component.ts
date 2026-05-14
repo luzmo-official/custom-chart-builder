@@ -39,7 +39,7 @@ import {
   setUpSecureIframe
 } from './helpers/iframe.utils';
 import type { ItemData, ItemQuery, ItemQueryResponse, Theme } from './helpers/types';
-import { isDataResponse, isErrorResponse, normalizeQueryResponse } from './helpers/types';
+import { isDataResponse, isErrorResponse, normalizeQueryDataForRender, normalizeQueryResponse } from './helpers/types';
 import {
   CdkVirtualScrollViewport,
   ScrollingModule
@@ -671,11 +671,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
                 this.queryResultInfoSubject.next({ rowCount, durationInSeconds });
               }
 
-              if (dataResults.length === 1) {
-                return dataResults[0].data;
-              }
-
-              return [dataResults.map((r) => r.data?.[0]?.[0])];
+              return normalizeQueryDataForRender(dataResults);
             }),
             catchError((error) => {
               console.error('Chart data query failed:', error);

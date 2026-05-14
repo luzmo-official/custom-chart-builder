@@ -137,6 +137,14 @@ export function normalizeQueryResponse(
   return Array.isArray(response) ? response : [response];
 }
 
+export function normalizeQueryDataForRender(dataResponses: ItemData[]): ItemData['data'] | ItemData['data'][] {
+  if (dataResponses.length === 1) {
+    return dataResponses[0].data ?? [];
+  }
+
+  return dataResponses.map((response) => response.data ?? []);
+}
+
 export type ItemQuery = {
   dimensions: ItemQueryDimension[];
   measures: ItemQueryMeasure[];
