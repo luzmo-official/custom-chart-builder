@@ -1,6 +1,7 @@
 import {
   isDataResponse,
   isErrorResponse,
+  normalizeQueryDataForRender,
   normalizeQueryResponse,
   type ItemData,
   type ItemErrorResponse
@@ -64,6 +65,37 @@ describe('normalizeQueryResponse', () => {
     expect(result).toHaveLength(2);
     expect(isDataResponse(result[0])).toBe(true);
     expect(isErrorResponse(result[1])).toBe(true);
+  });
+});
+
+describe('normalizeQueryDataForRender', () => {
+  it('returns flat rows for a single-query response', () => {
+    const rows = [
+      ['2024-01-01T00:00:00.000Z', 4421921],
+      ['2024-02-01T00:00:00.000Z', 123]
+    ];
+
+    const result = normalizeQueryDataForRender([createDataResponse({ data: rows })]);
+
+    expect(result).toBe(rows);
+  });
+
+  it('preserves one row array per query for multi-query responses', () => {
+    const cohortRows = [
+      ['2024-01-01T00:00:00.000Z', 4421921],
+      ['2024-02-01T00:00:00.000Z', 3900000]
+    ];
+    const matrixRows = [
+      ['2024-01-01T00:00:00.000Z', '2024-01-01T00:00:00.000Z', 401391],
+      ['2024-01-01T00:00:00.000Z', '2024-02-01T00:00:00.000Z', 38112]
+    ];
+
+    const result = normalizeQueryDataForRender([
+      createDataResponse({ data: cohortRows, query_id: 'cohort-sizes' }),
+      createDataResponse({ data: matrixRows, query_id: 'cohort-matrix' })
+    ]);
+
+    expect(result).toEqual([cohortRows, matrixRows]);
   });
 });
 

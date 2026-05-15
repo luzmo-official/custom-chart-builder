@@ -230,6 +230,39 @@
       font-weight: 400;
       color: var(--color-text-active);
       font-size: 0.875rem;
+
+      p {
+        margin: 0;
+      }
+
+      &-label {
+        color: var(--color-text-active);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+    }
+
+    .query-preview {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      &-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border: 0.0625rem solid var(--color-border);
+        border-radius: var(--border-radius-default);
+        background-color: var(--color-surface-alt-1);
+        font-size: 0.8125rem;
+      }
     }
 
     .empty-state {
@@ -259,6 +292,7 @@
     .remaining-rows {
       margin-top: 0.5rem;
       font-style: italic;
+      font-size: 0.875rem;
     }
 
     .error-state {
