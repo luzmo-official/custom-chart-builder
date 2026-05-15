@@ -1,5 +1,7 @@
 import type { ItemQuery } from './types';
 
+export const IFRAME_SANDBOX_PERMISSIONS = 'allow-scripts allow-popups';
+
 /**
  * Normalizes the raw `buildQuery` result returned by a chart bundle into the
  * array shape the host always works with.
@@ -19,7 +21,7 @@ export function normalizeBuildQueryResult(
 }
 
 function configureIframe(iframe: HTMLIFrameElement): void {
-  iframe.setAttribute('sandbox', 'allow-scripts');
+  iframe.setAttribute('sandbox', IFRAME_SANDBOX_PERMISSIONS);
   iframe.setAttribute('src', 'about:blank');
   iframe.setAttribute('title', 'Custom Chart View');
   iframe.setAttribute('loading', 'lazy');
