@@ -1,4 +1,7 @@
-import { normalizeBuildQueryResult } from './iframe.utils';
+import {
+  IFRAME_SANDBOX_PERMISSIONS,
+  normalizeBuildQueryResult
+} from './iframe.utils';
 import type { ItemQuery } from './types';
 
 const buildQuery = (datasetId: string, columnId: string): ItemQuery => ({
@@ -44,5 +47,14 @@ describe('normalizeBuildQueryResult', () => {
 
     expect(result).toBe(queries);
     expect(result).toEqual([]);
+  });
+});
+
+describe('IFRAME_SANDBOX_PERMISSIONS', () => {
+  it('allows scripts and popups', () => {
+    const permissions = IFRAME_SANDBOX_PERMISSIONS.split(' ');
+
+    expect(permissions).toContain('allow-scripts');
+    expect(permissions).toContain('allow-popups');
   });
 });
