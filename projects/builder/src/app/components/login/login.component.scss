@@ -34,6 +34,10 @@
       display: inline-block;
       text-transform: uppercase;
     }
+    luzmo-text-field {
+      display: block;
+      width: 100%;
+    }
     input {
       display: block;
       width: -webkit-fill-available;

@@ -10,34 +10,33 @@
 
         <span class="header-title-text">Luzmo Custom Chart Builder</span>
 
-        <a
-          class="header-docs-link"
+        <luzmo-button
+          [quiet]="true"
+          size="s"
           href="https://developer.luzmo.com/guide/guides--custom-charts"
           target="_blank"
           rel="noopener noreferrer"
         >
           Documentation
-        </a>
+        </luzmo-button>
       </div>
 
       <div class="header-actions">
-        <luzmo-picker
+        <luzmo-select
           class="theme-mode-picker"
+          variant="highlight"
+          selects="single"
+          size="m"
+          [value]="appearanceValue"
           [options]="appearanceOptions"
-          [value]="appearanceMode"
           (change)="onAppearanceModeChange($any($event))"
         >
-          @for (option of appearanceOptions; track option.value) {
-            <luzmo-menu-item [value]="option.value">
-              {{ option.label }}
-            </luzmo-menu-item>
-          }
-        </luzmo-picker>
+        </luzmo-select>
 
         <div class="header-user-info">
           <div>Logged in as {{ (currentUser$ | async)?.name }}.</div>
 
-          <div (click)="logout()" class="logout-button">Log out</div>
+          <luzmo-button treatment="outline" size="s" (click)="logout()">Log out</luzmo-button>
         </div>
       </div>
     </header>
@@ -58,7 +57,7 @@
           @if (isLoadingDataset) {
             <div class="loading-container">
               <luzmo-progress-circle
-                indeterminate
+                [indeterminate]="true"
                 static-color="var(--color-primary)"
                 size="m"
               >
@@ -83,7 +82,7 @@
                 <luzmo-data-field
                   variant="highlight"
                   size="m"
-                  [data]="column"
+                  [data]="$any(column)"
                   [disabled]="false"
                 >
                 </luzmo-data-field>
@@ -124,12 +123,12 @@
                   data-drop-target-for-element="true"
                   [itemType]="vizItemType"
                   [slotName]="slotConfig.name"
-                  [label]="slotConfig.label"
+                  [label]="$any(slotConfig.label)"
                   [slotConfiguration]="slotConfig"
                   [slotsContents]="slotsForDrop ?? []"
                   menu="draggable"
                   size="m"
-                  (luzmo-slot-contents-changed)="
+                  (luzmoSlotContentsChanged)="
                     onColumnDropped(
                       slotConfig.name,
                       slotConfig.type!,
@@ -241,19 +240,14 @@
         <div class="column-header">
           <p class="column-header-label">Chart visualization</p>
 
-          <luzmo-picker
-            [options]="chartThemes"
-            [value]="selectedTheme"
+          <luzmo-select
+            variant="highlight"
+            selects="single"
+            [value]="selectedThemeValue"
+            [options]="chartThemeOptions"
             (change)="onChartThemeChange($any($event))"
           >
-            @for (theme of chartThemes; track theme.name) {
-              <luzmo-menu-item [value]="theme.name">
-                <div class="dataset-info">
-                  <span>{{ theme.label }}</span>
-                </div>
-              </luzmo-menu-item>
-            }
-          </luzmo-picker>
+          </luzmo-select>
         </div>
 
         <div class="column-content">
@@ -262,7 +256,7 @@
               @if (!moduleLoaded) {
                 <div class="chart-loading">
                   <luzmo-progress-circle
-                    indeterminate
+                    [indeterminate]="true"
                     static-color="var(--color-primary)"
                     size="m"
                   >

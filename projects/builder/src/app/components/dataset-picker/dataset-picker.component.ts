@@ -8,7 +8,8 @@ import {
   EventEmitter,
   Output,
   ViewChild,
-  inject
+  inject,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
@@ -25,6 +26,7 @@ import { LuzmoApiService } from '../../services/luzmo-api.service';
   standalone: true,
   imports: [NgbDropdownModule, FormsModule, ScrollingModule],
   templateUrl: './dataset-picker.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./dataset-picker.component.scss']
 })
 export class DatasetPickerComponent implements OnInit {

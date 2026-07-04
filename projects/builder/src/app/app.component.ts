@@ -3,21 +3,22 @@ import type { HttpErrorResponse } from '@angular/common/http';
 import type { AfterViewChecked, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
   Component,
-  CUSTOM_ELEMENTS_SCHEMA,
   HostListener,
   inject,
-  ViewChild
+  ViewChild,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { LoginComponent } from '@builder/components/login/login.component';
 import { buildLuzmoQuery } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
-import '@luzmo/analytics-components-kit/data-field';
-import '@luzmo/analytics-components-kit/item-slot-drop';
 import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
 import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
-import '@luzmo/lucero/picker';
-import '@luzmo/lucero/progress-circle';
+import { LuzmoDataField } from '@luzmo/ngx-analytics-components-kit/data-field';
+import { LuzmoItemSlotDrop } from '@luzmo/ngx-analytics-components-kit/item-slot-drop';
+import { LuzmoButton } from '@luzmo/ngx-lucero/button';
+import { LuzmoProgressCircle } from '@luzmo/ngx-lucero/progress-circle';
+import { LuzmoSelect } from '@luzmo/ngx-lucero/select';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import type { Observable } from 'rxjs';
@@ -114,12 +115,17 @@ const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
     AsyncPipe,
     FormsModule,
     ScrollingModule,
-    DatasetPickerComponent
+    DatasetPickerComponent,
+    LuzmoSelect,
+    LuzmoProgressCircle,
+    LuzmoButton,
+    LuzmoDataField,
+    LuzmoItemSlotDrop
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA]
+  changeDetection: ChangeDetectionStrategy.Eager
 })
 export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Services
@@ -440,6 +446,38 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   chartThemes: ChartThemeOption[] = [...this.predefinedChartThemes];
 
   selectedTheme = 'light';
+
+  // Stable array references for luzmo-select `value` bindings. Recreating the
+  // array on every change-detection cycle would re-trigger the wrapper's
+  // ngOnChanges and force the virtualized options list to re-render endlessly.
+  private appearanceValueRef: AppearanceMode[] = [this.appearanceMode];
+  get appearanceValue(): AppearanceMode[] {
+    if (this.appearanceValueRef[0] !== this.appearanceMode) {
+      this.appearanceValueRef = [this.appearanceMode];
+    }
+    return this.appearanceValueRef;
+  }
+
+  private selectedThemeValueRef: string[] = [this.selectedTheme];
+  get selectedThemeValue(): string[] {
+    if (this.selectedThemeValueRef[0] !== this.selectedTheme) {
+      this.selectedThemeValueRef = [this.selectedTheme];
+    }
+    return this.selectedThemeValueRef;
+  }
+
+  private chartThemesRef: ChartThemeOption[] | null = null;
+  private chartThemeOptionsCache: { value: string; label: string }[] = [];
+  get chartThemeOptions(): { value: string; label: string }[] {
+    if (this.chartThemesRef !== this.chartThemes) {
+      this.chartThemesRef = this.chartThemes;
+      this.chartThemeOptionsCache = this.chartThemes.map((theme) => ({
+        value: theme.name,
+        label: theme.label
+      }));
+    }
+    return this.chartThemeOptionsCache;
+  }
 
   get logoSrc(): string {
     return this.getEffectiveTheme() === 'dark' ? LOGO_DARK_SRC : LOGO_LIGHT_SRC;
@@ -1235,15 +1273,24 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.selectedDatasetIdSubject.next(datasetId);
   }
 
-  onAppearanceModeChange(event: CustomEvent<string>): void {
-    const mode = event.detail;
+  onAppearanceModeChange(
+    event: CustomEvent<{ value: (string | number | null)[] }>
+  ): void {
+    const raw = event.detail.value?.[0];
+    const mode = raw == null ? null : String(raw);
     if (!this.isAppearanceMode(mode) || mode === this.appearanceMode) {
       return;
     }
     this.applyAppearanceMode(mode);
   }
-  onChartThemeChange(event: CustomEvent<string>): void {
-    this.selectedTheme = event.detail;
+  onChartThemeChange(
+    event: CustomEvent<{ value: (string | number | null)[] }>
+  ): void {
+    const raw = event.detail.value?.[0];
+    if (raw == null) {
+      return;
+    }
+    this.selectedTheme = String(raw);
     // Re-render with the new theme
     if (this.moduleLoaded) {
       this.chartData$
