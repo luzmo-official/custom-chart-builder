@@ -1,4 +1,5 @@
 import {
+  ChangeDetectorRef,
   Component,
   DestroyRef,
   EventEmitter,
@@ -65,6 +66,8 @@ export class DatasetPickerComponent {
   private authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
   private destroyRef = inject(DestroyRef);
+  // Zoneless: paging/search happens in async pipelines, so re-check explicitly.
+  private cdr = inject(ChangeDetectorRef);
 
   searchQuery = '';
   sortOption: 'name' | 'date' = 'date';
@@ -107,6 +110,7 @@ export class DatasetPickerComponent {
       .pipe(
         switchMap((append) => {
           this.isLoadingDatasets = true;
+          this.cdr.markForCheck();
           return this.luzmoAPIService
             .loadDatasets({
               limit: PAGE_SIZE,
@@ -128,6 +132,7 @@ export class DatasetPickerComponent {
       .subscribe((payload) => {
         this.isLoadingDatasets = false;
         if (!payload) {
+          this.cdr.markForCheck();
           return;
         }
         const { append, result } = payload;
@@ -141,6 +146,7 @@ export class DatasetPickerComponent {
         if (!append) {
           this.optionsRef?.scrollToTop();
         }
+        this.cdr.markForCheck();
       });
   }
 

@@ -1,7 +1,12 @@
 import type { HttpErrorResponse } from '@angular/common/http';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import type { OnInit } from '@angular/core';
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  inject,
+  ChangeDetectionStrategy
+} from '@angular/core';
 import type { FormControl, FormGroup } from '@angular/forms';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { isEmpty, isObject, isString } from '../../helpers/types.utils';
@@ -62,6 +67,9 @@ export class LoginComponent implements OnInit {
   private authService = inject(AuthService);
   private httpClient = inject(HttpClient);
   private formBuilder = inject(FormBuilder);
+  // Zoneless: async auth callbacks update form state / mode outside Angular's
+  // awareness, so re-check the view explicitly.
+  private cdr = inject(ChangeDetectorRef);
 
   region: RegionType = 'europe';
   readonly regionOptions: { value: RegionType; label: string }[] = [
@@ -148,9 +156,11 @@ export class LoginComponent implements OnInit {
         if (user && !isString(user)) {
           this.loginUser(user);
         }
+        this.cdr.markForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.handleLoginError(error);
+        this.cdr.markForCheck();
       }
     });
   }
@@ -201,9 +211,11 @@ export class LoginComponent implements OnInit {
         if (user && !isString(user)) {
           this.loginUser(user);
         }
+        this.cdr.markForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.handle2FAError(error);
+        this.cdr.markForCheck();
       }
     });
   }
@@ -245,6 +257,21 @@ export class LoginComponent implements OnInit {
     this.activeTab = tabs.selected;
   }
 
+  /**
+   * The luzmo-text-field value accessor only propagates its value to the form
+   * control on the native `change` event (i.e. on blur). Mirror `input` events
+   * into the control so validity-driven bindings (like the submit button's
+   * disabled state) update live as the user types.
+   */
+  onControlInput(form: FormGroup, controlName: string, event: Event): void {
+    const value = (event.target as unknown as { value?: string })?.value ?? '';
+    const control = form.get(controlName);
+    if (control && control.value !== value) {
+      control.setValue(value);
+      control.markAsDirty();
+    }
+  }
+
   attemptKeyTokenLogin(): void {
     const key = this.keyTokenForm.get('apiKey')?.value ?? '';
     const token = this.keyTokenForm.get('apiToken')?.value ?? '';
@@ -258,6 +285,7 @@ export class LoginComponent implements OnInit {
           'Invalid API key or token'
         );
       }
+      this.cdr.markForCheck();
     });
   }
 

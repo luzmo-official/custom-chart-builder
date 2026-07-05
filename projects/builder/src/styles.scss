@@ -1,195 +1,87 @@
-@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=swap");
 
-@mixin light-theme-colors() {
-  --color-primary: rgb(68, 52, 255);
-  --color-primary-rgb: 68, 52, 255;
-  --color-primary-outline: rgba(68, 52, 255, 0.25);
-  --color-primary-05: rgba(68, 52, 255, 0.5);
-  --color-primary-50: rgb(233, 231, 255);
-  --color-primary-50-inv: #333333;
-  --color-primary-100: rgb(199, 194, 255);
-  --color-primary-100-inv: #333333;
-  --color-primary-200: rgb(162, 154, 255);
-  --color-primary-200-inv: #ffffff;
-  --color-primary-300: rgb(124, 113, 255);
-  --color-primary-300-inv: #ffffff;
-  --color-primary-400: rgb(96, 82, 255);
-  --color-primary-400-inv: #ffffff;
-  --color-primary-500: rgb(68, 52, 255);
-  --color-primary-500-inv: #ffffff;
-  --color-primary-600: rgb(66, 52, 228);
-  --color-primary-600-inv: #ffffff;
-  --color-primary-700: rgb(63, 52, 194);
-  --color-primary-700-inv: #ffffff;
-  --color-primary-800: rgb(60, 52, 161);
-  --color-primary-800-inv: #ffffff;
-  --color-primary-900: rgb(55, 51, 102);
-  --color-primary-900-inv: #ffffff;
-  --color-surface: #ffffff;
-  --color-surface-alt-1: #f8f8f8;
-  --color-surface-alt-2: #efefef;
-  --color-surface-alt-3: #f5f5f5;
-  --color-text: #5a5a5a;
-  --color-text-active: #333;
-  --color-text-dimmed: #a5a5a5;
-  --color-text-rgb: 90, 90, 90;
-  --color-text-active-rgb: 51, 51, 51;
-  --color-disabled: #ccc;
-  --color-shadow-light: rgba(0, 0, 0, 0.07);
-  --color-shadow: rgba(0, 0, 0, 0.1);
-  --color-shadow-hard: rgba(0, 0, 0, 0.2);
-  --color-border-light: rgba(0, 0, 0, 0.05);
-  --color-border: rgba(0, 0, 0, 0.1);
-  --color-border-hard: rgba(0, 0, 0, 0.2);
-}
-
-@mixin dark-theme-colors() {
-  --color-primary: rgb(143, 161, 255);
-  --color-primary-rgb: 143, 161, 255;
-  --color-primary-outline: rgba(143, 161, 255, 0.25);
-  --color-primary-05: rgba(143, 161, 255, 0.5);
-  --color-primary-50: rgb(69, 74, 102);
-  --color-primary-50-inv: #ffffff;
-  --color-primary-100: rgb(90, 101, 161);
-  --color-primary-100-inv: #ffffff;
-  --color-primary-200: rgb(101, 116, 194);
-  --color-primary-200-inv: #ffffff;
-  --color-primary-300: rgb(114, 132, 228);
-  --color-primary-300-inv: #ffffff;
-  --color-primary-400: rgb(123, 144, 255);
-  --color-primary-400-inv: #ffffff;
-  --color-primary-500: rgb(143, 161, 255);
-  --color-primary-500-inv: #ffffff;
-  --color-primary-600: rgb(163, 177, 255);
-  --color-primary-600-inv: #333333;
-  --color-primary-700: rgb(189, 200, 255);
-  --color-primary-700-inv: #333333;
-  --color-primary-800: rgb(215, 222, 255);
-  --color-primary-800-inv: #333333;
-  --color-primary-900: rgb(239, 242, 255);
-  --color-primary-900-inv: #333333;
-  --color-surface: #262626;
-  --color-surface-alt-1: #3a3a3a;
-  --color-surface-alt-2: #313131;
-  --color-surface-alt-3: #3d3d3d;
-  --color-text: #ced4da;
-  --color-text-active: #f8f9fa;
-  --color-text-dimmed: #939ea8;
-  --color-text-rgb: 206, 212, 218;
-  --color-text-active-rgb: 248, 249, 250;
-  --color-disabled: #4a4c4d;
-  --color-shadow-light: rgba(0, 0, 0, 0.1);
-  --color-shadow: rgba(0, 0, 0, 0.2);
-  --color-shadow-hard: rgba(0, 0, 0, 0.3);
-  --color-border-light: rgba(255, 255, 255, 0.05);
-  --color-border: rgba(255, 255, 255, 0.10);
-  --color-border-hard: rgba(255, 255, 255, 0.2);
+// Dark theme overrides for lucero's --luzmo-* tokens.
+// Lucero components auto-inject the light baseline onto `html` at runtime, so we
+// only override the dark variables here (mirroring lucero's
+// global-variables-dark-theme.css), applied at a higher-precedence selector.
+@mixin dark-theme() {
+  --luzmo-border-color-rgb: 255, 255, 255;
+  --luzmo-border-color: rgba(var(--luzmo-border-color-rgb), 0.2);
+  --luzmo-border-color-hover: rgba(var(--luzmo-border-color-rgb), 0.3);
+  --luzmo-border-color-down: rgba(var(--luzmo-border-color-rgb), 0.35);
+  --luzmo-border-color-focus: rgba(var(--luzmo-border-color-rgb), 0.3);
+  --luzmo-border-color-full: #4c4c57;
+  --luzmo-border-color-full-hover: color-mix(in oklch, var(--luzmo-border-color-full), white 20%);
+  --luzmo-border-color-full-down: color-mix(in oklch, var(--luzmo-border-color-full), white 35%);
+  --luzmo-border-color-full-focus: color-mix(in oklch, var(--luzmo-border-color-full), white 20%);
+  --luzmo-border-color-disabled: #333;
+  --luzmo-font-color: #ced4da;
+  --luzmo-font-color-extra-dimmed: #72787f;
+  --luzmo-font-color-hover: color-mix(in oklch, var(--luzmo-font-color), white 8%);
+  --luzmo-font-color-down: color-mix(in oklch, var(--luzmo-font-color), white 20%);
+  --luzmo-font-color-focus: color-mix(in oklch, var(--luzmo-font-color), white 8%);
+  --luzmo-primary: #7b90ff;
+  --luzmo-background-color: #262626;
+  --luzmo-background-color-rgb: 0, 0, 0;
+  --luzmo-background-color-disabled: #939ea8;
+  --luzmo-background-color-hover: color-mix(in oklch, color-mix(in oklch, var(--luzmo-background-color), var(--luzmo-primary) 3%), white 14%);
+  --luzmo-background-color-down: color-mix(in oklch, color-mix(in oklch, var(--luzmo-background-color), var(--luzmo-primary) 3%), white 25%);
+  --luzmo-background-color-focus: color-mix(in oklch, color-mix(in oklch, var(--luzmo-background-color), var(--luzmo-primary) 3%), white 14%);
+  --luzmo-background-color-highlight: rgb(72, 72, 72);
+  --luzmo-background-color-highlight-disabled: #313131;
+  --luzmo-background-color-highlight-hover: color-mix(in oklch, var(--luzmo-background-color-highlight), white 20%);
+  --luzmo-background-color-highlight-down: color-mix(in oklch, var(--luzmo-background-color-highlight), white 35%);
+  --luzmo-background-color-highlight-focus: color-mix(in oklch, var(--luzmo-background-color-highlight), white 20%);
+  --luzmo-primary-inverse-color: #ffffff;
+  --luzmo-indicator-color: var(--luzmo-primary);
+  --luzmo-primary-rgb: 94, 113, 208;
+  --luzmo-secondary: #ebff00;
+  --luzmo-secondary-inverse-color: #333;
+  --luzmo-secondary-rgb: 200, 219, 0;
+  --luzmo-positive-color-rgb: 18, 133, 90;
+  --luzmo-selected-color: #afafaf;
+  --luzmo-selected-color-hover: color-mix(in oklch, var(--luzmo-selected-color), white 20%);
+  --luzmo-selected-color-down: color-mix(in oklch, var(--luzmo-selected-color), white 35%);
+  --luzmo-selected-color-focus: color-mix(in oklch, var(--luzmo-selected-color), white 20%);
+  --luzmo-selected-color-hard: #e9e9e9;
+  --luzmo-selected-color-hard-hover: color-mix(in oklch, var(--luzmo-selected-color-hard), white 20%);
+  --luzmo-selected-color-hard-down: color-mix(in oklch, var(--luzmo-selected-color-hard), white 35%);
+  --luzmo-selected-color-hard-focus: color-mix(in oklch, var(--luzmo-selected-color-hard), white 20%);
+  --luzmo-informative-color-rgb: 22, 112, 221;
+  --luzmo-disabled-color: #75797b;
 }
 
 :root {
-  // SCSS variables
-  --font-family-base: "Geist", sans-serif;
-  --font-family-mono: "Geist Mono", monospace;
-  --font-size-base: 0.875rem;
-  --border-radius-small: 0.375rem;
-  --border-radius-default: 0.5rem;
-  --border-radius-large: 0.75rem;
-  --border-radius-full: 9999px;
-
-  @include light-theme-colors();
+  // App-specific neutral shadow (no lucero default; neutral black alpha works in
+  // both themes, matching the dark/light examples).
+  --app-shadow-color: rgba(0, 0, 0, 0.15);
 
   // JSON viewer variables
-  --ngx-json-font-size: var(--font-size-base);
-  --ngx-json-font-family: var(--font-family-mono);
-  --ngx-json-string: var(--color-primary-300);
-  --ngx-json-number: var(--color-primary-300);
-  --ngx-json-boolean: var(--color-primary-700);
-  --ngx-json-date: var(--color-primary-600);
-  --ngx-json-array: var(--color-text-dimmed);
-  --ngx-json-object: var(--color-text);
-  --ngx-json-function: var(--color-primary);
-  --ngx-json-null: var(--color-text-dimmed);
+  --ngx-json-font-size: var(--luzmo-font-size);
+  --ngx-json-font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --ngx-json-string: var(--luzmo-primary);
+  --ngx-json-number: var(--luzmo-primary);
+  --ngx-json-boolean: var(--luzmo-primary-down);
+  --ngx-json-date: var(--luzmo-primary-down);
+  --ngx-json-array: var(--luzmo-font-color-extra-dimmed);
+  --ngx-json-object: var(--luzmo-font-color);
+  --ngx-json-function: var(--luzmo-primary);
+  --ngx-json-null: var(--luzmo-font-color-extra-dimmed);
   --ngx-json-null-bg: transparent;
-  --ngx-json-undefined: var(--color-disabled);
-  --ngx-json-toggler: var(--color-text-dimmed);
-  --ngx-json-key: var(--color-text-active);
-  --ngx-json-separator: var(--color-text-dimmed);
-  --ngx-json-value: var(--color-text);
-  --ngx-json-undefined-key: var(--color-disabled);
+  --ngx-json-undefined: var(--luzmo-disabled-color);
+  --ngx-json-toggler: var(--luzmo-font-color-extra-dimmed);
+  --ngx-json-key: var(--luzmo-font-color);
+  --ngx-json-separator: var(--luzmo-font-color-extra-dimmed);
+  --ngx-json-value: var(--luzmo-font-color);
+  --ngx-json-undefined-key: var(--luzmo-disabled-color);
 
-  // Luzmo
-  --luzmo-background-color: var(--color-surface);
-  --luzmo-background-color-disabled: var(--color-surface);
-  --luzmo-background-color-hover: var(--color-surface-alt-1);
-  --luzmo-background-color-down: var(--color-surface-alt-1);
-  --luzmo-background-color-focus: var(--color-surface-alt-1);
-  --luzmo-background-color-highlight: var(--color-surface);
-  --luzmo-background-color-highlight-disabled: var(--color-surface);
-  --luzmo-background-color-highlight-hover: var(--color-surface-alt-1);
-  --luzmo-background-color-highlight-down: var(--color-surface-alt-1);
-  --luzmo-background-color-highlight-focus: var(--color-surface-alt-1);
-
-  /* Borders */
-  --luzmo-border-color: var(--color-border);
-  --luzmo-border-color-hover: var(--color-border-hard);
-  --luzmo-border-radius: var(--border-radius-default);
-
-  /* Font colors */
-  --luzmo-font-family: var(--font-family-base);
-  --luzmo-font-color: var(--color-text);
-  --luzmo-font-color-hover: var(--color-text-active);
-  --luzmo-font-color-down: var(--color-text-active);
-
-  /* Primary colors */
-  --luzmo-primary: var(--color-primary);
-  --luzmo-primary-down: var(--color-primary-600);
-  --luzmo-primary-hover: var(--color-primary);
-  --luzmo-primary-focus: var(--color-primary);
-  --luzmo-primary-inverse-color: var(--color-primary-500-inv);
-  --luzmo-secondary: var(--color-primary);
-  --luzmo-secondary-down: var(--color-primary-700);
-  --luzmo-secondary-hover: var(--color-primary);
-  --luzmo-secondary-focus: var(--color-primary);
-  --luzmo-secondary-inverse-color: var(--color-primary-500-inv);
-
-  /* Text field */
-  --luzmo-text-field-border-color-hover: var(--color-primary);
-  --luzmo-text-field-text-color: var(--color-text);
-  --luzmo-text-field-text-color-hover: var(--color-text);
-  --luzmo-text-field-text-color-keyboard-focus: var(--color-text);
-
-  /* Divider */
-  --luzmo-divider-background-color: var(--color-border);
-
-  /* Item slot drop */
-  --luzmo-item-slot-drop-font-color: var(--color-text);
-  --luzmo-item-slot-drop-filled-color: var(--color-primary-500-inv);
-  --luzmo-item-slot-drop-filled-border-color: var(--color-primary-500);
-  --luzmo-item-slot-drop-height: 2.25rem;
+  // Analytics components kit overrides
   --luzmo-item-slot-drop-border-style: solid;
-  --luzmo-item-slot-drop-background-color: var(--color-surface-alt-1);
-  --luzmo-item-slot-drop-border-color: var(--color-border);
-  --luzmo-item-slot-drop-controls-color: var(--color-primary-600-inv);
+}
 
-  /* Picker */
-  --luzmo-picker-border-radius: var(--border-radius-default);
-  --luzmo-picker-border-color-default: var(--color-border);
-  --luzmo-picker-border-color-hover: var(--color-border-hard);
-  --luzmo-picker-box-shadow: none;
-  --luzmo-picker-spacing-edge-to-text: 0.75rem;
-  --luzmo-picker-spacing-edge-to-disclosure-icon: 0.75rem;
-  --luzmo-picker-border-default-open: rgba(var(--color-primary-rgb), 0.50);
-  --luzmo-menu-item-background-color-hover: rgba(var(--color-primary-rgb), 0.10);
-  --luzmo-menu-item-label-content-color-hover: var(--color-text-active);
-
-  /* Data field */
-  --luzmo-data-field-level-border-color: var(--color-border);
-  --luzmo-data-field-level-background-color: var(--color-surface-alt-1);
-  --luzmo-data-field-level-background-color-hover: var(--color-surface-alt-2);
-  --luzmo-data-field-level-sublevel-background-color-hover: var(--color-surface-alt-2);
-  --luzmo-data-field-level-font-color-hover: var(--color-text-active);
-  --luzmo-data-field-level-border-color-hover: var(--color-border-hard);
-  --luzmo-animation-duration: 0.3s;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html,
@@ -200,29 +92,37 @@ body {
 body {
   margin: 0 !important;
   padding: 0 !important;
-  font-family: var(--font-family-base) !important;
-  background-color: var(--color-surface) !important;
-  color: var(--color-text) !important;
+  font-family: var(--luzmo-font-family) !important;
+  background-color: var(--luzmo-background-color) !important;
+  color: var(--luzmo-font-color) !important;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    @include dark-theme-colors();
+    @include dark-theme();
   }
 }
 
 :root[data-theme="dark"] {
-  @include dark-theme-colors();
+  @include dark-theme();
 }
 
+// Standard scrollbar styling (Firefox, Chrome/Edge 121+).
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--luzmo-disabled-color) var(--luzmo-background-color-highlight);
+}
+
+// WebKit/Blink scrollbar styling (Safari, older Chrome/Edge).
 ::-webkit-scrollbar {
   width: 0.375rem;
+  height: 0.375rem;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-surface-alt-2);
+  background: var(--luzmo-background-color-highlight);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-disabled);
+  background: var(--luzmo-disabled-color);
   border-radius: 0.1875rem;
 }

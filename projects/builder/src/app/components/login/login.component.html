@@ -8,6 +8,7 @@
 
     <h4 class="title">Please log in to your Luzmo account.</h4>
 
+    @if (mode !== '2FA') {
     <div class="form-group">
       <luzmo-field-label for="region-picker">Data tenancy region</luzmo-field-label>
       <luzmo-select class="region-picker"
@@ -18,10 +19,10 @@
         size="m"
         variant="highlight"
         selects="single"
-        [disabled]="mode === '2FA'"
         (change)="onRegionChanged($any($event))">
       </luzmo-select>
     </div>
+    }
     @if (region === 'custom') {
     <div class="form-group">
       <luzmo-field-label for="vpc-app-url">VPC App Server URL</luzmo-field-label>
@@ -77,6 +78,7 @@
               id="login-email"
               size="m"
               autocomplete="off"
+              (input)="onControlInput(logInForm, 'email', $event)"
               placeholder="name@company.com">
             </luzmo-text-field>
           </div>
@@ -86,6 +88,7 @@
               formControlName="password"
               id="login-password"
               size="m"
+              (input)="onControlInput(logInForm, 'password', $event)"
               placeholder="Password">
             </luzmo-text-field>
           </div>
@@ -110,6 +113,7 @@
               formControlName="totp"
               id="twoFA-totp"
               size="m"
+              (input)="onControlInput(twoFAForm, 'totp', $event)"
               [maxlength]="6">
             </luzmo-text-field>
           </div>
@@ -141,6 +145,7 @@
               id="login-api-key"
               size="m"
               autocomplete="off"
+              (input)="onControlInput(keyTokenForm, 'apiKey', $event)"
               placeholder="Your API key">
             </luzmo-text-field>
           </div>
@@ -150,6 +155,7 @@
               formControlName="apiToken"
               id="login-api-token"
               size="m"
+              (input)="onControlInput(keyTokenForm, 'apiToken', $event)"
               placeholder="Your API token">
             </luzmo-text-field>
           </div>

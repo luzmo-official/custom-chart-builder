@@ -58,7 +58,7 @@
             <div class="loading-container">
               <luzmo-progress-circle
                 [indeterminate]="true"
-                static-color="var(--color-primary)"
+                static-color="var(--luzmo-primary)"
                 size="m"
               >
               </luzmo-progress-circle>
@@ -66,15 +66,14 @@
 
           } @else {
             @if (datasetColumns.length > 0) {
-              <div class="column-search">
-                <input
-                  type="text"
-                  class="search-input"
-                  placeholder="Search columns..."
-                  [(ngModel)]="columnSearchTerm"
-                  autocomplete="off"
-                />
-              </div>
+              <luzmo-divider class="column-divider" size="m"></luzmo-divider>
+              <luzmo-search
+                class="column-search"
+                size="m"
+                placeholder="Search columns..."
+                [value]="columnSearchTerm"
+                (input)="onColumnSearchInput($event)"
+              ></luzmo-search>
             }
 
             <div class="column-list" [class.has-scrollbar]="hasScrollbar" #columnListContainer>
@@ -257,7 +256,7 @@
                 <div class="chart-loading">
                   <luzmo-progress-circle
                     [indeterminate]="true"
-                    static-color="var(--color-primary)"
+                    static-color="var(--luzmo-primary)"
                     size="m"
                   >
                   </luzmo-progress-circle>

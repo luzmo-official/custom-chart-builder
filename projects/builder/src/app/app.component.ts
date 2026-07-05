@@ -2,6 +2,7 @@ import { AsyncPipe } from '@angular/common';
 import type { HttpErrorResponse } from '@angular/common/http';
 import type { AfterViewChecked, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
+  ChangeDetectorRef,
   Component,
   DestroyRef,
   HostListener,
@@ -19,7 +20,9 @@ import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/d
 import { LuzmoDataField } from '@luzmo/ngx-analytics-components-kit/data-field';
 import { LuzmoItemSlotDrop } from '@luzmo/ngx-analytics-components-kit/item-slot-drop';
 import { LuzmoButton } from '@luzmo/ngx-lucero/button';
+import { LuzmoDivider } from '@luzmo/ngx-lucero/divider';
 import { LuzmoProgressCircle } from '@luzmo/ngx-lucero/progress-circle';
+import { LuzmoSearch } from '@luzmo/ngx-lucero/search';
 import { LuzmoSelect } from '@luzmo/ngx-lucero/select';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import type { Observable } from 'rxjs';
@@ -42,7 +45,6 @@ import {
 } from './helpers/iframe.utils';
 import type { ItemData, ItemQuery, ItemQueryResponse, Theme } from './helpers/types';
 import { isDataResponse, isErrorResponse, normalizeQueryDataForRender, normalizeQueryResponse } from './helpers/types';
-import { FormsModule } from '@angular/forms';
 import { DatasetPickerComponent } from './components/dataset-picker/dataset-picker.component';
 import { SlotsConfigSchema } from './slot-schema';
 
@@ -109,11 +111,12 @@ const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
     NgxJsonViewerModule,
     LoginComponent,
     AsyncPipe,
-    FormsModule,
     DatasetPickerComponent,
     LuzmoSelect,
     LuzmoProgressCircle,
     LuzmoButton,
+    LuzmoDivider,
+    LuzmoSearch,
     LuzmoDataField,
     LuzmoItemSlotDrop
   ],
@@ -127,6 +130,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
   private destroyRef = inject(DestroyRef);
+  // Zoneless: state mutated outside template events / async pipe must be
+  // signalled explicitly so the view is re-checked.
+  private cdr = inject(ChangeDetectorRef);
 
   // WebSocket connection for real-time updates
   private ws = new WebSocket('ws://localhost:8080');
@@ -218,6 +224,13 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       return true;
     });
   }
+
+  onColumnSearchInput(event: Event): void {
+    this.columnSearchTerm =
+      (event.target as unknown as { value?: string }).value ?? '';
+    this.cdr.markForCheck();
+  }
+
   columns$ = this.selectedDatasetIdSubject.pipe(
     takeUntilDestroyed(this.destroyRef),
     tap(() => {
@@ -230,6 +243,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         catchError((error) => {
           console.error('Error loading dataset fields:', error);
           this.datasetState.loading = false;
+          this.cdr.markForCheck();
           return of([]);
         })
       ),
@@ -240,6 +254,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.datasetState.columns = fields;
       this.datasetState.loading = false;
       this.columnSearchTerm = '';
+      this.cdr.markForCheck();
     }),
   );
 
@@ -638,6 +653,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       )
       .subscribe((customThemes) => {
         this.chartThemes = [...this.predefinedChartThemes, ...customThemes];
+        this.cdr.markForCheck();
       });
   }
 
@@ -864,6 +880,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
    */
   private handleModuleLoaded(): void {
     this.moduleLoaded = true;
+    // Triggered by a window 'message' event (outside Angular's awareness).
+    this.cdr.markForCheck();
 
     // If we have data, render the chart
     // Create a subscription that auto-unsubscribes
@@ -1055,6 +1073,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     this.updateDocumentTheme(mode);
     this.updateChartTheme();
+    // May be triggered by the system color-scheme media listener.
+    this.cdr.markForCheck();
   }
 
   private updateDocumentTheme(mode: AppearanceMode): void {
