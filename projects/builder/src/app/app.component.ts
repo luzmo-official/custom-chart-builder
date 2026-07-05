@@ -3,11 +3,13 @@ import type { HttpErrorResponse } from '@angular/common/http';
 import type { AfterViewChecked, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
   Component,
+  DestroyRef,
   HostListener,
   inject,
   ViewChild,
   ChangeDetectionStrategy
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LoginComponent } from '@builder/components/login/login.component';
 import { buildLuzmoQuery } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
@@ -19,7 +21,6 @@ import { LuzmoItemSlotDrop } from '@luzmo/ngx-analytics-components-kit/item-slot
 import { LuzmoButton } from '@luzmo/ngx-lucero/button';
 import { LuzmoProgressCircle } from '@luzmo/ngx-lucero/progress-circle';
 import { LuzmoSelect } from '@luzmo/ngx-lucero/select';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import type { Observable } from 'rxjs';
 import { BehaviorSubject, of, Subject } from 'rxjs';
@@ -106,7 +107,6 @@ const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
  * Main component for the Luzmo Custom Chart Builder application
  * Provides dataset selection, chart configuration, and visualization
  */
-@UntilDestroy()
 @Component({
   selector: 'app-root',
   imports: [
@@ -131,6 +131,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Services
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
+  private destroyRef = inject(DestroyRef);
 
   // WebSocket connection for real-time updates
   private ws = new WebSocket('ws://localhost:8080');
@@ -224,7 +225,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
   columns$ = this.selectedDatasetIdSubject.pipe(
-    untilDestroyed(this),
+    takeUntilDestroyed(this.destroyRef),
     tap(() => {
       // Update state directly
       this.datasetState.loading = true;
@@ -536,7 +537,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // This observable handles data queries based only on query-relevant slot changes
     this.chartData$ = this.queryRelevantSlotsSubject.pipe(
-      untilDestroyed(this),
+      takeUntilDestroyed(this.destroyRef),
       // Debounce to avoid rapid consecutive query requests
       debounceTime(300),
       // Only proceed if the query-relevant properties have actually changed
@@ -568,7 +569,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     // This will trigger renders when formats change without triggering new queries
     this.slotsSubject
       .pipe(
-        untilDestroyed(this),
+        takeUntilDestroyed(this.destroyRef),
         // Debounce to avoid rapid consecutive renders
         debounceTime(50),
         // We want to tap into the latest data whenever slots change (including format changes)

@@ -36,7 +36,6 @@
     "@luzmo/ngx-analytics-components-kit": "^1.0.3-beta.12",
     "@luzmo/ngx-lucero": "^1.0.3-alpha.3",
     "@ng-bootstrap/ng-bootstrap": "^21.0.0",
-    "@ngneat/until-destroy": "^10.0.0",
     "@popperjs/core": "^2.11.8",
     "bootstrap": "^5.3.8",
     "lit": "^3.3.2",

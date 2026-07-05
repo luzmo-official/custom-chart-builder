@@ -5,22 +5,22 @@ import {
 import type { ElementRef, OnInit } from '@angular/core';
 import {
   Component,
+  DestroyRef,
   EventEmitter,
   Output,
   ViewChild,
   inject,
   ChangeDetectionStrategy
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import type { NgbDropdown } from '@ng-bootstrap/ng-bootstrap';
 import { NgbDropdownModule } from '@ng-bootstrap/ng-bootstrap';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { BehaviorSubject } from 'rxjs';
 import { filter, map, switchMap, tap } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 import { LuzmoApiService } from '../../services/luzmo-api.service';
 
-@UntilDestroy()
 @Component({
   selector: 'app-dataset-picker',
   standalone: true,
@@ -38,6 +38,7 @@ export class DatasetPickerComponent implements OnInit {
 
   private authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
+  private destroyRef = inject(DestroyRef);
 
   searchQuery = '';
   sortOption: 'name' | 'date' = 'date';
@@ -57,7 +58,7 @@ export class DatasetPickerComponent implements OnInit {
     // Set up dataset loading when user is authenticated
     this.authService.isAuthenticated$
       .pipe(
-        untilDestroyed(this),
+        takeUntilDestroyed(this.destroyRef),
         filter((isAuthenticated) => isAuthenticated),
         tap(() => {
           this.isLoadingDatasets = true;
