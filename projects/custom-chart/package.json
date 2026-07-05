@@ -11,7 +11,7 @@
     "@luzmo/dashboard-contents-types": "^1.0.31"
   },
   "dependencies": {
-    "@luzmo/analytics-components-kit": "^1.0.1",
+    "@luzmo/analytics-components-kit": "^1.0.3-beta.13",
     "d3": "^7.9.0"
   },
   "devDependencies": {
