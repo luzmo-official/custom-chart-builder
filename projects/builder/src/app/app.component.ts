@@ -42,10 +42,6 @@ import {
 } from './helpers/iframe.utils';
 import type { ItemData, ItemQuery, ItemQueryResponse, Theme } from './helpers/types';
 import { isDataResponse, isErrorResponse, normalizeQueryDataForRender, normalizeQueryResponse } from './helpers/types';
-import {
-  CdkVirtualScrollViewport,
-  ScrollingModule
-} from '@angular/cdk/scrolling';
 import { FormsModule } from '@angular/forms';
 import { DatasetPickerComponent } from './components/dataset-picker/dataset-picker.component';
 import { SlotsConfigSchema } from './slot-schema';
@@ -114,7 +110,6 @@ const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
     LoginComponent,
     AsyncPipe,
     FormsModule,
-    ScrollingModule,
     DatasetPickerComponent,
     LuzmoSelect,
     LuzmoProgressCircle,
@@ -152,7 +147,6 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private querySubject = new Subject<ItemQuery[] | null>();
   private queryReady$ = this.querySubject.asObservable();
 
-  @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
   @ViewChild('columnListContainer') columnListContainer?: ElementRef<HTMLDivElement>;
 
   // Loading state indicators

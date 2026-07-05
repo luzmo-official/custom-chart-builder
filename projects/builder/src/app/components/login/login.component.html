@@ -68,7 +68,7 @@
           [formGroup]="logInForm"
           (ngSubmit)="attemptLogin(logInForm.get('email')?.value ?? '', logInForm.get('password')?.value ?? '')">
           @if (logInForm.get('errorMsg')?.value) {
-          <div class="alert alert-danger">{{ logInForm.get('errorMsg')?.value }}</div>
+          <div class="alert">{{ logInForm.get('errorMsg')?.value }}</div>
           }
           <div class="form-group">
             <luzmo-field-label for="login-email">E-mail</luzmo-field-label>
@@ -132,7 +132,7 @@
           [formGroup]="keyTokenForm"
           (ngSubmit)="attemptKeyTokenLogin()">
           @if (keyTokenForm.get('errorMsg')?.value) {
-          <div class="alert alert-danger">{{ keyTokenForm.get('errorMsg')?.value }}</div>
+          <div class="alert">{{ keyTokenForm.get('errorMsg')?.value }}</div>
           }
           <div class="form-group">
             <luzmo-field-label for="login-api-key">API Key</luzmo-field-label>
