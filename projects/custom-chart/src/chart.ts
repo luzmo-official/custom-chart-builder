@@ -330,7 +330,8 @@ export const render = ({
     innerWidth,
     innerHeight,
     themeContext,
-    measureFormatterFn
+    measureFormatterFn,
+    options
   );
 
   // Store the chart data on the container for reference during resize
@@ -379,7 +380,8 @@ export const resize = ({
     innerWidth,
     innerHeight,
     themeContext,
-    measureFormatterFn
+    measureFormatterFn,
+    options
   );
 
   // Maintain state for future resizes
@@ -427,7 +429,8 @@ function renderChart(
   innerWidth: number,
   innerHeight: number,
   theme: ThemeContext,
-  measureFormatter: (value: number) => string
+  measureFormatter: (value: number) => string,
+  options: ChartParams['options'] = {}
 ): void {
   const svg: d3.Selection<SVGSVGElement, unknown, null, undefined> = d3
     .select(chartContainer)
@@ -467,7 +470,13 @@ function renderChart(
     .padding(hasMultipleGroups ? Math.min(0.35, theme.barPadding * 0.6) : 0.08);
 
   const baseBarWidth = hasMultipleGroups ? groupedXScale.bandwidth() : xScale.bandwidth();
-  const barRadius = Math.min(theme.barRounding, Math.max(baseBarWidth, 0) / 2);
+  // Custom option: rounded corners overrides the theme-derived bar rounding.
+  const roundedCornersOption = options?.bars?.roundedCorners;
+  const effectiveBarRounding =
+    roundedCornersOption != null ? Math.max(0, Number(roundedCornersOption)) : theme.barRounding;
+  const barRadius = Math.min(effectiveBarRounding, Math.max(baseBarWidth, 0) / 2);
+  // Custom option: render the value as a label on top of each bar.
+  const showValueOption = Boolean(options?.bars?.showValue);
 
   const maxValue: number = d3.max(chartData, (d) => d.rawValue) || 0;
   const yScale: d3.ScaleLinear<number, number> = d3
@@ -613,6 +622,21 @@ function renderChart(
         .attr('fill', baseFill)
         .attr('rx', barRadius)
         .attr('ry', barRadius);
+
+      if (showValueOption) {
+        chart
+          .append('text')
+          .attr('class', 'bar-value-label')
+          .attr('x', xPosition + barWidth / 2)
+          .attr('y', yScale(datum.rawValue) - 6)
+          .attr('text-anchor', 'middle')
+          .style('fill', theme.axisTextColor)
+          .style('font-family', theme.fontFamily)
+          .style('font-size', '11px')
+          .style('font-weight', 600)
+          .style('pointer-events', 'none')
+          .text(String(datum.value));
+      }
 
       bar
         .on('mouseover', function (event: MouseEvent) {

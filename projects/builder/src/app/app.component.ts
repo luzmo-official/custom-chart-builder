@@ -16,8 +16,10 @@ import { buildLuzmoQuery } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
-import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
+import type { GenericSlotContent, OptionConfig, OptionsConfig, Slot, SlotConfig, ThemeConfig, TranslationsFile } from '@luzmo/dashboard-contents-types';
 import { LuzmoDataField } from '@luzmo/ngx-analytics-components-kit/data-field';
+import type { ItemOptionsChangedEventDetail } from '@luzmo/ngx-analytics-components-kit/item-option-panel';
+import { LuzmoItemOptionPanel } from '@luzmo/ngx-analytics-components-kit/item-option-panel';
 import { LuzmoItemSlotDrop } from '@luzmo/ngx-analytics-components-kit/item-slot-drop';
 import { LuzmoButton } from '@luzmo/ngx-lucero/button';
 import { LuzmoDivider } from '@luzmo/ngx-lucero/divider';
@@ -97,6 +99,22 @@ interface ChartThemeOption {
   theme: ThemeConfig;
 }
 
+/**
+ * Manifest translations shape for a single language: slot labels plus option
+ * group/label translations grouped under the `options` key (the option groups
+ * live under `options.groups`).
+ */
+interface ManifestTranslations {
+  slots?: Record<string, { label?: string }>;
+  options?: {
+    groups?: Record<string, { label?: string }>;
+    [optionKey: string]: unknown;
+  };
+}
+
+/** Manifest translations keyed by language code, e.g. `{ en: {...}, fr: {...} }`. */
+type ManifestTranslationsByLanguage = Record<string, ManifestTranslations>;
+
 type AppearanceMode = 'light' | 'dark' | 'auto';
 const APPEARANCE_MODE_STORAGE_KEY = 'luzmo-builder-appearance-mode';
 const LOGO_LIGHT_SRC = 'assets/logos/logo-small.svg';
@@ -118,7 +136,8 @@ const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
     LuzmoDivider,
     LuzmoSearch,
     LuzmoDataField,
-    LuzmoItemSlotDrop
+    LuzmoItemSlotDrop,
+    LuzmoItemOptionPanel
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
@@ -164,6 +183,20 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   slotConfigs: SlotConfig[] = [];
   manifestValidationError: string | null = null;
+
+  // Manifest translations keyed by language, e.g. { en: {...}, fr: {...} }.
+  private manifestTranslationsByLanguage =
+    ((manifestJson as { translations?: ManifestTranslationsByLanguage }).translations ?? {}) as ManifestTranslationsByLanguage;
+  // Available languages derived from the manifest translations.
+  languageOptions = this.buildLanguageOptions(this.manifestTranslationsByLanguage);
+  // Currently selected language for labels, option translations and chart rendering.
+  chartLanguage = this.languageOptions[0]?.value ?? 'en';
+  // Translations for the active language: slot labels + option groups/labels.
+  private manifestTranslations = this.getManifestTranslations(this.chartLanguage);
+  // Custom chart options declared in the manifest, rendered via the item option panel.
+  optionsConfig = ((manifestJson as { options?: OptionsConfig }).options ?? []) as OptionsConfig;
+  optionsTranslations = this.buildOptionsTranslations(this.manifestTranslations);
+  chartOptions: Record<string, any> = this.buildDefaultOptions(this.optionsConfig);
 
   private slotsSubject!: BehaviorSubject<Slot[]>;
   /** Bound to luzmo-item-slot-drop (replaces luzmo-droppable-slot). */
@@ -476,6 +509,14 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     return this.selectedThemeValueRef;
   }
 
+  private languageValueRef: string[] = [this.chartLanguage];
+  get languageValue(): string[] {
+    if (this.languageValueRef[0] !== this.chartLanguage) {
+      this.languageValueRef = [this.chartLanguage];
+    }
+    return this.languageValueRef;
+  }
+
   private chartThemesRef: ChartThemeOption[] | null = null;
   private chartThemeOptionsCache: { value: string; label: string }[] = [];
   get chartThemeOptions(): { value: string; label: string }[] {
@@ -495,6 +536,101 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   @ViewChild('chartContainer') container!: ElementRef;
 
+  /**
+   * Builds a nested options object seeded with each control's default value so
+   * the chart reflects the initial option state before any user interaction.
+   */
+  private buildDefaultOptions(config: OptionsConfig): Record<string, any> {
+    const options: Record<string, any> = {};
+
+    const setNested = (key: string, value: unknown): void => {
+      const segments = key.split('.');
+      let cursor = options;
+      for (let index = 0; index < segments.length - 1; index += 1) {
+        const segment = segments[index];
+        cursor[segment] = cursor[segment] ?? {};
+        cursor = cursor[segment];
+      }
+      cursor[segments[segments.length - 1]] = value;
+    };
+
+    const walk = (nodes: OptionConfig[] | undefined): void => {
+      nodes?.forEach((node) => {
+        if (node?.key && node?.control && 'default' in node.control) {
+          setNested(node.key, node.control.default);
+        }
+        if (node?.children) {
+          walk(node.children);
+        }
+      });
+    };
+
+    walk(config);
+    return options;
+  }
+
+  /**
+   * Builds the language picker options from the languages declared in the
+   * manifest translations, falling back to English when none are present.
+   */
+  private buildLanguageOptions(
+    translationsByLanguage: ManifestTranslationsByLanguage
+  ): { value: string; label: string }[] {
+    const displayNames = new Intl.DisplayNames(['en'], { type: 'language' });
+    const languages = Object.keys(translationsByLanguage);
+
+    if (languages.length === 0) {
+      return [{ value: 'en', label: 'English' }];
+    }
+
+    return languages.map((language) => ({
+      value: language,
+      label: displayNames.of(language) ?? language.toUpperCase()
+    }));
+  }
+
+  /**
+   * Returns the translations for the given language, falling back to English
+   * and then to an empty object when the language is not declared.
+   */
+  private getManifestTranslations(language: string): ManifestTranslations {
+    return (
+      this.manifestTranslationsByLanguage[language] ??
+      this.manifestTranslationsByLanguage['en'] ??
+      {}
+    );
+  }
+
+  /**
+   * Converts the manifest translations (option groups nested under `options`)
+   * into the flat `TranslationsFile` shape the item option panel expects, i.e.
+   * `groups` at the top level and option labels under `options`.
+   */
+  private buildOptionsTranslations(translations: ManifestTranslations): TranslationsFile {
+    const { groups, ...optionLabels } = translations.options ?? {};
+
+    return {
+      groups: groups ?? {},
+      options: optionLabels as TranslationsFile['options']
+    };
+  }
+
+  /**
+   * Applies the manifest slot label translations (when present) over the slot
+   * configs so the drop panels display the translated labels.
+   */
+  private applySlotLabelTranslations(slotConfigs: SlotConfig[]): SlotConfig[] {
+    const slotTranslations = this.manifestTranslations.slots;
+    if (!slotTranslations) {
+      return slotConfigs;
+    }
+
+    return slotConfigs.map((slotConfig) => {
+      const translatedLabel = slotTranslations[slotConfig.name]?.label;
+      return translatedLabel ? { ...slotConfig, label: translatedLabel } : slotConfig;
+    });
+  }
+
   private initializeSlotConfigs(): void {
     try {
       // Validate the slots array from manifest
@@ -513,7 +649,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.slotConfigs = [];
       }
       else {
-        this.slotConfigs = validationResult.data as SlotConfig[];
+        this.slotConfigs = this.applySlotLabelTranslations(validationResult.data as SlotConfig[]);
         this.manifestValidationError = null;
       }
     }
@@ -917,9 +1053,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {
+        ...this.chartOptions,
         theme: selectedTheme?.theme || this.chartThemes[0].theme, // Fallback to first theme if not found
       },
-      language: 'en',
+      language: this.chartLanguage,
       dimensions: this.getContainerDimensions()
     };
 
@@ -969,9 +1106,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       slots: this.slotsSubject.getValue(),
       slotConfigurations: this.slotConfigs,
       options: {
+        ...this.chartOptions,
         theme: selectedThemeObj?.theme || this.chartThemes[0].theme
       },
-      language: 'en',
+      language: this.chartLanguage,
       dimensions: this.getContainerDimensions(),
     };
 
@@ -1278,6 +1416,51 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Only update the query-relevant subject if there's an actual change in query-relevant properties
     if (JSON.stringify(newQuerySlots) !== JSON.stringify(currentQuerySlots)) {
       this.queryRelevantSlotsSubject.next(newQuerySlots);
+    }
+  }
+
+  /**
+   * Handles changes to the custom chart options coming from the option panel
+   */
+  onOptionsChanged(event: CustomEvent<ItemOptionsChangedEventDetail>): void {
+    this.chartOptions = event.detail?.options ?? {};
+    // Emitted from a web component event outside Angular's change detection.
+    this.cdr.markForCheck();
+
+    if (this.moduleLoaded) {
+      this.chartData$
+        .pipe(take(1))
+        .subscribe((data) => this.performRender(data));
+    }
+  }
+
+  /**
+   * Handles language selection: swaps the active translation set for slot
+   * labels and option translations, and re-renders the chart in that language.
+   */
+  onLanguageChange(
+    event: CustomEvent<{ value: (string | number | null)[] }>
+  ): void {
+    const raw = event.detail.value?.[0];
+    if (raw == null) {
+      return;
+    }
+    const language = String(raw);
+    if (language === this.chartLanguage) {
+      return;
+    }
+
+    this.chartLanguage = language;
+    this.manifestTranslations = this.getManifestTranslations(language);
+    this.optionsTranslations = this.buildOptionsTranslations(this.manifestTranslations);
+    this.slotConfigs = this.applySlotLabelTranslations(this.slotConfigs);
+    // Triggered from a web component event outside Angular's change detection.
+    this.cdr.markForCheck();
+
+    if (this.moduleLoaded) {
+      this.chartData$
+        .pipe(take(1))
+        .subscribe((data) => this.performRender(data));
     }
   }
 
