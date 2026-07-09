@@ -7,7 +7,7 @@ import type {
   SlotConfig
 } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
-import { getValueForFormatter } from './datetime-timezone';
+import { getValueForFormatter } from './util/timezone';
 
 interface ChartDataItem {
   category: string;
@@ -863,7 +863,7 @@ function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElemen
  * @returns Processed data array
  *
  * NOTE: This is a helper method for internal use. You can implement your own data processing
- * directly in the render method if needed. Datetime timezone handling lives in datetime-timezone.ts.
+ * directly in the render method if needed. Datetime timezone handling lives in util/timezone.ts.
  */
 function preProcessData(
   data: ItemData['data'],

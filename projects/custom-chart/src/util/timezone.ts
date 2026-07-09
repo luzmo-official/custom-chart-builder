@@ -78,6 +78,9 @@ export function transformDateToTimezone(value: unknown, level: number | undefine
  * Prepares a raw slot value for the Luzmo formatter, applying timezone conversion for
  * datetime columns in default display mode. Non-default display modes (e.g. month_number)
  * pass through unchanged as numeric values.
+ *
+ * When timezoneId is omitted (older Luzmo hosts), falls back to `new Date(value)` so the
+ * browser's local timezone is used — matching pre-timezone custom chart behaviour.
  */
 export function getValueForFormatter(
   rawValue: unknown,
