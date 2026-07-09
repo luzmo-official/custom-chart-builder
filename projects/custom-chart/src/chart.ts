@@ -7,6 +7,7 @@ import type {
   SlotConfig
 } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
+import { getValueForFormatter } from './datetime-timezone';
 
 interface ChartDataItem {
   category: string;
@@ -220,6 +221,12 @@ interface ChartParams {
   slots: Slot[];
   slotConfigurations: SlotConfig[];
   options: Record<string, any> & { theme?: ItemThemeConfig };
+  /**
+   * timezone ID from the dashboard (e.g. "America/New_York").
+   * Required for correct datetime display at hour-level and below.
+   * Date-level groupings (year through day) are already shifted server-side.
+   */
+  timezoneId?: string;
   language: string;
   dimensions: { width: number; height: number };
 }
@@ -253,6 +260,7 @@ export const render = ({
   slots = [],
   slotConfigurations = [],
   options = {},
+  timezoneId,
   language = 'en',
   dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
@@ -306,7 +314,9 @@ export const render = ({
       chartState.measureSlot!,
       chartState.categorySlot!,
       chartState.groupSlot!,
-      measureFormatterFn
+      measureFormatterFn,
+      timezoneId,
+      language
     );
   }
 
@@ -346,6 +356,7 @@ export const resize = ({
   slots = [],
   slotConfigurations = [],
   options = {},
+  timezoneId,
   language = 'en',
   dimensions: { width, height } = { width: 0, height: 0 }
 }: ChartParams): void => {
@@ -846,28 +857,38 @@ function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElemen
  * @param measureSlot Measure slot configuration
  * @param categorySlot Category slot configuration
  * @param groupSlot Group slot configuration
+ * @param measureFormatter Formatter for measure values
+ * @param timezoneId Dashboard IANA timezone for datetime slot formatting
+ * @param language Locale used by slot formatters
  * @returns Processed data array
  *
  * NOTE: This is a helper method for internal use. You can implement your own data processing
- * directly in the render method if needed.
+ * directly in the render method if needed. Datetime timezone handling lives in datetime-timezone.ts.
  */
 function preProcessData(
   data: ItemData['data'],
   measureSlot: Slot,
   categorySlot: Slot,
   groupSlot: Slot,
-  measureFormatter: (value: number) => string
+  measureFormatter: (value: number) => string,
+  timezoneId?: string,
+  language = 'en'
 ): ChartDataItem[] {
+  const categoryContent = categorySlot?.content[0];
+  const groupContent = groupSlot?.content[0];
+
   // Create formatters for each slot
   const formatters = {
-    category: categorySlot?.content[0]
-      ? formatter(categorySlot.content[0], {
-        level: categorySlot.content[0].level || 9
+    category: categoryContent
+      ? formatter(categoryContent, {
+        level: categoryContent.level || 9,
+        locale: language
       })
       : (val: any) => String(val),
-    group: groupSlot?.content[0]
-      ? formatter(groupSlot.content[0], {
-        level: groupSlot.content[0].level || 9
+    group: groupContent
+      ? formatter(groupContent, {
+        level: groupContent.level || 9,
+        locale: language
       })
       : (val: any) => String(val)
   };
@@ -883,17 +904,13 @@ function preProcessData(
     // Extract and format values
     const categoryValue = row[indices.category]?.name?.en || row[indices.category] || 'Unknown';
     const category = formatters.category(
-      categorySlot.content[0].type === 'datetime'
-        ? new Date(categoryValue)
-        : categoryValue
+      getValueForFormatter(categoryValue, categoryContent, timezoneId)
     );
 
     const groupValue = row[indices.group]?.name?.en || row[indices.group] || 'Default';
     const group = hasGroup
       ? formatters.group(
-        groupSlot.content[0].type === 'datetime'
-          ? new Date(groupValue)
-          : groupValue
+        getValueForFormatter(groupValue, groupContent, timezoneId)
       )
       : 'Default';
 

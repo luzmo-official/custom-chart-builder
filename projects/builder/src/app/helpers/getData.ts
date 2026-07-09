@@ -7,6 +7,11 @@ interface SlotMetadata {
 
 const DEFAULT_QUERY_LIMIT = { by: 100000, offset: 0 };
 
+/** Returns the browser's IANA timezone (e.g. "Europe/Brussels"). */
+export function getBrowserTimezoneId(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+}
+
 function getFieldReference(item: GenericSlotContent): Pick<ItemQueryDimension,'column_id' | 'formula_id' | 'dataset_id'> {
   return {
     dataset_id: item.datasetId,
@@ -95,7 +100,7 @@ export function buildLuzmoQuery(
     limit: limit ? limit : DEFAULT_QUERY_LIMIT,
     options: {
       locale_id: 'en',
-      timezone_id: 'UTC'
+      timezone_id: getBrowserTimezoneId()
     }
   }];
 
