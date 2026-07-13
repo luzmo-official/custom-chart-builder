@@ -3,17 +3,21 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: var(--color-surface);
+  background-color: var(--luzmo-background-color);
+}
+
+.login-page {
+  height: 100vh;
 }
 
 .custom-chart-editor {
-  background-color: var(--color-surface);
+  background-color: var(--luzmo-background-color);
   display: flex;
   gap: 1rem;
   width: 100%;
   flex: 1;
   padding: 0 0.75rem;
-  color: var(--color-text);
+  color: var(--luzmo-font-color);
   height: calc(100vh - 4rem);
 }
 
@@ -29,9 +33,9 @@
     font-weight: 500;
     font-size: 1.25rem;
     line-height: 1.25rem;
-    color: var(--color-text-active);
+    color: var(--luzmo-font-color-hover);
     display: flex;
-    align-items: anchor-center;
+    align-items: center;
     gap: 0.75rem;
 
     &-icon {
@@ -55,44 +59,27 @@
   }
 }
 
-// Logout button
-.logout-button,
-.header-docs-link {
-  color: var(--color-primary);
-  text-decoration: underline;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 400;
-
-  &:hover {
-    color: var(--color-primary-700);
-  }
-}
-
 // Columns - Common Styles
 .column {
-  border: 0.0625rem solid var(--color-border);
-  border-radius: var(--border-radius-default);
+  border: 0.0625rem solid var(--luzmo-border-color);
+  border-radius: var(--luzmo-border-radius);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 
   &-header {
     padding: 0.75rem 1rem;
-    border-top-left-radius: var(--border-radius-default);
-    border-top-right-radius: var(--border-radius-default);
-    border-bottom: 0.0625rem solid var(--color-border);
-    background-color: var(--color-primary-50);
+    border-top-left-radius: var(--luzmo-border-radius);
+    border-top-right-radius: var(--luzmo-border-radius);
+    border-bottom: 0.0625rem solid var(--luzmo-border-color);
+    background-color: color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 90%);
     display: flex;
     align-items: center;
     gap: 1.5rem;
     height: 3.25rem;
 
     &-label {
-      color: var(--color-primary-700);
+      color: var(--luzmo-primary-down);
       font-weight: 500;
       font-size: 1.125rem;
       margin: 0;
@@ -144,27 +131,14 @@
     }
   }
 
+  .column-divider {
+    margin-top: 1rem;
+  }
+
   .column-search {
-    .search-input {
-      width: 100%;
-      padding: 0.5rem 0.75rem;
-      border: 0.0625rem solid var(--color-border);
-      border-radius: var(--border-radius-default);
-      background-color: var(--color-surface);
-      color: var(--color-text);
-      font-size: 0.875rem;
-      transition: border-color 0.15s ease;
-
-      &::placeholder {
-        color: var(--font-color-muted);
-      }
-
-      &:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.1);
-      }
-    }
+    display: block;
+    width: 100%;
+    margin-top: 1rem;
   }
 }
 
@@ -194,7 +168,7 @@
       flex-direction: column;
       align-items: center;
       gap: 0.75rem;
-      color: var(--color-text-active);
+      color: var(--luzmo-font-color-hover);
       font-size: 0.875rem;
     }
 
@@ -202,7 +176,7 @@
       position: relative;
       width: 80%;
       height: 0.25rem;
-      background: rgba(var(--color-primary-rgb), 0.2);
+      background: rgba(var(--luzmo-primary-rgb), 0.2);
       border-radius: 9999px;
       overflow: hidden;
     }
@@ -213,9 +187,9 @@
       width: 35%;
       min-width: 3rem;
       background: linear-gradient(90deg,
-          rgba(var(--color-primary-rgb), 0) 0%,
-          var(--color-primary) 50%,
-          rgba(var(--color-primary-rgb), 0) 100%);
+          rgba(var(--luzmo-primary-rgb), 0) 0%,
+          var(--luzmo-primary) 50%,
+          rgba(var(--luzmo-primary-rgb), 0) 100%);
       border-radius: inherit;
       animation: loaderPulse 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
       will-change: transform;
@@ -228,7 +202,7 @@
     .query-summary {
       margin: 0 0 0.75rem 0;
       font-weight: 400;
-      color: var(--color-text-active);
+      color: var(--luzmo-font-color-hover);
       font-size: 0.875rem;
 
       p {
@@ -236,7 +210,7 @@
       }
 
       &-label {
-        color: var(--color-text-active);
+        color: var(--luzmo-font-color-hover);
         font-weight: 500;
         white-space: nowrap;
       }
@@ -258,9 +232,9 @@
         justify-content: space-between;
         gap: 0.75rem;
         padding: 0.25rem 0.5rem;
-        border: 0.0625rem solid var(--color-border);
-        border-radius: var(--border-radius-default);
-        background-color: var(--color-surface-alt-1);
+        border: 0.0625rem solid var(--luzmo-border-color);
+        border-radius: var(--luzmo-border-radius);
+        background-color: var(--luzmo-background-color-highlight);
         font-size: 0.8125rem;
       }
     }
@@ -275,11 +249,11 @@
       position: relative;
 
       .empty-state-message {
-        background-color: var(--color-primary-50);
-        border: 0.0625rem solid var(--color-primary-100);
-        color: var(--color-primary-700);
+        background-color: color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 88%);
+        border: 0.0625rem solid color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 78%);
+        color: var(--luzmo-primary);
         padding: 1rem;
-        border-radius: var(--border-radius-default);
+        border-radius: var(--luzmo-border-radius);
         user-select: none;
         font-size: 0.875rem;
 
@@ -299,7 +273,7 @@
       display: flex;
       flex-direction: column;
       padding: 1rem;
-      border-radius: var(--border-radius-default);
+      border-radius: var(--luzmo-border-radius);
       background-color: #fff8f8;
       border: 0.0625rem solid #ffcdd2;
 
@@ -344,7 +318,7 @@
     position: relative;
     height: 700px;
     width: 100%;
-    border-radius: var(--border-radius-default);
+    border-radius: var(--luzmo-border-radius);
     overflow: hidden;
 
     #chartContainer {
@@ -355,7 +329,7 @@
       height: 100%;
       transform: translateZ(0);
       will-change: transform;
-      border-radius: var(--border-radius-default);
+      border-radius: var(--luzmo-border-radius);
     }
 
     .chart-loading {
@@ -397,7 +371,7 @@
   align-items: center;
   padding: 1.25rem;
   margin: 0.625rem;
-  border-radius: var(--border-radius-default);
+  border-radius: var(--luzmo-border-radius);
   background-color: #fff8f8;
   border: 0.0625rem solid #ffcdd2;
   text-align: center;

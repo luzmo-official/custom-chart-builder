@@ -14,7 +14,36 @@ export class LuzmoApiService {
   private authService = inject(AuthService);
   private httpClient = inject(HttpClient);
 
-  loadAllDatasets() {
+  /**
+   * Load a page of datasets, optionally filtered by a search keyphrase and
+   * sorted server-side. Returns the matching page plus the total `count` so
+   * callers can drive infinite scrolling.
+   */
+  loadDatasets(options: {
+    limit: number;
+    offset: number;
+    search?: string;
+    sort?: 'name' | 'date';
+    direction?: 'asc' | 'desc';
+  }) {
+    const { key, token } = this.authService.getCredentials();
+    const keyphrase = options.search?.trim();
+    const sortColumn = options.sort === 'name' ? 'name' : 'created_at';
+    const direction = options.direction ?? 'desc';
+
+    const find: Record<string, unknown> = {
+      attributes: ['id', 'updated_at', 'created_at', 'name', 'subtype'],
+      where: { type: 'dataset', is_variant: false },
+      order: [[sortColumn, direction]],
+      limit: options.limit,
+      offset: options.offset,
+      options: { public: false }
+    };
+
+    if (keyphrase) {
+      find['search'] = { match_types: ['name', 'description'], keyphrase };
+    }
+
     return this.httpClient.post<
       RowsData<Pick<Securable, 'id' | 'name' | 'created_at' | 'subtype'>>
     >(
@@ -22,14 +51,9 @@ export class LuzmoApiService {
       {
         action: 'get',
         version: '0.1.0',
-        key: this.authService.getCredentials().key,
-        token: this.authService.getCredentials().token,
-        find: {
-          attributes: ['id', 'updated_at', 'created_at', 'name', 'subtype'],
-          where: { type: 'dataset', is_variant: false },
-          order: [['created_at', 'desc']],
-          options: { public: false }
-        }
+        key,
+        token,
+        find
       },
       { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
     );

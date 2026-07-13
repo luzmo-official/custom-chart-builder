@@ -10,5 +10,13 @@
     "src/**/*.spec.ts",
     "src/**/*.d.ts",
     "../custom-chart/utils/types.utils.ts"
-  ]
+  ],
+  "angularCompilerOptions": {
+    "extendedDiagnostics": {
+      "checks": {
+        "nullishCoalescingNotNullable": "suppress",
+        "optionalChainNotNullable": "suppress"
+      }
+    }
+  }
 }

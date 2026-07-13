@@ -1,7 +1,12 @@
 import type { HttpErrorResponse } from '@angular/common/http';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import type { OnInit } from '@angular/core';
-import { Component, CUSTOM_ELEMENTS_SCHEMA, inject } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  inject,
+  ChangeDetectionStrategy
+} from '@angular/core';
 import type { FormControl, FormGroup } from '@angular/forms';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { isEmpty, isObject, isString } from '../../helpers/types.utils';
@@ -10,8 +15,12 @@ import { EMPTY, of } from 'rxjs';
 import { switchMap, take } from 'rxjs/operators';
 import type { AuthResponse, User } from '../../helpers/types';
 import { CommonModule } from '@angular/common';
-import '@luzmo/lucero/picker';
-import '@luzmo/lucero/tabs';
+import { LuzmoButton } from '@luzmo/ngx-lucero/button';
+import { LuzmoFieldLabel } from '@luzmo/ngx-lucero/field-label';
+import { LuzmoSelect } from '@luzmo/ngx-lucero/select';
+import { LuzmoTextField } from '@luzmo/ngx-lucero/text-field';
+import { LuzmoTabs } from '@luzmo/ngx-lucero/tabs';
+import { LuzmoTab } from '@luzmo/ngx-lucero/tab';
 
 interface LogInForm {
   email: FormControl<string>;
@@ -42,15 +51,41 @@ const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss'],
   standalone: true,
-  imports: [ReactiveFormsModule, CommonModule],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA]
+  imports: [
+    ReactiveFormsModule,
+    CommonModule,
+    LuzmoSelect,
+    LuzmoTextField,
+    LuzmoFieldLabel,
+    LuzmoButton,
+    LuzmoTabs,
+    LuzmoTab
+  ],
+  changeDetection: ChangeDetectionStrategy.Eager
 })
 export class LoginComponent implements OnInit {
   private authService = inject(AuthService);
   private httpClient = inject(HttpClient);
   private formBuilder = inject(FormBuilder);
+  // Zoneless: async auth callbacks update form state / mode outside Angular's
+  // awareness, so re-check the view explicitly.
+  private cdr = inject(ChangeDetectorRef);
 
   region: RegionType = 'europe';
+  readonly regionOptions: { value: RegionType; label: string }[] = [
+    { value: 'europe', label: 'Europe' },
+    { value: 'us', label: 'United States' },
+    { value: 'custom', label: 'Custom (private VPC)' }
+  ];
+  // Stable array reference for the luzmo-select `value` binding to avoid
+  // re-triggering the wrapper's ngOnChanges on every change-detection cycle.
+  private regionValueRef: RegionType[] = [this.region];
+  get regionValue(): RegionType[] {
+    if (this.regionValueRef[0] !== this.region) {
+      this.regionValueRef = [this.region];
+    }
+    return this.regionValueRef;
+  }
   vpcAppUrl = '';
   vpcApiUrl = '';
   mode: 'login' | '2FA' = 'login';
@@ -121,9 +156,11 @@ export class LoginComponent implements OnInit {
         if (user && !isString(user)) {
           this.loginUser(user);
         }
+        this.cdr.markForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.handleLoginError(error);
+        this.cdr.markForCheck();
       }
     });
   }
@@ -174,9 +211,11 @@ export class LoginComponent implements OnInit {
         if (user && !isString(user)) {
           this.loginUser(user);
         }
+        this.cdr.markForCheck();
       },
       error: (error: HttpErrorResponse) => {
         this.handle2FAError(error);
+        this.cdr.markForCheck();
       }
     });
   }
@@ -218,6 +257,21 @@ export class LoginComponent implements OnInit {
     this.activeTab = tabs.selected;
   }
 
+  /**
+   * The luzmo-text-field value accessor only propagates its value to the form
+   * control on the native `change` event (i.e. on blur). Mirror `input` events
+   * into the control so validity-driven bindings (like the submit button's
+   * disabled state) update live as the user types.
+   */
+  onControlInput(form: FormGroup, controlName: string, event: Event): void {
+    const value = (event.target as unknown as { value?: string })?.value ?? '';
+    const control = form.get(controlName);
+    if (control && control.value !== value) {
+      control.setValue(value);
+      control.markAsDirty();
+    }
+  }
+
   attemptKeyTokenLogin(): void {
     const key = this.keyTokenForm.get('apiKey')?.value ?? '';
     const token = this.keyTokenForm.get('apiToken')?.value ?? '';
@@ -231,14 +285,20 @@ export class LoginComponent implements OnInit {
           'Invalid API key or token'
         );
       }
+      this.cdr.markForCheck();
     });
   }
 
   /**
    * Handle region change
    */
-  onRegionChanged(event: CustomEvent<RegionType>): void {
-    this.setRegionUrls(event.detail);
+  onRegionChanged(
+    event: CustomEvent<{ value: (string | number | null)[] }>
+  ): void {
+    const region = event.detail.value?.[0];
+    if (typeof region === 'string') {
+      this.setRegionUrls(region as RegionType);
+    }
   }
 
   /**

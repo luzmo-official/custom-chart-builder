@@ -7,8 +7,8 @@
   height: 100%;
   display: flex;
   justify-content: center;
-  background-color: var(--color-surface);
-  color: var(--color-text);
+  background-color: var(--luzmo-background-color);
+  color: var(--luzmo-font-color);
   .login-content {
     margin: 20vh auto;
     width: 25rem;
@@ -21,7 +21,7 @@
     border-radius: 0.5rem;
   }
   .title {
-    color: var(--color-text-active);
+    color: var(--luzmo-font-color-down);
     font-size: 1.25rem;
     font-weight: 500;
     margin-bottom: 3rem;
@@ -34,6 +34,10 @@
       display: inline-block;
       text-transform: uppercase;
     }
+    luzmo-text-field {
+      display: block;
+      width: 100%;
+    }
     input {
       display: block;
       width: -webkit-fill-available;
@@ -41,10 +45,10 @@
       font-size: .875rem;
       font-weight: 400;
       line-height: 1.5;
-      color: var(--color-text-active);
+      color: var(--luzmo-font-color-hover);
       background-color: transparent;
       background-clip: padding-box;
-      border: 0.0625rem solid var(--color-border);
+      border: 0.0625rem solid var(--luzmo-border-color);
       appearance: none;
       border-radius: .375rem;
       box-shadow: none;
@@ -52,9 +56,9 @@
       height: auto;
       margin: 0;
       &:focus {
-        color: var(--color-text-active);
-        background-color: var(--color-surface-alt-1);
-        border-color: var(--color-primary);
+        color: var(--luzmo-font-color-hover);
+        background-color: var(--luzmo-background-color-highlight);
+        border-color: var(--luzmo-primary);
         outline: 0;
       }
     }
@@ -78,7 +82,7 @@
     button {
       border-radius: 0.25rem;
       border: 0.0625rem solid transparent;
-      box-shadow: 0 0 0 var(--color-shadow), 0 0 0 var(--color-shadow);
+      box-shadow: 0 0 0 var(--app-shadow-color), 0 0 0 var(--app-shadow-color);
       cursor: pointer;
       display: inline-block;
       font-size: .875rem;
@@ -96,27 +100,27 @@
         transform: translateY(0);
       }
       &.btn-primary {
-        background-color: var(--color-primary);
-        border-color: var(--color-primary);
-        color: var(--color-primary-500-inv);
+        background-color: var(--luzmo-primary);
+        border-color: var(--luzmo-primary);
+        color: var(--luzmo-primary-inverse-color);
         &:hover {
-          background-color: var(--color-primary-400);
-          border-color: var(--color-primary-400);
-          color: var(--color-primary-500-inv);
+          background-color: var(--luzmo-primary-hover);
+          border-color: var(--luzmo-primary-hover);
+          color: var(--luzmo-primary-inverse-color);
         }
         &:disabled {
-          background-color: var(--color-primary);
-          border-color: var(--color-primary);
-          color: var(--color-primary-500-inv);
+          background-color: var(--luzmo-primary);
+          border-color: var(--luzmo-primary);
+          color: var(--luzmo-primary-inverse-color);
         }
       }
       &.btn-transparent {
         transform: translateY(0);
-        color: var(--color-text);
+        color: var(--luzmo-font-color);
         box-shadow: none;
         background: none;
         &:hover {
-          color: var(--color-text-active);
+          color: var(--luzmo-font-color-hover);
         }
       }
     }

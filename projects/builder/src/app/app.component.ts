@@ -2,26 +2,31 @@ import { AsyncPipe } from '@angular/common';
 import type { HttpErrorResponse } from '@angular/common/http';
 import type { AfterViewChecked, ElementRef, OnDestroy, OnInit } from '@angular/core';
 import {
+  ChangeDetectorRef,
   Component,
-  CUSTOM_ELEMENTS_SCHEMA,
+  DestroyRef,
   HostListener,
   inject,
-  ViewChild
+  ViewChild,
+  ChangeDetectionStrategy
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LoginComponent } from '@builder/components/login/login.component';
 import { buildLuzmoQuery } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
-import '@luzmo/analytics-components-kit/data-field';
-import '@luzmo/analytics-components-kit/item-slot-drop';
 import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
 import type { GenericSlotContent, Slot, SlotConfig, ThemeConfig } from '@luzmo/dashboard-contents-types';
-import '@luzmo/lucero/picker';
-import '@luzmo/lucero/progress-circle';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
+import { LuzmoDataField } from '@luzmo/ngx-analytics-components-kit/data-field';
+import { LuzmoItemSlotDrop } from '@luzmo/ngx-analytics-components-kit/item-slot-drop';
+import { LuzmoButton } from '@luzmo/ngx-lucero/button';
+import { LuzmoDivider } from '@luzmo/ngx-lucero/divider';
+import { LuzmoProgressCircle } from '@luzmo/ngx-lucero/progress-circle';
+import { LuzmoSearch } from '@luzmo/ngx-lucero/search';
+import { LuzmoSelect } from '@luzmo/ngx-lucero/select';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import type { Observable } from 'rxjs';
-import { BehaviorSubject, of, Subject } from 'rxjs';
+import { BehaviorSubject, defer, merge, of, Subject } from 'rxjs';
 import {
   catchError,
   debounceTime,
@@ -31,7 +36,8 @@ import {
   shareReplay,
   switchMap,
   take,
-  tap
+  tap,
+  timeout
 } from 'rxjs/operators';
 import manifestJson from '../../../custom-chart/src/manifest.json';
 import {
@@ -40,11 +46,6 @@ import {
 } from './helpers/iframe.utils';
 import type { ItemData, ItemQuery, ItemQueryResponse, Theme } from './helpers/types';
 import { isDataResponse, isErrorResponse, normalizeQueryDataForRender, normalizeQueryResponse } from './helpers/types';
-import {
-  CdkVirtualScrollViewport,
-  ScrollingModule
-} from '@angular/cdk/scrolling';
-import { FormsModule } from '@angular/forms';
 import { DatasetPickerComponent } from './components/dataset-picker/dataset-picker.component';
 import { SlotsConfigSchema } from './slot-schema';
 
@@ -91,6 +92,11 @@ interface QueryResultPreview {
   remainingRows: number;
 }
 
+interface QueryBuildResult {
+  requestId: number;
+  queries: ItemQuery[] | null;
+}
+
 interface ChartThemeOption {
   label: string;
   name: string;
@@ -105,26 +111,34 @@ const LOGO_DARK_SRC = 'assets/logos/logo-small-dark.svg';
  * Main component for the Luzmo Custom Chart Builder application
  * Provides dataset selection, chart configuration, and visualization
  */
-@UntilDestroy()
 @Component({
   selector: 'app-root',
   imports: [
     NgxJsonViewerModule,
     LoginComponent,
     AsyncPipe,
-    FormsModule,
-    ScrollingModule,
-    DatasetPickerComponent
+    DatasetPickerComponent,
+    LuzmoSelect,
+    LuzmoProgressCircle,
+    LuzmoButton,
+    LuzmoDivider,
+    LuzmoSearch,
+    LuzmoDataField,
+    LuzmoItemSlotDrop
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA]
+  changeDetection: ChangeDetectionStrategy.Eager
 })
 export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Services
   protected authService = inject(AuthService);
   private luzmoAPIService = inject(LuzmoApiService);
+  private destroyRef = inject(DestroyRef);
+  // Zoneless: state mutated outside template events / async pipe must be
+  // signalled explicitly so the view is re-checked.
+  private cdr = inject(ChangeDetectorRef);
 
   // WebSocket connection for real-time updates
   private ws = new WebSocket('ws://localhost:8080');
@@ -133,19 +147,18 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private iframe: HTMLIFrameElement | null = null;
   private blobUrl: string | null = null;
   moduleLoaded = false;
+  private hasCustomBuildQuery = false;
   private resizeAnimationFrame: number | null = null;
   private renderPending = false;
   private scriptContent = '';
   private styleContent = '';
 
   // Query management
-  private queryInProgress = false;
-  private lastQueryTime = 0;
-  private queryThrottleTime = 500; // ms
-  private querySubject = new Subject<ItemQuery[] | null>();
+  private queryRequestId = 0;
+  private querySubject = new Subject<QueryBuildResult>();
   private queryReady$ = this.querySubject.asObservable();
+  private queryRefreshSubject = new Subject<void>();
 
-  @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
   @ViewChild('columnListContainer') columnListContainer?: ElementRef<HTMLDivElement>;
 
   // Loading state indicators
@@ -217,8 +230,15 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       return true;
     });
   }
+
+  onColumnSearchInput(event: Event): void {
+    this.columnSearchTerm =
+      (event.target as unknown as { value?: string }).value ?? '';
+    this.cdr.markForCheck();
+  }
+
   columns$ = this.selectedDatasetIdSubject.pipe(
-    untilDestroyed(this),
+    takeUntilDestroyed(this.destroyRef),
     tap(() => {
       // Update state directly
       this.datasetState.loading = true;
@@ -229,6 +249,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         catchError((error) => {
           console.error('Error loading dataset fields:', error);
           this.datasetState.loading = false;
+          this.cdr.markForCheck();
           return of([]);
         })
       ),
@@ -239,6 +260,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.datasetState.columns = fields;
       this.datasetState.loading = false;
       this.columnSearchTerm = '';
+      this.cdr.markForCheck();
     }),
   );
 
@@ -441,6 +463,38 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   selectedTheme = 'light';
 
+  // Stable array references for luzmo-select `value` bindings. Recreating the
+  // array on every change-detection cycle would re-trigger the wrapper's
+  // ngOnChanges and force the virtualized options list to re-render endlessly.
+  private appearanceValueRef: AppearanceMode[] = [this.appearanceMode];
+  get appearanceValue(): AppearanceMode[] {
+    if (this.appearanceValueRef[0] !== this.appearanceMode) {
+      this.appearanceValueRef = [this.appearanceMode];
+    }
+    return this.appearanceValueRef;
+  }
+
+  private selectedThemeValueRef: string[] = [this.selectedTheme];
+  get selectedThemeValue(): string[] {
+    if (this.selectedThemeValueRef[0] !== this.selectedTheme) {
+      this.selectedThemeValueRef = [this.selectedTheme];
+    }
+    return this.selectedThemeValueRef;
+  }
+
+  private chartThemesRef: ChartThemeOption[] | null = null;
+  private chartThemeOptionsCache: { value: string; label: string }[] = [];
+  get chartThemeOptions(): { value: string; label: string }[] {
+    if (this.chartThemesRef !== this.chartThemes) {
+      this.chartThemesRef = this.chartThemes;
+      this.chartThemeOptionsCache = this.chartThemes.map((theme) => ({
+        value: theme.name,
+        label: theme.label
+      }));
+    }
+    return this.chartThemeOptionsCache;
+  }
+
   get logoSrc(): string {
     return this.getEffectiveTheme() === 'dark' ? LOGO_DARK_SRC : LOGO_LIGHT_SRC;
   }
@@ -497,14 +551,19 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Setup observables for both query updates and format updates
 
     // This observable handles data queries based only on query-relevant slot changes
-    this.chartData$ = this.queryRelevantSlotsSubject.pipe(
-      untilDestroyed(this),
+    this.chartData$ = merge(
+      this.queryRelevantSlotsSubject.pipe(
+        distinctUntilChanged(
+          (prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)
+        )
+      ),
+      this.queryRefreshSubject.pipe(
+        map(() => this.queryRelevantSlotsSubject.getValue())
+      )
+    ).pipe(
+      takeUntilDestroyed(this.destroyRef),
       // Debounce to avoid rapid consecutive query requests
       debounceTime(300),
-      // Only proceed if the query-relevant properties have actually changed
-      distinctUntilChanged(
-        (prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)
-      ),
       switchMap(() => {
         // Convert query signatures back to full slots for processing
         const fullSlots = this.slotsSubject.getValue();
@@ -530,7 +589,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     // This will trigger renders when formats change without triggering new queries
     this.slotsSubject
       .pipe(
-        untilDestroyed(this),
+        takeUntilDestroyed(this.destroyRef),
         // Debounce to avoid rapid consecutive renders
         debounceTime(50),
         // We want to tap into the latest data whenever slots change (including format changes)
@@ -605,6 +664,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
       )
       .subscribe((customThemes) => {
         this.chartThemes = [...this.predefinedChartThemes, ...customThemes];
+        this.cdr.markForCheck();
       });
   }
 
@@ -664,69 +724,17 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private fetchChartData(slots: Slot[]): Observable<any[]> {
     const allRequiredSlotsFilled = this.areAllRequiredSlotsFilled(slots);
     if (allRequiredSlotsFilled && slots.some((s) => s.content.length > 0)) {
-      // Only fetch the query if we're not already doing so and module is loaded
-      if (this.moduleLoaded && !this.queryInProgress) {
-        this.fetchQuery();
+      const defaultQueries = buildLuzmoQuery(slots, this.slotConfigs);
+
+      // Default query construction belongs to the builder and does not require
+      // the chart iframe. Only charts exporting buildQuery need the module.
+      if (!this.moduleLoaded || !this.hasCustomBuildQuery) {
+        return this.executeQueries(defaultQueries);
       }
-      // Wait for query to be available
-      return this.queryReady$.pipe(
+
+      return this.fetchCustomQueries(slots).pipe(
         switchMap((queries) => {
-          // If no custom query is available yet, use the default
-          const finalQueries = queries || buildLuzmoQuery(slots, this.slotConfigs);
-          console.log('Fetching data with queries', finalQueries);
-          this.queryingData$.next(true);
-          this.queryError$.next(null);
-          this.queryResultInfoSubject.next(null);
-
-          return this.luzmoAPIService.queryLuzmoDataset(finalQueries).pipe(
-            tap(() => {
-              this.queryingData$.next(false);
-              this.queryError$.next(null);
-            }),
-            map((response) => {
-              const results = normalizeQueryResponse(response);
-
-              const firstError = results.find(isErrorResponse);
-              if (firstError && isErrorResponse(firstError)) {
-                this.queryError$.next(firstError.error.message);
-                this.queryResultInfoSubject.next(null);
-                return [];
-              }
-
-              const dataResults = results.filter(isDataResponse);
-              if (dataResults.length === 0) {
-                return [];
-              }
-
-              const queryDetails = dataResults.map((result, index) => ({
-                index: index + 1,
-                rowCount: Array.isArray(result.data) ? result.data.length : 0,
-                durationInSeconds: this.calculateQueryDuration(result.performance)
-              }));
-              const rowCount = queryDetails.reduce((sum, detail) => sum + detail.rowCount, 0);
-              const durationInSeconds =
-                queryDetails.reduce((sum, detail) => sum + detail.durationInSeconds, 0) /
-                queryDetails.length;
-
-              this.queryResultInfoSubject.next({
-                rowCount,
-                durationInSeconds,
-                queries: queryDetails
-              });
-
-              return normalizeQueryDataForRender(dataResults);
-            }),
-            catchError((error) => {
-              console.error('Chart data query failed:', error);
-              this.queryingData$.next(false);
-              this.queryError$.next(`
-                <p>Failed to load chart data. Please check if your queries are valid and try again.</p>
-                <p><b>Queries:</b> ${JSON.stringify(finalQueries, null, 2)}</p>
-              `);
-              this.queryResultInfoSubject.next(null);
-              return of([]);
-            }),
-          );
+          return this.executeQueries(queries ?? defaultQueries);
         }),
         catchError((error) => {
           console.error('Query preparation failed:', error);
@@ -746,6 +754,63 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
+  private executeQueries(queries: ItemQuery[]): Observable<any[]> {
+    console.log('Fetching data with queries', queries);
+    this.queryingData$.next(true);
+    this.queryError$.next(null);
+    this.queryResultInfoSubject.next(null);
+
+    return this.luzmoAPIService.queryLuzmoDataset(queries).pipe(
+      tap(() => {
+        this.queryingData$.next(false);
+        this.queryError$.next(null);
+      }),
+      map((response) => {
+        const results = normalizeQueryResponse(response);
+
+        const firstError = results.find(isErrorResponse);
+        if (firstError && isErrorResponse(firstError)) {
+          this.queryError$.next(firstError.error.message);
+          this.queryResultInfoSubject.next(null);
+          return [];
+        }
+
+        const dataResults = results.filter(isDataResponse);
+        if (dataResults.length === 0) {
+          return [];
+        }
+
+        const queryDetails = dataResults.map((result, index) => ({
+          index: index + 1,
+          rowCount: Array.isArray(result.data) ? result.data.length : 0,
+          durationInSeconds: this.calculateQueryDuration(result.performance)
+        }));
+        const rowCount = queryDetails.reduce((sum, detail) => sum + detail.rowCount, 0);
+        const durationInSeconds =
+          queryDetails.reduce((sum, detail) => sum + detail.durationInSeconds, 0) /
+          queryDetails.length;
+
+        this.queryResultInfoSubject.next({
+          rowCount,
+          durationInSeconds,
+          queries: queryDetails
+        });
+
+        return normalizeQueryDataForRender(dataResults);
+      }),
+      catchError((error) => {
+        console.error('Chart data query failed:', error);
+        this.queryingData$.next(false);
+        this.queryError$.next(`
+          <p>Failed to load chart data. Please check if your queries are valid and try again.</p>
+          <p><b>Queries:</b> ${JSON.stringify(queries, null, 2)}</p>
+        `);
+        this.queryResultInfoSubject.next(null);
+        return of([]);
+      }),
+    );
+  }
+
   /**
    * Checks if all required slots are filled with data
    */
@@ -759,50 +824,33 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   /**
    * Triggers chart query building
    */
-  private fetchQuery(): void {
-    const now = Date.now();
-
-    // Don't fetch if a query is already in progress or if we've recently fetched
-    if (
-      this.queryInProgress ||
-      now - this.lastQueryTime < this.queryThrottleTime
-    ) {
-      return;
-    }
-
-    if (!this.iframe || !this.moduleLoaded) {
-      console.log('Cannot fetch query: iframe not ready or module not loaded');
-      return;
-    }
-
-    const slots = this.slotsSubject.getValue();
-
-    // Skip if all slots are empty
-    if (!slots.some((slot) => slot.content.length > 0)) {
-      console.log('Skipping query fetch: all slots are empty');
-      return;
-    }
-
-    console.log('Requesting query build with slots:', slots);
-    this.queryInProgress = true;
-    this.lastQueryTime = now;
-
-    this.iframe.contentWindow?.postMessage(
-      {
-        type: 'buildQuery',
-        slots: slots,
-        slotConfigurations: this.slotConfigs,
-      },
-      '*',
-    );
-
-    // Set a safety timeout to reset queryInProgress flag if no response received
-    setTimeout(() => {
-      if (this.queryInProgress) {
-        console.log('Query request timed out, resetting status');
-        this.queryInProgress = false;
+  private fetchCustomQueries(slots: Slot[]): Observable<ItemQuery[] | null> {
+    return defer(() => {
+      const contentWindow = this.iframe?.contentWindow;
+      if (!contentWindow || !this.moduleLoaded || !this.hasCustomBuildQuery) {
+        throw new Error('Chart module is not ready to build a custom query.');
       }
-    }, 5000); // 5-second timeout
+
+      const requestId = ++this.queryRequestId;
+      console.log('Requesting custom query build with slots:', slots);
+
+      contentWindow.postMessage(
+        {
+          type: 'buildQuery',
+          requestId,
+          slots,
+          slotConfigurations: this.slotConfigs,
+        },
+        '*',
+      );
+
+      return this.queryReady$.pipe(
+        filter((result) => result.requestId === requestId),
+        take(1),
+        map((result) => result.queries),
+        timeout(5000)
+      );
+    });
   }
 
   /**
@@ -815,13 +863,16 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     switch (event.data.type) {
       case 'moduleLoaded':
-        this.handleModuleLoaded();
+        this.handleModuleLoaded(event.data.hasBuildQuery === true);
         break;
       case 'queryLoaded':
-        this.handleQueryLoaded(event.data.queries);
+        this.handleQueryLoaded(event.data.requestId, event.data.queries);
         break;
       case 'moduleError':
         console.error('Module error:', event.data.error);
+        this.moduleLoaded = false;
+        this.hasCustomBuildQuery = false;
+        this.cdr.markForCheck();
         break;
     }
   };
@@ -829,24 +880,40 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   /**
    * Handles module loaded event from iframe
    */
-  private handleModuleLoaded(): void {
+  private handleModuleLoaded(hasBuildQuery: boolean): void {
     this.moduleLoaded = true;
+    this.hasCustomBuildQuery = hasBuildQuery;
+    // Triggered by a window 'message' event (outside Angular's awareness).
+    this.cdr.markForCheck();
+
+    const slots = this.slotsSubject.getValue();
+    if (
+      hasBuildQuery &&
+      this.areAllRequiredSlotsFilled(slots) &&
+      slots.some((slot) => slot.content.length > 0)
+    ) {
+      // Replace any provisional default-query result with the chart's custom
+      // query as soon as its module becomes available.
+      this.queryRefreshSubject.next();
+      return;
+    }
 
     // If we have data, render the chart
-    // Create a subscription that auto-unsubscribes
     this.chartData$
+      .pipe(take(1))
       .subscribe((data) => {
         this.performRender(data);
-      })
-      .unsubscribe();
+      });
   }
 
   /**
    * Handles query loaded event from iframe
    */
-  private handleQueryLoaded(query: ItemQuery[]): void {
-    this.queryInProgress = false;
-    this.querySubject.next(query);
+  private handleQueryLoaded(
+    requestId: number,
+    queries: ItemQuery[] | null
+  ): void {
+    this.querySubject.next({ requestId, queries });
   }
 
   /**
@@ -939,6 +1006,16 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Loads the chart bundle into the iframe
    */
   private async loadBundle(): Promise<void> {
+    this.moduleLoaded = false;
+    this.hasCustomBuildQuery = false;
+    this.iframe = null;
+    this.cdr.markForCheck();
+
+    if (this.blobUrl) {
+      URL.revokeObjectURL(this.blobUrl);
+      this.blobUrl = null;
+    }
+
     try {
       // Load script content
       const scriptResponse = await fetch('/custom-chart/index.js?t=' + Date.now());
@@ -1022,6 +1099,8 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     this.updateDocumentTheme(mode);
     this.updateChartTheme();
+    // May be triggered by the system color-scheme media listener.
+    this.cdr.markForCheck();
   }
 
   private updateDocumentTheme(mode: AppearanceMode): void {
@@ -1126,8 +1205,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     this.authService.isAuthenticated$
       .pipe(
-        filter((isAuthenticated) => isAuthenticated),
-        filter(() => !this.queryInProgress)
+        filter((isAuthenticated) => isAuthenticated)
       )
       .subscribe(async () => {
         this.loadCustomThemes();
@@ -1235,15 +1313,24 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.selectedDatasetIdSubject.next(datasetId);
   }
 
-  onAppearanceModeChange(event: CustomEvent<string>): void {
-    const mode = event.detail;
+  onAppearanceModeChange(
+    event: CustomEvent<{ value: (string | number | null)[] }>
+  ): void {
+    const raw = event.detail.value?.[0];
+    const mode = raw == null ? null : String(raw);
     if (!this.isAppearanceMode(mode) || mode === this.appearanceMode) {
       return;
     }
     this.applyAppearanceMode(mode);
   }
-  onChartThemeChange(event: CustomEvent<string>): void {
-    this.selectedTheme = event.detail;
+  onChartThemeChange(
+    event: CustomEvent<{ value: (string | number | null)[] }>
+  ): void {
+    const raw = event.detail.value?.[0];
+    if (raw == null) {
+      return;
+    }
+    this.selectedTheme = String(raw);
     // Re-render with the new theme
     if (this.moduleLoaded) {
       this.chartData$

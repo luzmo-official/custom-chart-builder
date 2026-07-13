@@ -8,51 +8,45 @@
 
     <h4 class="title">Please log in to your Luzmo account.</h4>
 
+    @if (mode !== '2FA') {
     <div class="form-group">
-      <label for="region-picker">Data tenancy region</label>
-      <luzmo-picker class="region-picker"
+      <luzmo-field-label for="region-picker">Data tenancy region</luzmo-field-label>
+      <luzmo-select class="region-picker"
         id="region-picker"
-        [value]="region"
+        [value]="regionValue"
+        [options]="regionOptions"
         label="Select your region..."
         size="m"
-        variant="checkmarks"
-        [disabled]="mode === '2FA'"
+        variant="highlight"
+        selects="single"
         (change)="onRegionChanged($any($event))">
-        <luzmo-menu-item value="europe">
-          <div class="region-item">
-            <span>Europe</span>
-          </div>
-        </luzmo-menu-item>
-        <luzmo-menu-item value="us">
-          <div class="region-item">
-            <span>United States</span>
-          </div>
-        </luzmo-menu-item>
-        <luzmo-menu-item value="custom">
-          <span>Custom (private VPC)</span>
-        </luzmo-menu-item>
-      </luzmo-picker>
+      </luzmo-select>
     </div>
+    }
     @if (region === 'custom') {
     <div class="form-group">
-      <label for="vpc-app-url">VPC App Server URL</label>
-      <input type="text"
+      <luzmo-field-label for="vpc-app-url">VPC App Server URL</luzmo-field-label>
+      <luzmo-text-field type="text"
         autocomplete="off"
         id="vpc-app-url"
+        size="m"
         [value]="vpcAppUrl"
         [disabled]="mode === '2FA'"
         (change)="onVpcAppUrlChanged($any($event))"
-        [placeholder]="'https://app.luzmo.com'">
+        placeholder="https://app.luzmo.com">
+      </luzmo-text-field>
     </div>
     <div class="form-group">
-      <label for="vpc-api-url">VPC API Host URL</label>
-      <input type="text"
+      <luzmo-field-label for="vpc-api-url">VPC API Host URL</luzmo-field-label>
+      <luzmo-text-field type="text"
         autocomplete="off"
         id="vpc-api-url"
+        size="m"
         [value]="vpcApiUrl"
         [disabled]="mode === '2FA'"
         (change)="onVpcApiUrlChanged($any($event))"
-        [placeholder]="'https://api.luzmo.com'">
+        placeholder="https://api.luzmo.com">
+      </luzmo-text-field>
     </div>
     }
 
@@ -60,7 +54,7 @@
     <luzmo-tabs
       [selected]="activeTab"
       size="m"
-      emphasized
+      [emphasized]="true"
       (change)="onTabChange($event)"
       class="login-tabs">
       <luzmo-tab value="email-password">Email & Password</luzmo-tab>
@@ -75,30 +69,36 @@
           [formGroup]="logInForm"
           (ngSubmit)="attemptLogin(logInForm.get('email')?.value ?? '', logInForm.get('password')?.value ?? '')">
           @if (logInForm.get('errorMsg')?.value) {
-          <div class="alert alert-danger">{{ logInForm.get('errorMsg')?.value }}</div>
+          <div class="alert">{{ logInForm.get('errorMsg')?.value }}</div>
           }
           <div class="form-group">
-            <label for="login-email">E-mail</label>
-            <input type="email"
+            <luzmo-field-label for="login-email">E-mail</luzmo-field-label>
+            <luzmo-text-field type="email"
               formControlName="email"
               id="login-email"
+              size="m"
               autocomplete="off"
-              [placeholder]="'name@company.com'">
+              (input)="onControlInput(logInForm, 'email', $event)"
+              placeholder="name@company.com">
+            </luzmo-text-field>
           </div>
           <div class="form-group">
-            <label for="login-password">Password</label>
-            <input type="password"
+            <luzmo-field-label for="login-password">Password</luzmo-field-label>
+            <luzmo-text-field type="password"
               formControlName="password"
               id="login-password"
-              [placeholder]="'Password'">
+              size="m"
+              (input)="onControlInput(logInForm, 'password', $event)"
+              placeholder="Password">
+            </luzmo-text-field>
           </div>
           <div class="button-container">
-            <button type="submit"
-              class="btn-primary"
-              value="submit"
+            <luzmo-button type="submit"
+              variant="primary"
+              [pending]="logInForm.get('busy')?.value"
               [disabled]="logInForm.invalid || logInForm.get('busy')?.value">
-              <span class="btn-inner-text">Log in</span>
-            </button>
+              Log in
+            </luzmo-button>
           </div>
         </form>
         }
@@ -107,24 +107,26 @@
           [formGroup]="twoFAForm"
           (ngSubmit)="submit2FA(logInForm.get('email')?.value ?? '', logInForm.get('password')?.value ?? '', twoFAForm.get('totp')?.value ?? '')">
           <div class="form-group">
-            <label for="twoFA-totp">Two-factor code</label>
-            <input type="text"
+            <luzmo-field-label for="twoFA-totp">Two-factor code</luzmo-field-label>
+            <luzmo-text-field type="text"
               autocomplete="off"
-              class="form-control"
               formControlName="totp"
               id="twoFA-totp"
-              [maxlength]="6" />
+              size="m"
+              (input)="onControlInput(twoFAForm, 'totp', $event)"
+              [maxlength]="6">
+            </luzmo-text-field>
           </div>
           <div class="button-container">
-            <button type="button"
-              class="btn-transparent"
-              (click)="cancel2FA()">Cancel</button>
-            <button type="submit"
-              class="btn-primary"
-              value="submit"
+            <luzmo-button type="button"
+              [quiet]="true"
+              (click)="cancel2FA()">Cancel</luzmo-button>
+            <luzmo-button type="submit"
+              variant="primary"
+              [pending]="twoFAForm.get('busy')?.value"
               [disabled]="twoFAForm.invalid || twoFAForm.get('busy')?.value">
-              <span class="btn-inner-text">Log in</span>
-            </button>
+              Log in
+            </luzmo-button>
           </div>
         </form>
         }
@@ -134,30 +136,36 @@
           [formGroup]="keyTokenForm"
           (ngSubmit)="attemptKeyTokenLogin()">
           @if (keyTokenForm.get('errorMsg')?.value) {
-          <div class="alert alert-danger">{{ keyTokenForm.get('errorMsg')?.value }}</div>
+          <div class="alert">{{ keyTokenForm.get('errorMsg')?.value }}</div>
           }
           <div class="form-group">
-            <label for="login-api-key">API Key</label>
-            <input type="text"
+            <luzmo-field-label for="login-api-key">API Key</luzmo-field-label>
+            <luzmo-text-field type="text"
               formControlName="apiKey"
               id="login-api-key"
+              size="m"
               autocomplete="off"
-              [placeholder]="'Your API key'">
+              (input)="onControlInput(keyTokenForm, 'apiKey', $event)"
+              placeholder="Your API key">
+            </luzmo-text-field>
           </div>
           <div class="form-group">
-            <label for="login-api-token">API Token</label>
-            <input type="password"
+            <luzmo-field-label for="login-api-token">API Token</luzmo-field-label>
+            <luzmo-text-field type="password"
               formControlName="apiToken"
               id="login-api-token"
-              [placeholder]="'Your API token'">
+              size="m"
+              (input)="onControlInput(keyTokenForm, 'apiToken', $event)"
+              placeholder="Your API token">
+            </luzmo-text-field>
           </div>
           <div class="button-container">
-            <button type="submit"
-              class="btn-primary"
-              value="submit"
+            <luzmo-button type="submit"
+              variant="primary"
+              [pending]="keyTokenForm.get('busy')?.value"
               [disabled]="keyTokenForm.invalid || keyTokenForm.get('busy')?.value">
-              <span class="btn-inner-text">Log in</span>
-            </button>
+              Log in
+            </luzmo-button>
           </div>
         </form>
       }

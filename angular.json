@@ -20,7 +20,7 @@
             "outputPath": "dist/builder",
             "index": "projects/builder/src/index.html",
             "browser": "projects/builder/src/main.ts",
-            "polyfills": ["zone.js"],
+            "polyfills": [],
             "tsConfig": "projects/builder/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -32,7 +32,7 @@
                 "output": "/assets/custom-chart"
               }
             ],
-            "styles": ["projects/builder/src/styles.scss", "node_modules/bootstrap/dist/css/bootstrap.min.css"],
+            "styles": ["projects/builder/src/styles.scss"],
             "scripts": []
           },
           "configurations": {
@@ -74,7 +74,7 @@
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "polyfills": ["zone.js", "zone.js/testing"],
+            "polyfills": [],
             "tsConfig": "projects/builder/tsconfig.spec.json",
             "inlineStyleLanguage": "scss",
             "assets": [
