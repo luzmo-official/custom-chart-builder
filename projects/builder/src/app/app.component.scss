@@ -176,6 +176,42 @@
     }
   }
 
+  // Empty state shown when the manifest declares no chart options.
+  .options-empty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--luzmo-font-color-hover);
+    user-select: none;
+
+    &-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--luzmo-font-color);
+    }
+
+    &-text {
+      margin: 0;
+      max-width: 22rem;
+      font-size: 0.875rem;
+      line-height: 1.4;
+
+      code {
+        padding: 0.0625rem 0.25rem;
+        border-radius: 0.25rem;
+        background-color: color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 88%);
+        color: var(--luzmo-primary);
+        font-size: 0.8125rem;
+      }
+    }
+  }
+
   .slot-mode-selector {
     margin-bottom: 1.25rem;
   }

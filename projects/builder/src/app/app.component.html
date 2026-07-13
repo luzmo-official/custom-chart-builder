@@ -273,6 +273,27 @@
                   [slots]="slotsForDrop ?? []"
                   (luzmoOptionsChanged)="onOptionsChanged($any($event))"
                 ></luzmo-item-option-panel>
+
+              } @else {
+                <div class="options-empty">
+                  <p class="options-empty-title">No chart options defined</p>
+
+                  <p class="options-empty-text">
+                    Add an <code>options</code> array to your
+                    <code>manifest.json</code> to let users configure this chart
+                    from a settings panel here.
+                  </p>
+
+                  <luzmo-button
+                    [quiet]="true"
+                    size="s"
+                    href="https://developer.luzmo.com/guide/guides--custom-charts"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Learn more about chart options
+                  </luzmo-button>
+                </div>
               }
 
             </div>
