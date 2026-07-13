@@ -14,6 +14,7 @@ require('ts-node').register({
 
 const { SlotsConfigSchema } = require('../projects/builder/src/app/slot-schema.ts');
 const { OptionsConfigSchema } = require('../projects/builder/src/app/options-schema.ts');
+const { TranslationsConfigSchema } = require('../projects/builder/src/app/translations-schema.ts');
 
 const manifestPath = path.join(__dirname, '../projects/custom-chart/src/manifest.json');
 
@@ -30,7 +31,7 @@ function formatValidationPath(segments, manifest, propertyName, identifierName) 
     formattedPath += `[${firstSegment}]`;
 
     const config = manifest[propertyName]?.[firstSegment];
-    if (config && typeof config[identifierName] === 'string') {
+    if (identifierName && config && typeof config[identifierName] === 'string') {
       formattedPath += ` ("${config[identifierName]}")`;
     }
 
@@ -78,6 +79,19 @@ function validateManifest() {
       if (!optionsResult.success) {
         const formattedErrors = optionsResult.error.errors
           .map((err) => `${formatValidationPath(err.path, manifest, 'options', 'key')}: ${err.message}`)
+          .join('\n');
+
+        console.error(`❌ Validation failed:\n${formattedErrors}`);
+        return false;
+      }
+    }
+
+    if (manifest.translations !== undefined) {
+      const translationsResult = TranslationsConfigSchema.safeParse(manifest.translations);
+
+      if (!translationsResult.success) {
+        const formattedErrors = translationsResult.error.errors
+          .map((err) => `${formatValidationPath(err.path, manifest, 'translations')}: ${err.message}`)
           .join('\n');
 
         console.error(`❌ Validation failed:\n${formattedErrors}`);
