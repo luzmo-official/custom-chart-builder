@@ -6,8 +6,8 @@ require('ts-node').register({
   transpileOnly: true,
   compilerOptions: {
     esModuleInterop: true,
-    module: 'CommonJS',
-    moduleResolution: 'node',
+    module: 'Node16',
+    moduleResolution: 'Node16',
     target: 'ES2022'
   }
 });
