@@ -164,17 +164,94 @@
                 }
               </div>
 
-              <div class="slot-help">
-                <p>
-                  Drag and drop columns from the left side to your chart slots
-                  above.
-                </p>
+              @if (canQuerySlots(slotsForDrop ?? [])) {
+                <div class="query-result">
+                  @let isQuerying = queryingData$ | async;
 
-                <p>
-                  Once all required slots are filled, a query will be launched
-                  and your chart will be rendered.
-                </p>
-              </div>
+                  @let queryError = queryError$ | async;
+
+                  @let queryInfo = queryResultInfo$ | async;
+
+                  @let chartData = chartData$ | async;
+
+                  @let queryPreviews = displayedQueryResults$ | async;
+
+                  @if (isQuerying) {
+                    <div class="query-loader">
+                      <div class="query-loader-label">Fetching data...</div>
+
+                      <div class="query-loader-track">
+                        <div class="query-loader-pulse"></div>
+                      </div>
+                    </div>
+
+                  } @else {
+                    @if (queryError) {
+                      <div class="error-state">
+                        <div class="error-state-header">
+                          <div class="error-icon">❌</div>
+
+                          <div class="error-title">Query Error</div>
+                        </div>
+
+                        <p class="error-state-message" [innerHTML]="queryError"></p>
+                      </div>
+
+                    } @else {
+                      @if (queryInfo) {
+                        <div class="query-summary">
+                          <p>
+                            Query results:
+                          </p>
+                        </div>
+                      }
+
+                      @if (chartData?.length > 0) {
+                        @for (preview of queryPreviews ?? []; track preview.index) {
+                          <div class="query-preview">
+                            <div class="query-preview-header">
+                              <span class="query-summary-label">
+                                Query {{ preview.index }}
+                              </span>
+
+                              <span>
+                                {{ queryInfo?.queries?.[preview.index - 1]?.rowCount ?? preview.rowCount }}
+                                rows in
+                                {{ queryInfo?.queries?.[preview.index - 1]?.durationInSeconds ?? 0 }}
+                                seconds
+                              </span>
+                            </div>
+
+                            <ngx-json-viewer
+                              [json]="preview.rows"
+                              [expanded]="false"
+                            ></ngx-json-viewer>
+
+                            @if (preview.remainingRows > 0) {
+                              <p class="remaining-rows">
+                                ... and {{ preview.remainingRows }} more rows.
+                              </p>
+                            }
+                          </div>
+                        }
+                      }
+                    }
+                  }
+                </div>
+
+              } @else {
+                <div class="slot-help">
+                  <p>
+                    Drag and drop columns from the left side to your chart slots
+                    above.
+                  </p>
+
+                  <p>
+                    Once all required slots are filled, a query will be launched
+                    and your chart will be rendered.
+                  </p>
+                </div>
+              }
             </div>
           </div>
 
@@ -198,81 +275,6 @@
                 ></luzmo-item-option-panel>
               }
 
-              <!-- Query result section -->
-
-              <div class="query-result">
-                @let isQuerying = queryingData$ | async;
-
-                @let queryError = queryError$ | async;
-
-                @let queryInfo = queryResultInfo$ | async;
-
-                @let chartData = chartData$ | async;
-
-                @let queryPreviews = displayedQueryResults$ | async;
-
-                @if (isQuerying) {
-                  <div class="query-loader">
-                    <div class="query-loader-label">Fetching data...</div>
-
-                    <div class="query-loader-track">
-                      <div class="query-loader-pulse"></div>
-                    </div>
-                  </div>
-
-                } @else {
-                  @if (queryError) {
-                    <div class="error-state">
-                      <div class="error-state-header">
-                        <div class="error-icon">❌</div>
-
-                        <div class="error-title">Query Error</div>
-                      </div>
-
-                      <p class="error-state-message" [innerHTML]="queryError"></p>
-                    </div>
-
-                  } @else {
-                    @if (queryInfo) {
-                      <div class="query-summary">
-                        <p>
-                          Query results:
-                        </p>
-                      </div>
-                    }
-
-                    @if (chartData?.length > 0) {
-                      @for (preview of queryPreviews ?? []; track preview.index) {
-                        <div class="query-preview">
-                          <div class="query-preview-header">
-                            <span class="query-summary-label">
-                              Query {{ preview.index }}
-                            </span>
-
-                            <span>
-                              {{ queryInfo?.queries?.[preview.index - 1]?.rowCount ?? preview.rowCount }}
-                              rows in
-                              {{ queryInfo?.queries?.[preview.index - 1]?.durationInSeconds ?? 0 }}
-                              seconds
-                            </span>
-                          </div>
-
-                          <ngx-json-viewer
-                            [json]="preview.rows"
-                            [expanded]="false"
-                          ></ngx-json-viewer>
-
-                          @if (preview.remainingRows > 0) {
-                            <p class="remaining-rows">
-                              ... and {{ preview.remainingRows }} more rows.
-                            </p>
-                          }
-                        </div>
-                      }
-                    }
-                  }
-                }
-              </div>
             </div>
           </div>
         }

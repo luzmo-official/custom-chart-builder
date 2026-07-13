@@ -858,8 +858,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Fetches chart data based on the current slot configuration
    */
   private fetchChartData(slots: Slot[]): Observable<any[]> {
-    const allRequiredSlotsFilled = this.areAllRequiredSlotsFilled(slots);
-    if (allRequiredSlotsFilled && slots.some((s) => s.content.length > 0)) {
+    if (this.canQuerySlots(slots)) {
       const defaultQueries = buildLuzmoQuery(slots, this.slotConfigs);
 
       // Default query construction belongs to the builder and does not require
@@ -944,6 +943,16 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.queryResultInfoSubject.next(null);
         return of([]);
       }),
+    );
+  }
+
+  /**
+   * Checks if the current slots contain enough data to launch a query
+   */
+  canQuerySlots(slots: Slot[]): boolean {
+    return (
+      this.areAllRequiredSlotsFilled(slots) &&
+      slots.some((slot) => slot.content.length > 0)
     );
   }
 

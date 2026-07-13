@@ -49,7 +49,7 @@ export class LuzmoApiService {
     >(
       `${this.authService.getApiUrl()}/0.1.0/securable`,
       {
-        action: keyphrase ? 'search' : 'get',
+        action: 'get',
         version: '0.1.0',
         key,
         token,
