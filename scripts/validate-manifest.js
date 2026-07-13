@@ -13,24 +13,25 @@ require('ts-node').register({
 });
 
 const { SlotsConfigSchema } = require('../projects/builder/src/app/slot-schema.ts');
+const { OptionsConfigSchema } = require('../projects/builder/src/app/options-schema.ts');
 
 const manifestPath = path.join(__dirname, '../projects/custom-chart/src/manifest.json');
 
-function formatValidationPath(segments, manifest) {
+function formatValidationPath(segments, manifest, propertyName, identifierName) {
   if (segments.length === 0) {
-    return 'manifest.slots';
+    return `manifest.${propertyName}`;
   }
 
-  let formattedPath = 'slots';
+  let formattedPath = propertyName;
   let startIndex = 0;
   const firstSegment = segments[0];
 
   if (typeof firstSegment === 'number') {
     formattedPath += `[${firstSegment}]`;
 
-    const slot = manifest.slots?.[firstSegment];
-    if (slot && typeof slot.name === 'string') {
-      formattedPath += ` ("${slot.name}")`;
+    const config = manifest[propertyName]?.[firstSegment];
+    if (config && typeof config[identifierName] === 'string') {
+      formattedPath += ` ("${config[identifierName]}")`;
     }
 
     startIndex = 1;
@@ -64,11 +65,24 @@ function validateManifest() {
 
     if (!result.success) {
       const formattedErrors = result.error.errors
-        .map((err) => `${formatValidationPath(err.path, manifest)}: ${err.message}`)
+        .map((err) => `${formatValidationPath(err.path, manifest, 'slots', 'name')}: ${err.message}`)
         .join('\n');
 
       console.error(`❌ Validation failed:\n${formattedErrors}`);
       return false;
+    }
+
+    if (manifest.options !== undefined) {
+      const optionsResult = OptionsConfigSchema.safeParse(manifest.options);
+
+      if (!optionsResult.success) {
+        const formattedErrors = optionsResult.error.errors
+          .map((err) => `${formatValidationPath(err.path, manifest, 'options', 'key')}: ${err.message}`)
+          .join('\n');
+
+        console.error(`❌ Validation failed:\n${formattedErrors}`);
+        return false;
+      }
     }
 
     console.log('✅ Manifest validation successful!');
