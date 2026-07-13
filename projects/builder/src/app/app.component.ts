@@ -28,7 +28,7 @@ import { LuzmoSearch } from '@luzmo/ngx-lucero/search';
 import { LuzmoSelect } from '@luzmo/ngx-lucero/select';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 import type { Observable } from 'rxjs';
-import { BehaviorSubject, of, Subject } from 'rxjs';
+import { BehaviorSubject, defer, merge, of, Subject } from 'rxjs';
 import {
   catchError,
   debounceTime,
@@ -38,7 +38,8 @@ import {
   shareReplay,
   switchMap,
   take,
-  tap
+  tap,
+  timeout
 } from 'rxjs/operators';
 import manifestJson from '../../../custom-chart/src/manifest.json';
 import {
@@ -91,6 +92,11 @@ interface QueryResultPreview {
   rows: ItemData['data'];
   rowCount: number;
   remainingRows: number;
+}
+
+interface QueryBuildResult {
+  requestId: number;
+  queries: ItemQuery[] | null;
 }
 
 interface ChartThemeOption {
@@ -160,17 +166,17 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private iframe: HTMLIFrameElement | null = null;
   private blobUrl: string | null = null;
   moduleLoaded = false;
+  private hasCustomBuildQuery = false;
   private resizeAnimationFrame: number | null = null;
   private renderPending = false;
   private scriptContent = '';
   private styleContent = '';
 
   // Query management
-  private queryInProgress = false;
-  private lastQueryTime = 0;
-  private queryThrottleTime = 500; // ms
-  private querySubject = new Subject<ItemQuery[] | null>();
+  private queryRequestId = 0;
+  private querySubject = new Subject<QueryBuildResult>();
   private queryReady$ = this.querySubject.asObservable();
+  private queryRefreshSubject = new Subject<void>();
 
   @ViewChild('columnListContainer') columnListContainer?: ElementRef<HTMLDivElement>;
 
@@ -681,14 +687,19 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     // Setup observables for both query updates and format updates
 
     // This observable handles data queries based only on query-relevant slot changes
-    this.chartData$ = this.queryRelevantSlotsSubject.pipe(
+    this.chartData$ = merge(
+      this.queryRelevantSlotsSubject.pipe(
+        distinctUntilChanged(
+          (prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)
+        )
+      ),
+      this.queryRefreshSubject.pipe(
+        map(() => this.queryRelevantSlotsSubject.getValue())
+      )
+    ).pipe(
       takeUntilDestroyed(this.destroyRef),
       // Debounce to avoid rapid consecutive query requests
       debounceTime(300),
-      // Only proceed if the query-relevant properties have actually changed
-      distinctUntilChanged(
-        (prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)
-      ),
       switchMap(() => {
         // Convert query signatures back to full slots for processing
         const fullSlots = this.slotsSubject.getValue();
@@ -849,69 +860,17 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   private fetchChartData(slots: Slot[]): Observable<any[]> {
     const allRequiredSlotsFilled = this.areAllRequiredSlotsFilled(slots);
     if (allRequiredSlotsFilled && slots.some((s) => s.content.length > 0)) {
-      // Only fetch the query if we're not already doing so and module is loaded
-      if (this.moduleLoaded && !this.queryInProgress) {
-        this.fetchQuery();
+      const defaultQueries = buildLuzmoQuery(slots, this.slotConfigs);
+
+      // Default query construction belongs to the builder and does not require
+      // the chart iframe. Only charts exporting buildQuery need the module.
+      if (!this.moduleLoaded || !this.hasCustomBuildQuery) {
+        return this.executeQueries(defaultQueries);
       }
-      // Wait for query to be available
-      return this.queryReady$.pipe(
+
+      return this.fetchCustomQueries(slots).pipe(
         switchMap((queries) => {
-          // If no custom query is available yet, use the default
-          const finalQueries = queries || buildLuzmoQuery(slots, this.slotConfigs);
-          console.log('Fetching data with queries', finalQueries);
-          this.queryingData$.next(true);
-          this.queryError$.next(null);
-          this.queryResultInfoSubject.next(null);
-
-          return this.luzmoAPIService.queryLuzmoDataset(finalQueries).pipe(
-            tap(() => {
-              this.queryingData$.next(false);
-              this.queryError$.next(null);
-            }),
-            map((response) => {
-              const results = normalizeQueryResponse(response);
-
-              const firstError = results.find(isErrorResponse);
-              if (firstError && isErrorResponse(firstError)) {
-                this.queryError$.next(firstError.error.message);
-                this.queryResultInfoSubject.next(null);
-                return [];
-              }
-
-              const dataResults = results.filter(isDataResponse);
-              if (dataResults.length === 0) {
-                return [];
-              }
-
-              const queryDetails = dataResults.map((result, index) => ({
-                index: index + 1,
-                rowCount: Array.isArray(result.data) ? result.data.length : 0,
-                durationInSeconds: this.calculateQueryDuration(result.performance)
-              }));
-              const rowCount = queryDetails.reduce((sum, detail) => sum + detail.rowCount, 0);
-              const durationInSeconds =
-                queryDetails.reduce((sum, detail) => sum + detail.durationInSeconds, 0) /
-                queryDetails.length;
-
-              this.queryResultInfoSubject.next({
-                rowCount,
-                durationInSeconds,
-                queries: queryDetails
-              });
-
-              return normalizeQueryDataForRender(dataResults);
-            }),
-            catchError((error) => {
-              console.error('Chart data query failed:', error);
-              this.queryingData$.next(false);
-              this.queryError$.next(`
-                <p>Failed to load chart data. Please check if your queries are valid and try again.</p>
-                <p><b>Queries:</b> ${JSON.stringify(finalQueries, null, 2)}</p>
-              `);
-              this.queryResultInfoSubject.next(null);
-              return of([]);
-            }),
-          );
+          return this.executeQueries(queries ?? defaultQueries);
         }),
         catchError((error) => {
           console.error('Query preparation failed:', error);
@@ -931,6 +890,63 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
+  private executeQueries(queries: ItemQuery[]): Observable<any[]> {
+    console.log('Fetching data with queries', queries);
+    this.queryingData$.next(true);
+    this.queryError$.next(null);
+    this.queryResultInfoSubject.next(null);
+
+    return this.luzmoAPIService.queryLuzmoDataset(queries).pipe(
+      tap(() => {
+        this.queryingData$.next(false);
+        this.queryError$.next(null);
+      }),
+      map((response) => {
+        const results = normalizeQueryResponse(response);
+
+        const firstError = results.find(isErrorResponse);
+        if (firstError && isErrorResponse(firstError)) {
+          this.queryError$.next(firstError.error.message);
+          this.queryResultInfoSubject.next(null);
+          return [];
+        }
+
+        const dataResults = results.filter(isDataResponse);
+        if (dataResults.length === 0) {
+          return [];
+        }
+
+        const queryDetails = dataResults.map((result, index) => ({
+          index: index + 1,
+          rowCount: Array.isArray(result.data) ? result.data.length : 0,
+          durationInSeconds: this.calculateQueryDuration(result.performance)
+        }));
+        const rowCount = queryDetails.reduce((sum, detail) => sum + detail.rowCount, 0);
+        const durationInSeconds =
+          queryDetails.reduce((sum, detail) => sum + detail.durationInSeconds, 0) /
+          queryDetails.length;
+
+        this.queryResultInfoSubject.next({
+          rowCount,
+          durationInSeconds,
+          queries: queryDetails
+        });
+
+        return normalizeQueryDataForRender(dataResults);
+      }),
+      catchError((error) => {
+        console.error('Chart data query failed:', error);
+        this.queryingData$.next(false);
+        this.queryError$.next(`
+          <p>Failed to load chart data. Please check if your queries are valid and try again.</p>
+          <p><b>Queries:</b> ${JSON.stringify(queries, null, 2)}</p>
+        `);
+        this.queryResultInfoSubject.next(null);
+        return of([]);
+      }),
+    );
+  }
+
   /**
    * Checks if all required slots are filled with data
    */
@@ -944,50 +960,33 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   /**
    * Triggers chart query building
    */
-  private fetchQuery(): void {
-    const now = Date.now();
-
-    // Don't fetch if a query is already in progress or if we've recently fetched
-    if (
-      this.queryInProgress ||
-      now - this.lastQueryTime < this.queryThrottleTime
-    ) {
-      return;
-    }
-
-    if (!this.iframe || !this.moduleLoaded) {
-      console.log('Cannot fetch query: iframe not ready or module not loaded');
-      return;
-    }
-
-    const slots = this.slotsSubject.getValue();
-
-    // Skip if all slots are empty
-    if (!slots.some((slot) => slot.content.length > 0)) {
-      console.log('Skipping query fetch: all slots are empty');
-      return;
-    }
-
-    console.log('Requesting query build with slots:', slots);
-    this.queryInProgress = true;
-    this.lastQueryTime = now;
-
-    this.iframe.contentWindow?.postMessage(
-      {
-        type: 'buildQuery',
-        slots: slots,
-        slotConfigurations: this.slotConfigs,
-      },
-      '*',
-    );
-
-    // Set a safety timeout to reset queryInProgress flag if no response received
-    setTimeout(() => {
-      if (this.queryInProgress) {
-        console.log('Query request timed out, resetting status');
-        this.queryInProgress = false;
+  private fetchCustomQueries(slots: Slot[]): Observable<ItemQuery[] | null> {
+    return defer(() => {
+      const contentWindow = this.iframe?.contentWindow;
+      if (!contentWindow || !this.moduleLoaded || !this.hasCustomBuildQuery) {
+        throw new Error('Chart module is not ready to build a custom query.');
       }
-    }, 5000); // 5-second timeout
+
+      const requestId = ++this.queryRequestId;
+      console.log('Requesting custom query build with slots:', slots);
+
+      contentWindow.postMessage(
+        {
+          type: 'buildQuery',
+          requestId,
+          slots,
+          slotConfigurations: this.slotConfigs,
+        },
+        '*',
+      );
+
+      return this.queryReady$.pipe(
+        filter((result) => result.requestId === requestId),
+        take(1),
+        map((result) => result.queries),
+        timeout(5000)
+      );
+    });
   }
 
   /**
@@ -1000,13 +999,16 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     switch (event.data.type) {
       case 'moduleLoaded':
-        this.handleModuleLoaded();
+        this.handleModuleLoaded(event.data.hasBuildQuery === true);
         break;
       case 'queryLoaded':
-        this.handleQueryLoaded(event.data.queries);
+        this.handleQueryLoaded(event.data.requestId, event.data.queries);
         break;
       case 'moduleError':
         console.error('Module error:', event.data.error);
+        this.moduleLoaded = false;
+        this.hasCustomBuildQuery = false;
+        this.cdr.markForCheck();
         break;
     }
   };
@@ -1014,26 +1016,40 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
   /**
    * Handles module loaded event from iframe
    */
-  private handleModuleLoaded(): void {
+  private handleModuleLoaded(hasBuildQuery: boolean): void {
     this.moduleLoaded = true;
+    this.hasCustomBuildQuery = hasBuildQuery;
     // Triggered by a window 'message' event (outside Angular's awareness).
     this.cdr.markForCheck();
 
+    const slots = this.slotsSubject.getValue();
+    if (
+      hasBuildQuery &&
+      this.areAllRequiredSlotsFilled(slots) &&
+      slots.some((slot) => slot.content.length > 0)
+    ) {
+      // Replace any provisional default-query result with the chart's custom
+      // query as soon as its module becomes available.
+      this.queryRefreshSubject.next();
+      return;
+    }
+
     // If we have data, render the chart
-    // Create a subscription that auto-unsubscribes
     this.chartData$
+      .pipe(take(1))
       .subscribe((data) => {
         this.performRender(data);
-      })
-      .unsubscribe();
+      });
   }
 
   /**
    * Handles query loaded event from iframe
    */
-  private handleQueryLoaded(query: ItemQuery[]): void {
-    this.queryInProgress = false;
-    this.querySubject.next(query);
+  private handleQueryLoaded(
+    requestId: number,
+    queries: ItemQuery[] | null
+  ): void {
+    this.querySubject.next({ requestId, queries });
   }
 
   /**
@@ -1128,6 +1144,16 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Loads the chart bundle into the iframe
    */
   private async loadBundle(): Promise<void> {
+    this.moduleLoaded = false;
+    this.hasCustomBuildQuery = false;
+    this.iframe = null;
+    this.cdr.markForCheck();
+
+    if (this.blobUrl) {
+      URL.revokeObjectURL(this.blobUrl);
+      this.blobUrl = null;
+    }
+
     try {
       // Load script content
       const scriptResponse = await fetch('/custom-chart/index.js?t=' + Date.now());
@@ -1317,8 +1343,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     this.authService.isAuthenticated$
       .pipe(
-        filter((isAuthenticated) => isAuthenticated),
-        filter(() => !this.queryInProgress)
+        filter((isAuthenticated) => isAuthenticated)
       )
       .subscribe(async () => {
         this.loadCustomThemes();

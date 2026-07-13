@@ -111,7 +111,11 @@ function getIframeHTML(scriptContent: string, styleContent: string): string {
                   : null;
                 // Keep this expression in sync with normalizeBuildQueryResult() above.
                 const queries = raw == null ? null : Array.isArray(raw) ? raw : [raw];
-                window.parent.postMessage({ type: 'queryLoaded', queries }, '*');
+                window.parent.postMessage({
+                  type: 'queryLoaded',
+                  requestId: event.data.requestId,
+                  queries
+                }, '*');
               }
               else if (type === 'render' && module?.render) {
                 const container = document.querySelector('.widget-body');
