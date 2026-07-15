@@ -1,4 +1,4 @@
-import { formatter } from '@luzmo/analytics-components-kit/utils';
+import { formatter, getValueForFormatter } from '@luzmo/analytics-components-kit/utils';
 import type {
   ItemData,
   ItemFilter,
@@ -7,7 +7,6 @@ import type {
   SlotConfig
 } from '@luzmo/dashboard-contents-types';
 import * as d3 from 'd3';
-import { getValueForFormatter } from './util/timezone';
 
 interface ChartDataItem {
   category: string;
@@ -863,7 +862,7 @@ function setupContainer(container: HTMLElement, theme: ThemeContext): HTMLElemen
  * @returns Processed data array
  *
  * NOTE: This is a helper method for internal use. You can implement your own data processing
- * directly in the render method if needed. Datetime timezone handling lives in util/timezone.ts.
+ * directly in the render method if needed. Datetime timezone handling uses getValueForFormatter from ACK.
  */
 function preProcessData(
   data: ItemData['data'],
@@ -904,13 +903,13 @@ function preProcessData(
     // Extract and format values
     const categoryValue = row[indices.category]?.name?.en || row[indices.category] || 'Unknown';
     const category = formatters.category(
-      getValueForFormatter(categoryValue, categoryContent, timezoneId)
+      getValueForFormatter(categoryValue, categoryContent, timezoneId) ?? categoryValue
     );
 
     const groupValue = row[indices.group]?.name?.en || row[indices.group] || 'Default';
     const group = hasGroup
       ? formatters.group(
-        getValueForFormatter(groupValue, groupContent, timezoneId)
+        getValueForFormatter(groupValue, groupContent, timezoneId) ?? groupValue
       )
       : 'Default';
 
