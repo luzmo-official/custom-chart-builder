@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LoginComponent } from '@builder/components/login/login.component';
-import { buildLuzmoQuery } from '@builder/helpers/getData';
+import { buildLuzmoQuery, getBrowserTimezoneId } from '@builder/helpers/getData';
 import { AuthService } from '@builder/services/auth.service';
 import { LuzmoApiService } from '@builder/services/luzmo-api.service';
 import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
@@ -1082,6 +1082,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         theme: selectedTheme?.theme || this.chartThemes[0].theme, // Fallback to first theme if not found
       },
       language: this.chartLanguage,
+      timezoneId: getBrowserTimezoneId(),
       dimensions: this.getContainerDimensions()
     };
 
@@ -1135,6 +1136,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
         theme: selectedThemeObj?.theme || this.chartThemes[0].theme
       },
       language: this.chartLanguage,
+      timezoneId: getBrowserTimezoneId(),
       dimensions: this.getContainerDimensions(),
     };
 
