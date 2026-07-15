@@ -145,6 +145,72 @@
 // Middle column - Chart configuration
 .middle-column {
   width: 25%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  min-height: 0;
+  max-height: calc(100vh - 4rem);
+
+  // Chart slots container: sized to its contents, but able to scroll on short screens.
+  .slots-panel {
+    flex: 0 0 auto;
+    max-height: 55%;
+
+    .column-content {
+      height: auto;
+      min-height: 0;
+      flex: 1 1 auto;
+    }
+  }
+
+  // Chart options container: grows to fill the remaining space, with a min height.
+  .options-panel {
+    flex: 1 1 auto;
+    min-height: 14rem;
+    max-height: none;
+    min-width: 0;
+
+    .column-content {
+      min-height: 0;
+    }
+  }
+
+  // Empty state shown when the manifest declares no chart options.
+  .options-empty {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--luzmo-font-color-hover);
+    user-select: none;
+
+    &-title {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--luzmo-font-color);
+    }
+
+    &-text {
+      margin: 0;
+      max-width: 22rem;
+      font-size: 0.875rem;
+      line-height: 1.4;
+
+      code {
+        padding: 0.0625rem 0.25rem;
+        border-radius: 0.25rem;
+        background-color: color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 88%);
+        color: var(--luzmo-primary);
+        font-size: 0.8125rem;
+      }
+    }
+  }
 
   .slot-mode-selector {
     margin-bottom: 1.25rem;
@@ -157,6 +223,26 @@
 
     &.hidden {
       display: none;
+    }
+  }
+
+  // Drag & drop guidance shown at the bottom of the Chart slots container.
+  .slot-help {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: var(--luzmo-border-radius);
+    background-color: color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 88%);
+    border: 0.0625rem solid color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 78%);
+    color: var(--luzmo-primary);
+    font-size: 0.875rem;
+    user-select: none;
+
+    p {
+      margin: 0 0 0.5rem 0;
+    }
+
+    p:last-child {
+      margin: 0;
     }
   }
 
@@ -236,30 +322,6 @@
         border-radius: var(--luzmo-border-radius);
         background-color: var(--luzmo-background-color-highlight);
         font-size: 0.8125rem;
-      }
-    }
-
-    .empty-state {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10;
-      position: relative;
-
-      .empty-state-message {
-        background-color: color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 88%);
-        border: 0.0625rem solid color-mix(in oklch, var(--luzmo-primary), var(--luzmo-background-color) 78%);
-        color: var(--luzmo-primary);
-        padding: 1rem;
-        border-radius: var(--luzmo-border-radius);
-        user-select: none;
-        font-size: 0.875rem;
-
-        p:last-child {
-          margin: 0;
-        }
       }
     }
 

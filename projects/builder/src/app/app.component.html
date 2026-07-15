@@ -22,6 +22,19 @@
       </div>
 
       <div class="header-actions">
+        @if (languageOptions.length > 1) {
+          <luzmo-select
+            class="language-picker"
+            variant="highlight"
+            selects="single"
+            size="m"
+            [value]="languageValue"
+            [options]="languageOptions"
+            (change)="onLanguageChange($any($event))"
+          >
+          </luzmo-select>
+        }
+
         <luzmo-select
           class="theme-mode-picker"
           variant="highlight"
@@ -95,142 +108,197 @@
 
       <!-- Update the Middle column section to show validation errors -->
 
-      <section class="column middle-column">
-        <div class="column-header">
-          <p class="column-header-label">Chart slots</p>
-        </div>
-
-        <div class="column-content">
-          @if (manifestValidationError) {
-            <div class="validation-error">
-              <div class="error-icon">⚠️</div>
-
-              <div class="error-title">Manifest Validation Error</div>
-
-              <pre class="error-message">{{ manifestValidationError }}</pre>
-
-              <p class="error-help">
-                Please check your manifest.json file for errors.
-              </p>
+      <section class="middle-column">
+        @if (manifestValidationError) {
+          <div class="column slots-panel">
+            <div class="column-header">
+              <p class="column-header-label">Chart slots</p>
             </div>
 
-          } @else {
-            @let slotsForDrop = slots$ | async;
-            <div class="slot-editor">
-              @for (slotConfig of slotConfigs; track slotConfig.name) {
-                <luzmo-item-slot-drop
-                  data-drop-target-for-element="true"
-                  [itemType]="vizItemType"
-                  [slotName]="slotConfig.name"
-                  [label]="$any(slotConfig.label)"
-                  [slotConfiguration]="slotConfig"
-                  [slotsContents]="slotsForDrop ?? []"
-                  menu="draggable"
-                  size="m"
-                  (luzmoSlotContentsChanged)="
-                    onColumnDropped(
-                      slotConfig.name,
-                      slotConfig.type!,
-                      $any($event)
-                    )
-                  "
-                >
-                </luzmo-item-slot-drop>
-              }
+            <div class="column-content">
+              <div class="validation-error">
+                <div class="error-icon">⚠️</div>
+
+                <div class="error-title">Manifest Validation Error</div>
+
+                <pre class="error-message">{{ manifestValidationError }}</pre>
+
+                <p class="error-help">
+                  Please check your manifest.json file for errors.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        } @else {
+          @let slotsForDrop = slots$ | async;
+
+          <!-- Chart slots container -->
+
+          <div class="column slots-panel">
+            <div class="column-header">
+              <p class="column-header-label">Chart slots</p>
             </div>
 
-            <!-- Query result section -->
+            <div class="column-content">
+              <div class="slot-editor">
+                @for (slotConfig of slotConfigs; track slotConfig.name) {
+                  <luzmo-item-slot-drop
+                    data-drop-target-for-element="true"
+                    [itemType]="vizItemType"
+                    [slotName]="slotConfig.name"
+                    [label]="$any(slotConfig.label)"
+                    [slotConfiguration]="slotConfig"
+                    [slotsContents]="slotsForDrop ?? []"
+                    menu="draggable"
+                    size="m"
+                    (luzmoSlotContentsChanged)="
+                      onColumnDropped(
+                        slotConfig.name,
+                        slotConfig.type!,
+                        $any($event)
+                      )
+                    "
+                  >
+                  </luzmo-item-slot-drop>
+                }
+              </div>
 
-            <div class="query-result">
-              @let isQuerying = queryingData$ | async;
+              @if (canQuerySlots(slotsForDrop ?? [])) {
+                <div class="query-result">
+                  @let isQuerying = queryingData$ | async;
 
-              @let queryError = queryError$ | async;
+                  @let queryError = queryError$ | async;
 
-              @let queryInfo = queryResultInfo$ | async;
+                  @let queryInfo = queryResultInfo$ | async;
 
-              @let chartData = chartData$ | async;
+                  @let chartData = chartData$ | async;
 
-              @let queryPreviews = displayedQueryResults$ | async;
+                  @let queryPreviews = displayedQueryResults$ | async;
 
-              @if (isQuerying) {
-                <div class="query-loader">
-                  <div class="query-loader-label">Fetching data...</div>
+                  @if (isQuerying) {
+                    <div class="query-loader">
+                      <div class="query-loader-label">Fetching data...</div>
 
-                  <div class="query-loader-track">
-                    <div class="query-loader-pulse"></div>
-                  </div>
+                      <div class="query-loader-track">
+                        <div class="query-loader-pulse"></div>
+                      </div>
+                    </div>
+
+                  } @else {
+                    @if (queryError) {
+                      <div class="error-state">
+                        <div class="error-state-header">
+                          <div class="error-icon">❌</div>
+
+                          <div class="error-title">Query Error</div>
+                        </div>
+
+                        <p class="error-state-message" [innerHTML]="queryError"></p>
+                      </div>
+
+                    } @else {
+                      @if (queryInfo) {
+                        <div class="query-summary">
+                          <p>
+                            Query results:
+                          </p>
+                        </div>
+                      }
+
+                      @if (chartData?.length > 0) {
+                        @for (preview of queryPreviews ?? []; track preview.index) {
+                          <div class="query-preview">
+                            <div class="query-preview-header">
+                              <span class="query-summary-label">
+                                Query {{ preview.index }}
+                              </span>
+
+                              <span>
+                                {{ queryInfo?.queries?.[preview.index - 1]?.rowCount ?? preview.rowCount }}
+                                rows in
+                                {{ queryInfo?.queries?.[preview.index - 1]?.durationInSeconds ?? 0 }}
+                                seconds
+                              </span>
+                            </div>
+
+                            <ngx-json-viewer
+                              [json]="preview.rows"
+                              [expanded]="false"
+                            ></ngx-json-viewer>
+
+                            @if (preview.remainingRows > 0) {
+                              <p class="remaining-rows">
+                                ... and {{ preview.remainingRows }} more rows.
+                              </p>
+                            }
+                          </div>
+                        }
+                      }
+                    }
+                  }
                 </div>
 
               } @else {
-                @if (queryError) {
-                  <div class="error-state">
-                    <div class="error-state-header">
-                      <div class="error-icon">❌</div>
+                <div class="slot-help">
+                  <p>
+                    Drag and drop columns from the left side to your chart slots
+                    above.
+                  </p>
 
-                      <div class="error-title">Query Error</div>
-                    </div>
-
-                    <p class="error-state-message" [innerHTML]="queryError"></p>
-                  </div>
-
-                } @else {
-                  @if (queryInfo) {
-                    <div class="query-summary">
-                      <p>
-                        Query results:
-                      </p>
-                    </div>
-                  }
-
-                  @if (chartData?.length > 0) {
-                    @for (preview of queryPreviews ?? []; track preview.index) {
-                      <div class="query-preview">
-                        <div class="query-preview-header">
-                          <span class="query-summary-label">
-                            Query {{ preview.index }}
-                          </span>
-
-                          <span>
-                            {{ queryInfo?.queries?.[preview.index - 1]?.rowCount ?? preview.rowCount }}
-                            rows in
-                            {{ queryInfo?.queries?.[preview.index - 1]?.durationInSeconds ?? 0 }}
-                            seconds
-                          </span>
-                        </div>
-
-                        <ngx-json-viewer
-                          [json]="preview.rows"
-                          [expanded]="false"
-                        ></ngx-json-viewer>
-
-                        @if (preview.remainingRows > 0) {
-                          <p class="remaining-rows">
-                            ... and {{ preview.remainingRows }} more rows.
-                          </p>
-                        }
-                      </div>
-                    }
-
-                  } @else {
-                    <div class="empty-state">
-                      <div class="empty-state-message">
-                        <p>
-                          Drag and drop columns from the left side to your chart
-                          slots above.
-                        </p>
-
-                        <p>
-                          Once all required slots are filled, a query will be
-                          launched and your chart will be rendered.
-                        </p>
-                      </div>
-                    </div>
-                  }
-                }
+                  <p>
+                    Once all required slots are filled, a query will be launched
+                    and your chart will be rendered.
+                  </p>
+                </div>
               }
             </div>
-          }
-        </div>
+          </div>
+
+          <!-- Chart options container -->
+
+          <div class="column options-panel">
+            <div class="column-header">
+              <p class="column-header-label">Chart options</p>
+            </div>
+
+            <div class="column-content">
+              @if (optionsConfig.length > 0) {
+                <luzmo-item-option-panel
+                  [language]="chartLanguage"
+                  size="s"
+                  [customOptionsConfiguration]="optionsConfig"
+                  [customTranslations]="optionsTranslations"
+                  [options]="chartOptions"
+                  [slots]="slotsForDrop ?? []"
+                  (luzmoOptionsChanged)="onOptionsChanged($any($event))"
+                ></luzmo-item-option-panel>
+
+              } @else {
+                <div class="options-empty">
+                  <p class="options-empty-title">No chart options defined</p>
+
+                  <p class="options-empty-text">
+                    Add an <code>options</code> array to your
+                    <code>manifest.json</code> to let users configure this chart
+                    from a settings panel here.
+                  </p>
+
+                  <luzmo-button
+                    [quiet]="true"
+                    size="s"
+                    href="https://developer.luzmo.com/guide/guides--custom-charts"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Learn more about chart options
+                  </luzmo-button>
+                </div>
+              }
+
+            </div>
+          </div>
+        }
       </section>
 
       <!-- Right column: Chart visualization -->
