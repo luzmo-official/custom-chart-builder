@@ -125,7 +125,12 @@ export class AuthService {
           token: this._token,
           find: {
             where: { id: uid },
-            include: [{ model: 'Organization', attributes: ['id', 'name'] }]
+            include: [
+              {
+                model: 'Organization',
+                attributes: ['id', 'name', 'organizationRole']
+              }
+            ]
           }
         },
         { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
@@ -180,6 +185,10 @@ export class AuthService {
 
   getUser(): User {
     return this.user || ({} as User);
+  }
+
+  isOrgOwner(): boolean {
+    return this.user?.organizations?.[0]?.organizationRole?.flagOwn === true;
   }
 
   setUser(value: User): User {

@@ -39,3 +39,4 @@ testem.log
 .DS_Store
 Thumbs.db
 custom-chart-build-output
+/.env.local

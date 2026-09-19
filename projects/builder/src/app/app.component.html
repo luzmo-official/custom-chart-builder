@@ -54,7 +54,13 @@
       </div>
     </header>
 
-    <div class="custom-chart-editor">
+    @let isOrgOwner = isOrgOwner$ | async;
+
+    <div
+      class="custom-chart-editor"
+      [class.no-chart-list]="isOrgOwner === false"
+      [class.chart-list-collapsed]="isOrgOwner && isChartListCollapsed"
+    >
       <!-- Left column: Dataset selection and columns listing -->
 
       <section class="column left-column">
@@ -338,6 +344,76 @@
           </div>
         </div>
       </section>
+
+      <!-- Far-right column: Custom charts overview (collapsible rail) -->
+      @if (isOrgOwner) {
+        <section
+          id="chart-list-panel"
+          class="column custom-charts-column"
+          [class.is-collapsed]="isChartListCollapsed"
+          (keydown.escape)="onPanelEscape()"
+        >
+          @if (isChartListCollapsed) {
+            <button
+              type="button"
+              class="rail-toggle"
+              aria-expanded="false"
+              aria-controls="chart-list-panel"
+              aria-label="Expand chart list"
+              title="Expand chart list"
+              (click)="toggleChartList()"
+            >
+              <luzmo-icon [icon]="luzmoAngleLeft"></luzmo-icon>
+            </button>
+
+            <span class="rail-label" aria-hidden="true">Chart list</span>
+
+            @if (chartListCount > 0) {
+              <span
+                class="rail-badge"
+                [attr.aria-label]="chartListCount + ' custom charts'"
+              >
+                {{ chartListCount }}
+              </span>
+            }
+          } @else {
+            <div class="column-header">
+              <button
+                type="button"
+                class="rail-toggle inline"
+                aria-expanded="true"
+                aria-controls="chart-list-panel"
+                aria-label="Collapse chart list"
+                title="Collapse chart list"
+                (click)="toggleChartList()"
+              >
+                <luzmo-icon [icon]="luzmoAngleRight"></luzmo-icon>
+              </button>
+
+              <p class="column-header-label">Chart list</p>
+
+              <a
+                class="column-header-link"
+                [href]="customChartsSettingsUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View in Luzmo"
+                title="View in Luzmo"
+              >
+                <span>View in Luzmo</span>
+                <luzmo-icon [icon]="luzmoExternalLink"></luzmo-icon>
+              </a>
+            </div>
+          }
+
+          <div class="column-content" [hidden]="isChartListCollapsed">
+            <app-custom-charts-list
+              [manifestError]="manifestValidationError"
+              (chartsLoaded)="onChartsLoaded($event)"
+            ></app-custom-charts-list>
+          </div>
+        </section>
+      }
     </div>
   </div>
 

@@ -8,10 +8,10 @@
     "watch": "node watch.js"
   },
   "peerDependencies": {
-    "@luzmo/dashboard-contents-types": "^1.0.31"
+    "@luzmo/dashboard-contents-types": "1.0.39"
   },
   "dependencies": {
-    "@luzmo/analytics-components-kit": "^1.0.4-beta.2",
+    "@luzmo/analytics-components-kit": "1.0.6",
     "d3": "^7.9.0"
   },
   "devDependencies": {
