@@ -11,34 +11,39 @@
 } @else if (showAddForm) {
   <div class="add-chart-form">
     <div class="add-chart-field">
-      <luzmo-field-label for="new-chart-type" required>
+      <luzmo-field-label for="new-chart-type" [required]="true">
         Chart type (unique name)
       </luzmo-field-label>
       <luzmo-text-field
         id="new-chart-type"
         label="Chart type"
         placeholder="waterfall-chart"
-        maxlength="32"
-        required
+        [maxlength]="32"
+        [required]="true"
         [value]="newChartType"
         (input)="newChartType = $any($event.target).value"
         [disabled]="(isUploading$ | async) ?? false"
       >
       </luzmo-text-field>
-      @if (duplicateTypeError) {
-        <div class="add-chart-error">{{ duplicateTypeError }}</div>
+      @if (chartTypeError) {
+        <luzmo-notice
+          [open]="true"
+          variant="negative"
+          size="s"
+          [description]="chartTypeError"
+        ></luzmo-notice>
       }
     </div>
 
     <div class="add-chart-field">
-      <luzmo-field-label for="new-chart-name" required>
+      <luzmo-field-label for="new-chart-name" [required]="true">
         User-facing chart name
       </luzmo-field-label>
       <luzmo-text-field
         id="new-chart-name"
         label="User-facing chart name"
         placeholder="Waterfall chart"
-        required
+        [required]="true"
         [value]="newChartName"
         (input)="newChartName = $any($event.target).value"
         [disabled]="(isUploading$ | async) ?? false"
@@ -47,16 +52,26 @@
     </div>
 
     @if (hasManifestError) {
-      <div class="add-chart-error">{{ uploadsDisabledReason }}</div>
+      <luzmo-notice
+        [open]="true"
+        variant="negative"
+        size="s"
+        [description]="uploadsDisabledReason"
+      ></luzmo-notice>
     }
 
     @if (uploadError) {
-      <div class="add-chart-error">{{ uploadError }}</div>
+      <luzmo-notice
+        [open]="true"
+        variant="negative"
+        size="s"
+        [description]="uploadError"
+      ></luzmo-notice>
     }
 
     <div class="add-chart-actions">
       <luzmo-button
-        quiet
+        [quiet]="true"
         size="m"
         (click)="cancelAdd()"
         [disabled]="(isUploading$ | async) ?? false"
@@ -79,10 +94,22 @@
   </div>
 }
 
+@if (successMessage) {
+  <luzmo-notice
+    class="custom-chart-success"
+    [open]="true"
+    variant="positive"
+    size="s"
+    [closeable]="true"
+    [description]="successMessage"
+    (luzmo-notice-close)="successMessage = null"
+  ></luzmo-notice>
+}
+
 @if (isLoading$ | async) {
   <div class="custom-charts-loading">
     <luzmo-progress-circle
-      indeterminate
+      [indeterminate]="true"
       static-color="var(--color-primary)"
       size="m"
     >
@@ -125,7 +152,7 @@
         <span class="custom-chart-name">{{ localizedName(chart) }}</span>
         @if (confirmingChartId !== chart.id) {
           <luzmo-action-menu
-            quiet
+            [quiet]="true"
             class="custom-chart-actions"
             label="Chart actions"
             placement="bottom-end"
@@ -162,7 +189,7 @@
             }
             <div class="reupload-confirm-actions">
               <luzmo-button
-                quiet
+                [quiet]="true"
                 size="s"
                 [disabled]="(isUploading$ | async) ?? false"
                 (click)="cancelReupload()"

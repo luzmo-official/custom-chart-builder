@@ -12,7 +12,10 @@ export function getBrowserTimezoneId(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 }
 
-function getFieldReference(item: GenericSlotContent): Pick<ItemQueryDimension,'column_id' | 'formula_id' | 'dataset_id'> {
+type ItemQueryFieldReference = Pick<ItemQueryDimension, 'column_id' | 'dataset_id'>
+  & Pick<ItemQueryMeasure, 'formula_id'>;
+
+function getFieldReference(item: GenericSlotContent): ItemQueryFieldReference {
   return {
     dataset_id: item.datasetId,
     ...(item.formulaId

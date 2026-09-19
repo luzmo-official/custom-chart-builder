@@ -42,6 +42,45 @@ npm run build       # builds, validates manifest.json, produces bundle.zip for u
 npm run validate    # only validates manifest.json
 ```
 
+## Uploading from the command line
+
+List and upload charts without starting the builder UI. Copy
+[`.env.example`](.env.example) to `.env.local` in the repository root (gitignored)
+and set `LUZMO_API_KEY` and `LUZMO_API_TOKEN` with access to manage custom charts.
+`LUZMO_API_URL` defaults to Europe; use `https://api.us.luzmo.com` for the US.
+Environment variables override the file. Browser login is not used.
+
+```bash
+npm run charts -- list
+npm run charts -- upload --type my-chart --name "My chart"
+npm run charts -- upload --id <chart-id>
+npm run charts -- --help
+```
+
+Uploads build, validate, and package the chart first; build failures stop the
+upload. New charts require a unique type and name. Use `--id` to replace an
+existing chart's code, keeping its name and type.
+
+> **Agent approval required:** Re-uploading with `--id` is a destructive overwrite.
+> Never run it without the user's explicit approval for that overwrite and target
+> chart ID. General permission to build or upload is not sufficient; ask first if
+> approval is missing. The same rule applies to equivalent API or UI actions.
+
+For agents, use `--silent` and `--json` for machine-readable output:
+
+```bash
+npm run --silent charts -- list --json
+```
+
+Both flags also work with `upload`. List returns `{ "charts": [...] }`; upload
+returns `action`, `id`, and available chart metadata. Save the ID for later updates.
+JSON results go to stdout; logs and errors go to stderr, with final errors as
+`{ "error": "..." }`. Exit codes: **0** success, **1** build/API failure,
+**2** invalid arguments/configuration.
+
+Commands never prompt or retry automatically. After a timeout or connection
+failure, check `list` before retrying: the upload may have succeeded.
+
 ## Resources
 
 - [Custom chart developer guide](https://developer.luzmo.com/guide/guides--custom-charts) ([markdown for AI agents](https://developer.luzmo.com/guide/guides--custom-charts.md))

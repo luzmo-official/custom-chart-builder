@@ -2,7 +2,6 @@ import { AsyncPipe } from '@angular/common';
 import type { OnInit } from '@angular/core';
 import {
   Component,
-  CUSTOM_ELEMENTS_SCHEMA,
   DestroyRef,
   EventEmitter,
   Input,
@@ -11,14 +10,16 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import '@luzmo/lucero/action-menu';
-import '@luzmo/lucero/button';
-import '@luzmo/lucero/field-label';
-import '@luzmo/lucero/icon';
-import '@luzmo/lucero/menu';
-import '@luzmo/lucero/progress-circle';
-import '@luzmo/lucero/text-field';
 import { luzmoEllipsisVertical, luzmoPlus } from '@luzmo/icons';
+import { chartTypeError } from '../../helpers/custom-chart-upload';
+import { LuzmoActionMenu } from '@luzmo/ngx-lucero/action-menu';
+import { LuzmoButton } from '@luzmo/ngx-lucero/button';
+import { LuzmoFieldLabel } from '@luzmo/ngx-lucero/field-label';
+import { LuzmoIcon } from '@luzmo/ngx-lucero/icon';
+import { LuzmoMenuItem } from '@luzmo/ngx-lucero/menu-item';
+import { LuzmoNotice } from '@luzmo/ngx-lucero/notice';
+import { LuzmoProgressCircle } from '@luzmo/ngx-lucero/progress-circle';
+import { LuzmoTextField } from '@luzmo/ngx-lucero/text-field';
 import { BehaviorSubject, of } from 'rxjs';
 import { catchError, filter, finalize, map, switchMap, take, tap } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
@@ -28,10 +29,20 @@ import type { CustomChart } from '../../helpers/types';
 @Component({
   selector: 'app-custom-charts-list',
   standalone: true,
-  imports: [AsyncPipe, FormsModule],
+  imports: [
+    AsyncPipe,
+    FormsModule,
+    LuzmoActionMenu,
+    LuzmoButton,
+    LuzmoFieldLabel,
+    LuzmoIcon,
+    LuzmoMenuItem,
+    LuzmoNotice,
+    LuzmoProgressCircle,
+    LuzmoTextField
+  ],
   templateUrl: './custom-charts-list.component.html',
-  styleUrls: ['./custom-charts-list.component.scss'],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA]
+  styleUrls: ['./custom-charts-list.component.scss']
 })
 export class CustomChartsListComponent implements OnInit {
   private authService = inject(AuthService);
@@ -61,6 +72,7 @@ export class CustomChartsListComponent implements OnInit {
   newChartName = '';
   isUploading$ = new BehaviorSubject<boolean>(false);
   uploadError: string | null = null;
+  successMessage: string | null = null;
 
   confirmingChartId: string | null = null;
   reuploadError: string | null = null;
@@ -119,7 +131,7 @@ export class CustomChartsListComponent implements OnInit {
       this.newChartName.trim().length > 0 &&
       !this.isUploading$.value &&
       !this.hasManifestError &&
-      this.duplicateTypeError === null
+      this.chartTypeError === null
     );
   }
 
@@ -128,8 +140,16 @@ export class CustomChartsListComponent implements OnInit {
       this.newChartType.trim().length > 0 &&
       this.newChartName.trim().length > 0 &&
       !this.hasManifestError &&
-      this.duplicateTypeError === null
+      this.chartTypeError === null
     );
+  }
+
+  get chartTypeError(): string | null {
+    const type = this.newChartType.trim();
+    if (!type) {
+      return null;
+    }
+    return chartTypeError(type) ?? this.duplicateTypeError;
   }
 
   /**
@@ -157,6 +177,7 @@ export class CustomChartsListComponent implements OnInit {
     this.newChartType = '';
     this.newChartName = '';
     this.uploadError = null;
+    this.successMessage = null;
   }
 
   cancelAdd(): void {
@@ -178,6 +199,7 @@ export class CustomChartsListComponent implements OnInit {
     const name = this.newChartName.trim();
 
     this.uploadError = null;
+    this.successMessage = null;
     this.isUploading$.next(true);
 
     this.luzmoAPIService
@@ -193,6 +215,7 @@ export class CustomChartsListComponent implements OnInit {
           this.newChartType = '';
           this.newChartName = '';
           this.uploadError = null;
+          this.successMessage = `Custom chart "${name}" uploaded successfully.`;
           this.reloadCharts();
         },
         error: (error) => {
@@ -236,6 +259,7 @@ export class CustomChartsListComponent implements OnInit {
     }
     this.confirmingChartId = chart.id;
     this.reuploadError = null;
+    this.successMessage = null;
   }
 
   cancelReupload(): void {
@@ -256,6 +280,7 @@ export class CustomChartsListComponent implements OnInit {
     }
 
     this.reuploadError = null;
+    this.successMessage = null;
     this.isUploading$.next(true);
 
     this.luzmoAPIService
@@ -269,6 +294,7 @@ export class CustomChartsListComponent implements OnInit {
         next: () => {
           this.confirmingChartId = null;
           this.reuploadError = null;
+          this.successMessage = `Custom chart "${this.localizedName(chart)}" updated successfully.`;
           this.reloadCharts();
         },
         error: (error) => {

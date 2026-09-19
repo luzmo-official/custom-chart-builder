@@ -677,7 +677,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewChecked {
 
       if (!validationResult.success) {
         // Format validation errors
-        const formattedErrors = validationResult.error.errors
+        const formattedErrors = validationResult.error.issues
           .map((err) => `${err.path.join('.')}: ${err.message}`)
           .join('\n');
 

@@ -65,7 +65,7 @@ function validateManifest() {
     const result = SlotsConfigSchema.safeParse(manifest.slots);
 
     if (!result.success) {
-      const formattedErrors = result.error.errors
+      const formattedErrors = result.error.issues
         .map((err) => `${formatValidationPath(err.path, manifest, 'slots', 'name')}: ${err.message}`)
         .join('\n');
 
@@ -77,7 +77,7 @@ function validateManifest() {
       const optionsResult = OptionsConfigSchema.safeParse(manifest.options);
 
       if (!optionsResult.success) {
-        const formattedErrors = optionsResult.error.errors
+        const formattedErrors = optionsResult.error.issues
           .map((err) => `${formatValidationPath(err.path, manifest, 'options', 'key')}: ${err.message}`)
           .join('\n');
 
@@ -90,7 +90,7 @@ function validateManifest() {
       const translationsResult = TranslationsConfigSchema.safeParse(manifest.translations);
 
       if (!translationsResult.success) {
-        const formattedErrors = translationsResult.error.errors
+        const formattedErrors = translationsResult.error.issues
           .map((err) => `${formatValidationPath(err.path, manifest, 'translations')}: ${err.message}`)
           .join('\n');
 

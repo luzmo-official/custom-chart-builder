@@ -37,7 +37,15 @@ function createArchive() {
 
     archive.pipe(output);
 
-    archive.directory(buildOutputDir, false);
+    // The archive is written into buildOutputDir, so archiving the whole
+    // directory also captures the bundle while it is being written. Besides
+    // adding a useless nested bundle.zip, that makes the package depend on
+    // timing. Explicitly exclude the output archive itself.
+    archive.glob('**/*', {
+      cwd: buildOutputDir,
+      dot: true,
+      ignore: ['bundle.zip']
+    });
 
     archive.finalize();
   });

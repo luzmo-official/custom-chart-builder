@@ -5,6 +5,7 @@ import type { DatasetDataField } from '@luzmo/analytics-components-kit/types';
 import { loadDataFieldsForDatasets } from '@luzmo/analytics-components-kit/utils';
 import { from, throwError } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
+import { uploadCustomChart } from '../helpers/custom-chart-upload';
 import { CustomChart, ItemQuery, ItemQueryResponse, Securable, RowsData, Theme } from '../helpers/types';
 
 @Injectable({
@@ -178,25 +179,11 @@ export class LuzmoApiService {
    * Note: do not set Content-Type manually — the browser writes the multipart boundary.
    */
   createCustomChart(type: string, name: string) {
-    const { key, token } = this.authService.getCredentials();
-
     return this.triggerBuild().pipe(
       switchMap(() => this.fetchBundleZip()),
-      switchMap((zip) => {
-        const form = new FormData();
-        form.append('version', '0.1.0');
-        form.append('action', 'create');
-        form.append('key', key);
-        form.append('token', token);
-        form.append('properties.name', JSON.stringify({ en: name }));
-        form.append('properties.type', type);
-        form.append('file', zip, 'bundle.zip');
-
-        return this.httpClient.post<CustomChart>(
-          `${this.authService.getApiUrl()}/0.1.0/customchart`,
-          form
-        );
-      })
+      switchMap((zip) =>
+        from(uploadCustomChart(this.chartCredentials(), { action: 'create', type, name, zip }))
+      )
     );
   }
 
@@ -207,24 +194,18 @@ export class LuzmoApiService {
    * existing chart `id`. Name and type are immutable post-creation, so they are not sent.
    */
   reuploadCustomChart(chartId: string) {
-    const { key, token } = this.authService.getCredentials();
-
     return this.triggerBuild().pipe(
       switchMap(() => this.fetchBundleZip()),
-      switchMap((zip) => {
-        const form = new FormData();
-        form.append('version', '0.1.0');
-        form.append('action', 'update');
-        form.append('key', key);
-        form.append('token', token);
-        form.append('id', chartId);
-        form.append('file', zip, 'bundle.zip');
-
-        return this.httpClient.post<CustomChart>(
-          `${this.authService.getApiUrl()}/0.1.0/customchart`,
-          form
-        );
-      })
+      switchMap((zip) =>
+        from(uploadCustomChart(this.chartCredentials(), { action: 'update', id: chartId, zip }))
+      )
     );
+  }
+
+  private chartCredentials() {
+    return {
+      ...this.authService.getCredentials(),
+      apiUrl: this.authService.getApiUrl()
+    };
   }
 }
