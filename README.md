@@ -87,3 +87,7 @@ failure, check `list` before retrying: the upload may have succeeded.
 - [General Luzmo AGENTS.md](https://developer.luzmo.com/AGENTS.md)
 - [Public repository with example Luzmo Custom Charts](https://github.com/luzmo-official/custom-chart-examples)
 - [Custom Charts academy article](https://academy.luzmo.com/article/xtau1755)
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
