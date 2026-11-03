@@ -14,7 +14,7 @@ A local development environment for building, previewing, and packaging Luzmo Cu
 
 ### Prerequisites
 
-- Node.js v22.13 or newer.
+- Node.js v22.22 or newer.
 - npm
 
 ### Installation
