@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const archiver = require('archiver');
+const { ZipArchive } = require('archiver');
 const validateManifest = require('./validate-manifest');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -12,7 +12,7 @@ function createArchive() {
     console.log('Creating ZIP archive...');
 
     const output = fs.createWriteStream(outputZipPath);
-    const archive = archiver('zip', {
+    const archive = new ZipArchive({
       zlib: { level: 9 } // Maximum compression level
     });
 
