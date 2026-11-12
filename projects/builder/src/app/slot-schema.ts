@@ -65,6 +65,7 @@ const slotConfigSchema = z
     canAcceptMultipleDataFields: z.boolean().optional(),
     clearWhenOtherSlotHasMultipleItems: z.array(slotNameSchema).optional(),
     description: z.string().optional(),
+    context: z.object({ description: z.string() }).optional(),
     isHidden: z.boolean().optional(),
     isRequired: z.boolean().optional(),
     keepOnlyFirstWhenOtherSlotFilled: z.array(slotNameSchema).optional(),

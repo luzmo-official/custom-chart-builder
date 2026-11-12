@@ -1,7 +1,12 @@
 {
+  "context": {
+    "description": "Vertical column chart with one column per category, optionally split by a legend. Use for comparing a value across a handful of categories.",
+    "synonyms": ["column chart", "vertical bar"]
+  },
   "slots": [
     {
       "name": "category",
+      "context": { "description": "One column per value along the horizontal axis. Use a hierarchy or datetime column for the categories." },
       "rotate": false,
       "label": "Category",
       "type": "categorical",
@@ -14,6 +19,7 @@
     },
     {
       "name": "measure",
+      "context": { "description": "The numeric value shown as column height. Apply the aggregation requested by the user." },
       "rotate": true,
       "label": "Value",
       "type": "numeric",
@@ -26,6 +32,7 @@
     },
     {
       "name": "legend",
+      "context": { "description": "Optional grouping column to split each category into colored series." },
       "rotate": false,
       "label": "Legend",
       "type": "categorical",
