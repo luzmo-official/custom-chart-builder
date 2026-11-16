@@ -40,13 +40,23 @@ describe('manifest AI context validation', () => {
     expect(validate({ context: { description: 'Compare categories' }, slots: [] })).toBe(true);
   });
 
-  it.each([null, 'text', {}, { description: 1 }, { description: 'text', synonyms: 'bar' }, { description: 'text', synonyms: [1] }])(
+  it.each([
+    null,
+    'text',
+    {},
+    { description: 1 },
+    { description: '' },
+    { description: ' ' },
+    { description: 'text', synonyms: 'bar' },
+    { description: 'text', synonyms: [1] },
+    { description: 'text', synonyms: [''] }
+  ])(
     'rejects invalid chart context %j', (context) => {
       expect(validate({ context, slots: [] })).toBe(false);
     }
   );
 
-  it.each([null, 'text', {}, { description: false }])('rejects invalid slot context %j', (context) => {
+  it.each([null, 'text', {}, { description: false }, { description: '' }])('rejects invalid slot context %j', (context) => {
     expect(validate({ slots: [{ name: 'measure', context }] })).toBe(false);
   });
 
