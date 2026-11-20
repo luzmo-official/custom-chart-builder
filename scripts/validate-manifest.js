@@ -15,6 +15,7 @@ require('ts-node').register({
 const { SlotsConfigSchema } = require('../projects/builder/src/app/slot-schema.ts');
 const { OptionsConfigSchema } = require('../projects/builder/src/app/options-schema.ts');
 const { TranslationsConfigSchema } = require('../projects/builder/src/app/translations-schema.ts');
+const { ChartContextSchema } = require('../projects/builder/src/app/context-schema.ts');
 
 const manifestPath = path.join(__dirname, '../projects/custom-chart/src/manifest.json');
 
@@ -46,15 +47,15 @@ function formatValidationPath(segments, manifest, propertyName, identifierName) 
   return formattedPath;
 }
 
-function validateManifest() {
+function validateManifest(filePath = manifestPath) {
   try {
     console.log('Validating manifest.json...');
 
-    if (!fs.existsSync(manifestPath)) {
-      throw new Error(`manifest.json not found at ${manifestPath}`);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`manifest.json not found at ${filePath}`);
     }
 
-    const manifestContent = fs.readFileSync(manifestPath, 'utf8');
+    const manifestContent = fs.readFileSync(filePath, 'utf8');
     const manifest = JSON.parse(manifestContent);
 
     if (!manifest.slots || !Array.isArray(manifest.slots)) {
@@ -71,6 +72,19 @@ function validateManifest() {
 
       console.error(`❌ Validation failed:\n${formattedErrors}`);
       return false;
+    }
+
+    if (manifest.context !== undefined) {
+      const contextResult = ChartContextSchema.safeParse(manifest.context);
+
+      if (!contextResult.success) {
+        const formattedErrors = contextResult.error.issues
+          .map((err) => `${formatValidationPath(err.path, manifest, 'context')}: ${err.message}`)
+          .join('\n');
+
+        console.error(`❌ Validation failed:\n${formattedErrors}`);
+        return false;
+      }
     }
 
     if (manifest.options !== undefined) {
